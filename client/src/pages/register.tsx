@@ -50,7 +50,7 @@ export default function Register() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Create an Account</CardTitle>
-          <CardDescription>Sign up to start using SplitPal</CardDescription>
+          <CardDescription>Sign up to start using Quozen</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

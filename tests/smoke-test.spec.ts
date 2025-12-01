@@ -5,7 +5,7 @@ test('homepage redirects to login and has correct title', async ({ page }) => {
   await page.goto('/');
 
   // 1. Check if the title is correct (which we just fixed)
-  await expect(page).toHaveTitle(/SplitPal: Expense Sharing/);
+  await expect(page).toHaveTitle(/Quozen: Expense Sharing/);
 
   // 2. Check that the page redirected to /login
   await expect(page).toHaveURL(/.*login/);

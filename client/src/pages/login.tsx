@@ -59,7 +59,7 @@ export default function Login() {
     <div className="container mx-auto p-4 flex items-center justify-center min-h-screen">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Welcome to SplitPal</CardTitle>
+          <CardTitle>Welcome to Quozen</CardTitle>
           <CardDescription>Please sign in to continue</CardDescription>
         </CardHeader>
         <CardContent>

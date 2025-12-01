@@ -1,6 +1,6 @@
 # .github/workflows/ci.yml
 
-name: 'SplitPal CI'
+name: 'Quozen CI'
 
 on:
   pull_request:
