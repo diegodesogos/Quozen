@@ -135,7 +135,7 @@ export class GoogleSheetsStorage implements IStorage {
       const spreadsheet = await this.sheets.spreadsheets.create({
         requestBody: {
           properties: {
-            title: `SplitPal - ${groupName}`,
+            title: `Quozen - ${groupName}`,
           },
           sheets: [
             {

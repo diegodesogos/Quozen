@@ -1,7 +1,7 @@
-# SplitPal Authentication and Authorization
+# Quozen Authentication and Authorization
 
 ## Overview
-This document provides details about the authentication and authorization system in SplitPal, including role-based access control (RBAC) and session management.
+This document provides details about the authentication and authorization system in Quozen, including role-based access control (RBAC) and session management.
 
 ## Roles and Permissions
 
@@ -38,7 +38,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 ## Authentication System
 
 ### Token-Based Authentication
-SplitPal uses JSON Web Tokens (JWT) for stateless authentication:
+Quozen uses JSON Web Tokens (JWT) for stateless authentication:
 
 - **Token Generation**: Server generates JWT after successful OAuth or username/password authentication
 - **Token Contents**: 

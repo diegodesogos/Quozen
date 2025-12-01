@@ -1,7 +1,7 @@
-# SplitPal: Expense Sharing Mobile App
+# Quozen: Expense Sharing Mobile App
 
 ## Overview
-SplitPal is a mobile-first expense sharing application built with React, TypeScript, and Express.js. It allows users to create groups, track shared expenses, calculate balances, and settle debts between group members. The app features a clean, modern UI optimized for mobile devices.
+Quozen is a mobile-first expense sharing application built with React, TypeScript, and Express.js. It allows users to create groups, track shared expenses, calculate balances, and settle debts between group members. The app features a clean, modern UI optimized for mobile devices.
 
 ## System Architecture
 
@@ -65,11 +65,11 @@ SplitPal is a mobile-first expense sharing application built with React, TypeScr
 
 ## Authentication and Authorization
 
-SplitPal uses a robust authentication and authorization system with role-based access control (RBAC). For detailed information about roles, permissions, and session management, refer to the [Authentication and Authorization README](README-AUTH.md).
+Quozen uses a robust authentication and authorization system with role-based access control (RBAC). For detailed information about roles, permissions, and session management, refer to the [Authentication and Authorization README](README-AUTH.md).
 
 
 ### Authentication
-SplitPal uses JWT (JSON Web Tokens) for authentication, supporting both Google OAuth 2.0 and username/password login. All API requests are made using an Axios instance provided by the AuthProvider (`axiosWithAuth`), which automatically attaches the JWT from in-memory state to the Authorization header.
+Quozen uses JWT (JSON Web Tokens) for authentication, supporting both Google OAuth 2.0 and username/password login. All API requests are made using an Axios instance provided by the AuthProvider (`axiosWithAuth`), which automatically attaches the JWT from in-memory state to the Authorization header.
 
 - **Setup Requirements**:
   1. Create credentials in [Google Cloud Console](https://console.cloud.google.com/):
@@ -116,7 +116,7 @@ SplitPal uses JWT (JSON Web Tokens) for authentication, supporting both Google O
 
 ## Storage System
 
-The storage system in SplitPal supports multiple implementations, including in-memory storage, PostgreSQL, Supabase, and Google Sheets. It uses a factory pattern to dynamically select the appropriate storage type based on the environment.
+The storage system in Quozen supports multiple implementations, including in-memory storage, PostgreSQL, Supabase, and Google Sheets. It uses a factory pattern to dynamically select the appropriate storage type based on the environment.
 
 For detailed setup and configuration instructions, refer to the [Storage System README](server/storage/README.md).
 

@@ -1,6 +1,6 @@
 # Storage System
 
-This directory contains the storage abstraction layer for SplitPal, allowing different storage implementations based on the deployment environment.
+This directory contains the storage abstraction layer for Quozen, allowing different storage implementations based on the deployment environment.
 
 ## Architecture
 
@@ -126,8 +126,8 @@ Enable the following APIs in your Google Cloud project:
 1. Go to [APIs & Services > Credentials](https://console.cloud.google.com/apis/credentials)
 2. Click "Create Credentials" > "Service Account"
 3. Fill in the service account details:
-   - Name: `splitpal-sheets-service`
-   - Description: `Service account for SplitPal Google Sheets integration`
+   - Name: `quozen-sheets-service`
+   - Description: `Service account for Quozen Google Sheets integration`
 4. Click "Create and Continue"
 5. Skip the optional steps and click "Done"
 6. Click on the created service account
@@ -147,7 +147,7 @@ Enable the following APIs in your Google Cloud project:
 ### 4. Create Root Spreadsheet
 
 1. Create a new Google Spreadsheet
-2. Name it "SplitPal Root" or similar
+2. Name it "Quozen Root" or similar
 3. Copy the spreadsheet ID from the URL (the long string between `/d/` and `/edit`)
 4. This will be your `GOOGLE_SHEETS_ID`
 

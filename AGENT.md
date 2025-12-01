@@ -1,7 +1,7 @@
-# AI Coding Agent Guidelines for SplitPal
+# AI Coding Agent Guidelines for Quozen
 
 ## Overview
-SplitPal is a mobile-first expense sharing application with a full-stack architecture. This document provides essential knowledge to help AI coding agents contribute effectively to the codebase.
+Quozen is a mobile-first expense sharing application with a full-stack architecture. This document provides essential knowledge to help AI coding agents contribute effectively to the codebase.
 
 ## Key Conventions
 
