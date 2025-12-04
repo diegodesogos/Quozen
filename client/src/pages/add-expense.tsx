@@ -42,21 +42,21 @@ export default function AddExpense() {
   const [splits, setSplits] = useState<ExpenseSplit[]>([]);
 
   const { data: users = [] } = useQuery<User[]>({
-    queryKey: ["/api/users"], // FIX: Added /api prefix
+    queryKey: ["/api/users"],
   });
 
   const { data: group } = useQuery<Group>({
-    queryKey: ["/api/groups", activeGroupId], // FIX: Added /api prefix
+    queryKey: ["/api/groups", activeGroupId],
     enabled: !!activeGroupId,
   });
 
   const expenseMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("POST", "/api/expenses", data); // FIX: Added /api prefix
+      return await apiRequest("POST", "/api/expenses", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/groups", activeGroupId, "expenses"] }); // FIX: Added /api prefix
-      queryClient.invalidateQueries({ queryKey: ["/api/groups", activeGroupId, "balances"] }); // FIX: Added /api prefix
+      queryClient.invalidateQueries({ queryKey: ["/api/groups", activeGroupId, "expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/groups", activeGroupId, "balances"] });
       toast({
         title: "Expense added",
         description: "Your expense has been added successfully.",
@@ -74,11 +74,14 @@ export default function AddExpense() {
 
   const getUserById = (id: string) => users.find(u => u.id === id);
 
-  const updateSplitEqually = () => {
-    if (!amount) return;
+  // FIX: Accept currentAmount as an argument to use the latest value immediately
+  const updateSplitEqually = (currentAmount: string) => {
+    if (!currentAmount) return;
     
     const selectedSplits = splits.filter(s => s.selected);
-    const splitAmount = parseFloat(amount) / selectedSplits.length;
+    if (selectedSplits.length === 0) return;
+
+    const splitAmount = parseFloat(currentAmount) / selectedSplits.length;
     
     setSplits(prev => 
       prev.map(split => ({
@@ -91,20 +94,31 @@ export default function AddExpense() {
   const handleAmountChange = (value: string) => {
     setAmount(value);
     if (value && splits.length > 0) {
-      setTimeout(updateSplitEqually, 0);
+      updateSplitEqually(value); // FIX: Pass value directly
     }
   };
 
   const handleSplitSelection = (userId: string, selected: boolean) => {
-    setSplits(prev => 
-      prev.map(split => 
-        split.userId === userId ? { ...split, selected } : split
-      )
-    );
-    
-    if (amount) {
-      setTimeout(updateSplitEqually, 0);
-    }
+    // We need to update state first, then recalculate based on the new selection state
+    // But since state updates are async, we can calculate the new state here
+    setSplits(prev => {
+        const newSplits = prev.map(split => 
+            split.userId === userId ? { ...split, selected } : split
+        );
+        
+        // Recalculate amounts if we have a total amount
+        if (amount) {
+            const selectedCount = newSplits.filter(s => s.selected).length;
+            if (selectedCount > 0) {
+                const splitVal = parseFloat(amount) / selectedCount;
+                return newSplits.map(s => ({
+                    ...s,
+                    amount: s.selected ? splitVal : 0
+                }));
+            }
+        }
+        return newSplits;
+    });
   };
 
   const handleSplitAmountChange = (userId: string, newAmount: string) => {
@@ -118,13 +132,19 @@ export default function AddExpense() {
 
   const handleSelectAll = () => {
     const allSelected = splits.every(s => s.selected);
-    setSplits(prev => 
-      prev.map(split => ({ ...split, selected: !allSelected }))
-    );
-    
-    if (amount) {
-      setTimeout(updateSplitEqually, 0);
-    }
+    const newSelectedState = !allSelected;
+
+    setSplits(prev => {
+        const newSplits = prev.map(split => ({ ...split, selected: newSelectedState }));
+        
+        if (amount && newSelectedState) {
+             const splitVal = parseFloat(amount) / newSplits.length;
+             return newSplits.map(s => ({ ...s, amount: splitVal }));
+        } else if (!newSelectedState) {
+             return newSplits.map(s => ({ ...s, amount: 0 }));
+        }
+        return newSplits;
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -152,7 +172,8 @@ export default function AddExpense() {
     const totalSplit = selectedSplits.reduce((sum, s) => sum + s.amount, 0);
     const expenseAmount = parseFloat(amount);
     
-    if (Math.abs(totalSplit - expenseAmount) > 0.01) {
+    // Allow small floating point differences
+    if (Math.abs(totalSplit - expenseAmount) > 0.05) {
       toast({
         title: "Split mismatch",
         description: `Split amounts ($${totalSplit.toFixed(2)}) don't match expense amount ($${expenseAmount.toFixed(2)}).`,
@@ -172,7 +193,6 @@ export default function AddExpense() {
     });
   };
 
-  // Initialize splits when group data is loaded
   useEffect(() => {
     if (group && splits.length === 0) {
       const initialSplits = group.participants.map(userId => ({
