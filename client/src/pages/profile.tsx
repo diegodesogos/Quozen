@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
+import { useAuth } from "@/context/auth-provider";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { User, Settings, HelpCircle, LogOut, Mail, Phone } from "lucide-react";
+import { User as UserIcon, Settings, HelpCircle, LogOut, Mail } from "lucide-react";
 
 interface UserData {
   id: string;
@@ -13,6 +14,7 @@ interface UserData {
 
 export default function Profile() {
   const { currentUserId } = useAppContext();
+  const { logout } = useAuth();
 
   const { data: user } = useQuery<UserData>({
     queryKey: ["/api/users", currentUserId],
@@ -22,6 +24,10 @@ export default function Profile() {
   const { data: groups = [] } = useQuery<any[]>({
     queryKey: ["/api/users", currentUserId, "groups"],
   });
+
+  const handleLogout = () => {
+    logout();
+  };
 
   if (!user) {
     return (
@@ -41,7 +47,7 @@ export default function Profile() {
         <CardContent className="p-6">
           <div className="flex items-center space-x-4">
             <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center">
-              <User className="w-8 h-8 text-primary-foreground" />
+              <UserIcon className="w-8 h-8 text-primary-foreground" />
             </div>
             <div className="flex-1">
               <h2 className="text-xl font-bold text-foreground" data-testid="text-user-name">
@@ -88,7 +94,7 @@ export default function Profile() {
               className="w-full justify-start" 
               data-testid="button-edit-profile"
             >
-              <User className="w-4 h-4 mr-3" />
+              <UserIcon className="w-4 h-4 mr-3" />
               Edit Profile
             </Button>
             <Button 
@@ -135,6 +141,7 @@ export default function Profile() {
             variant="ghost" 
             className="w-full justify-start text-destructive hover:text-destructive" 
             data-testid="button-sign-out"
+            onClick={handleLogout}
           >
             <LogOut className="w-4 h-4 mr-3" />
             Sign Out
