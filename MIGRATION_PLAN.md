@@ -1,92 +1,63 @@
-# Migration Plan: From Client-Server to Decentralized Architecture (Google Sheets + JSON)
+# Migration Plan: Decentralized Architecture (Google Drive)
 
-## 1. Objective and Context
+This plan outlines the steps to migrate Quozen from a centralized Backend/Database architecture to a decentralized Client/Google Drive architecture.
 
-Transform "Quozen" from a traditional web application (React + Express + PostgreSQL) into a **decentralized Single Page Application (SPA)** that uses **Google Sheets** as a database.
+## Phase 1: Setup & Dependencies (✅ Completed)
+- [x] **Install Client Dependencies**
+  - Added `@react-oauth/google` for client-side authentication.
+  - Added `gapi-script` (if needed) or relied on the react wrapper.
+- [x] **Environment Configuration**
+  - Updated `.env` to include `VITE_GOOGLE_CLIENT_ID`.
 
-* **Philosophy:** "Your data, your spreadsheet." The app acts solely as a UI layer to manage a shared Excel/Sheet file.
+## Phase 2: Authentication (✅ Completed)
+- [x] **Replace Auth Provider**
+  - Updated `client/src/context/auth-provider.tsx` to use Google OAuth implicit flow.
+  - Removed backend dependency for session management.
+- [x] **Update Login Page**
+  - Updated `client/src/pages/login.tsx` to use the Google Sign-In button.
+  - Removed username/password forms.
+- [x] **Update Entry Point**
+  - Wrapped `App` in `GoogleOAuthProvider` in `client/src/main.tsx`.
+- [x] **Verify Tests**
+  - Updated `login.test.tsx` to match the new UI.
 
-* **Data Strategy:** Hybrid Tabular/JSON Model. We use spreadsheet rows for main records and JSON within specific cells for nested data, ensuring write atomicity for complex objects like expense splits.
+## Phase 3: Data Layer Migration (✅ Completed)
+- [x] **Google Drive Client Library**
+  - Created/Updated `client/src/lib/drive.ts` to handle:
+    - Listing files (Groups).
+    - Creating Spreadsheets (New Groups).
+    - Reading/Parsing Sheet data (Expenses/Members).
+    - Appending rows (Add Expense/Settlement).
+- [x] **Groups Feature**
+  - Updated `client/src/pages/groups.tsx` to list and create files in Drive.
+  - Updated `client/src/App.tsx` to handle initial group loading.
+  - Updated `groups.test.tsx`.
+- [x] **Expenses Feature**
+  - Updated `client/src/pages/expenses.tsx` to read from the active Sheet.
+  - Updated `client/src/pages/add-expense.tsx` to write to the active Sheet.
+  - Updated `expenses.test.tsx` and `add-expense.test.tsx`.
+- [x] **Dashboard & Calculations**
+  - Updated `client/src/pages/dashboard.tsx` to fetch sheet data and calculate balances client-side (replacing the `/api/groups/:id/stats` endpoint).
+  - Updated `dashboard.test.tsx`.
+- [x] **Profile & Navigation**
+  - Updated `client/src/pages/profile.tsx` to show user info from Google context.
+  - Updated `client/src/components/header.tsx` and `group-switcher-modal.tsx` to use Drive lists.
+  - Updated `profile.test.tsx` and `header.test.tsx`.
 
-## 2. New Data Structure (Spreadsheets)
+## Phase 4: Cleanup & Configuration (⏩ NEXT STEP)
+- [ ] **Remove Backend Proxy**
+  - Update `vite.config.ts` to remove the API proxy to `localhost:5001`.
+- [ ] **Clean Package.json**
+  - Remove backend-specific scripts (`dev:server`, `db:push`, etc.).
+  - Remove backend dependencies (`express`, `drizzle-orm`, `postgres`, etc.) or move them to a legacy folder if keeping for reference.
+- [ ] **Remove Server Code**
+  - Archive or delete the `server/` directory.
+  - Archive or delete the `shared/` directory (if schema is fully migrated to `drive.ts`).
+- [ ] **Update Documentation**
+  - Final polish on `README.md` to remove instructions for running the backend database.
 
-Each group will be a distinct Google Spreadsheet file. We eliminate separate sheets for 1:N relationships (like splits) to avoid transaction issues across multiple sheets.
-
-**File:** `Quozen - [Group Name]` (Spreadsheet)
-
-### Sheet: `Expenses` (Transactional)
-
-Columns:
-
-1. `id` (UUID)
-
-2. `date` (ISO8601)
-
-3. `description` (Text)
-
-4. `amount` (Number)
-
-5. `paidBy` (User ID / Email)
-
-6. `category` (Text)
-
-7. **`splits` (JSON)**: Serialized array containing split details. e.g., `[{"userId":"A","amount":50}, {"userId":"B","amount":50}]`.
-
-8. `meta` (Optional JSON): Timestamps, edit history, etc.
-
-### Sheet: `Settlements` (Payments/Balances)
-
-Columns: `id`, `date`, `fromUser`, `toUser`, `amount`, `method`, `notes`.
-
-### Sheet: `Members` (Group Metadata)
-
-Columns: `userId`, `email`, `name`, `role`, `joinedAt`.
-
-## 3. Execution Plan by Phases
-
-### Phase 1: Environment Setup & Client API
-
-* [ ] **Task 1.1: Project Configuration**
-
-  * Update `.env` with Google Cloud credentials (`VITE_GOOGLE_CLIENT_ID`, etc.).
-
-  * Enable **Google Drive API** and **Google Sheets API** in the Google Cloud Console.
-
-* [ ] **Task 1.2: Unified Google Client (`client/src/lib/drive.ts`)**
-
-  * Adapt the client to handle the structure with JSON columns.
-
-  * Implement automatic parser/serializer for complex data columns.
-
-### Phase 2: Authentication (OAuth2 PKCE)
-
-* [ ] **Task 2.1: Implement Auth Provider**
-
-  * Pure client-side PKCE flow.
-
-  * Required Scopes: `https://www.googleapis.com/auth/spreadsheets`, `https://www.googleapis.com/auth/drive.file`.
-
-### Phase 3: Data Layer (Business Logic)
-
-* [ ] **Task 3.1: Reading and Parsing (Dashboard)**
-
-  * Read range `Expenses!A2:Z`.
-
-  * **Transformation:** Upon receiving data, parse the `splits` column from JSON String to JS Object so the app consumes it transparently.
-
-  * Calculate balances in-memory by iterating over these objects.
-
-* [ ] **Task 3.2: Group Creation**
-
-  * Create Spreadsheet -> Create sheets (`Expenses`, `Settlements`, `Members`) -> Write Header Rows.
-
-* [ ] **Task 3.3: Atomic Writing (Expenses)**
-
-  * **Add Expense:**
-
-    1. Construct the expense object.
-
-    2. Serialize `splits` to a JSON string.
-
-    3. Execute `sheets.
+## Phase 5: Future Enhancements (Backlog)
+- [ ] **Edit/Delete Operations**: Implement row updates in `drive.ts` (requires finding row index and using `batchUpdate`).
+- [ ] **Real-time Updates**: Implement polling or a manual "Refresh" button since WebSockets are gone.
+- [ ] **Offline Support**: Consider `localStorage` caching for read data.
 

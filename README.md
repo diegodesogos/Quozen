@@ -1,140 +1,71 @@
-# Quozen: Expense Sharing Mobile App
+# Quozen - Decentralized Expense Sharing
 
-## Overview
-Quozen is a mobile-first expense sharing application built with React, TypeScript, and Express.js. It allows users to create groups, track shared expenses, calculate balances, and settle debts between group members. The app features a clean, modern UI optimized for mobile devices.
+Quozen is a modern expense sharing application designed for simplicity and privacy. Unlike traditional split-wise clones that store your financial data on their servers, **Quozen is decentralized**.
 
-## System Architecture
+**Your Data, Your Drive.**
+Quozen operates entirely within your browser (Single Page Application). It uses your personal Google Drive to store groups, expenses, and settlements as standard Google Sheets. This means you own your data, and you can even view or edit it directly in Google Sheets!
 
-### Frontend
-- **Framework**: React 18 with TypeScript, built using Vite.
-- **UI Components**: Shadcn/ui components based on Radix UI primitives.
-- **Styling**: Tailwind CSS with CSS variables for theming.
-- **State Management**: TanStack Query for server state and caching.
-- **Routing**: Wouter for lightweight client-side routing.
-- **Mobile-First Design**: Optimized for mobile with responsive layouts and touch-friendly interfaces.
+## 🚀 Features
 
-### Backend
-- **Framework**: Express.js with TypeScript.
-- **Data Storage**: In-memory storage for development; PostgreSQL schema defined using Drizzle ORM.
-- **Authentication**: Google OAuth 2.0 via Passport.js.
-- **API Design**: RESTful JSON API with consistent error handling.
+* **Google Sign-In**: Secure authentication using your existing Google account.
+* **Decentralized Storage**: Automatically creates a "Quozen" spreadsheet in your Google Drive for every group.
+* **Expense Tracking**: Add expenses with categories, descriptions, and custom splits.
+* **Smart Settlements**: Client-side algorithms calculate who owes whom to simplify debt settlement.
+* **Transparent Data**: Every group is just a Google Sheet. You can export, backup, or analyze your data using Excel/Sheets tools anytime.
 
-### Shared Code
-- **Schemas**: Shared between client and server using Drizzle ORM and Zod for validation.
-- **Utilities**: Common utilities for data manipulation and validation.
+## 🔐 Architecture & Security
 
-## Key Features
+Quozen utilizes **Client-Side OAuth 2.0** via Google Identity Services. There is **no backend server** handling your login or data. The relationship is strictly **You ↔ Google**.
 
-- **Expense Splitting**: Flexible splitting system allowing custom amounts per user with automatic validation.
-- **Balance Calculation**: Real-time balance computation showing who owes whom and settlement suggestions.
-- **Group Management**: Multi-user groups with participant management and expense categorization.
-- **Settlement Tracking**: Record and track debt settlements between users with multiple payment methods.
+### How it Works
+1.  **Implicit Grant Flow**: When you sign in, the app requests an access token directly from Google.
+2.  **Token Storage**: The access token is stored securely in your browser's memory for the duration of the session.
+3.  **Direct API Calls**: The app uses this token to fetch/update files directly via the Google Drive and Sheets APIs.
 
-## Development Setup
+### Required Permissions (Scopes)
+To function, Quozen requests these specific permissions:
+
+* `https://www.googleapis.com/auth/drive.file`: **File Management.** Allows Quozen to access *only* the files it creates. It **cannot** see your personal photos, docs, or other spreadsheets.
+* `https://www.googleapis.com/auth/spreadsheets`: **Data Operations.** Allows reading and writing expenses to the specific group sheets.
+* `email` & `profile`: **Identity.** Used to display your name/avatar and identify you in expense splits.
+
+## 🛠 Tech Stack
+
+* **Frontend**: React, TypeScript, Vite
+* **Styling**: Tailwind CSS, Shadcn UI
+* **State Management**: TanStack Query (React Query)
+* **Authentication & Data**: Google Identity Services & Google Drive/Sheets API v4
+
+## 🏃‍♂️ Getting Started
 
 ### Prerequisites
-- Node.js 18+
-- npm or yarn
 
-### Local Development
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-2. Start the development server:
-   ```bash
-   npm run dev
-   ```
-3. Access the app at `http://localhost:3000`.
+1.  Node.js installed.
+2.  A Google Cloud Console project with **Google Drive API** and **Google Sheets API** enabled.
+3.  An OAuth 2.0 Client ID configured for your development URL (e.g., `http://localhost:3001`).
 
-### Testing
-- Unit tests are written using Jest. Run tests with:
-  ```bash
-  npm run test
-  ```
+### Installation
 
-### Building for Production
-- Build the client and server:
-  ```bash
-  npm run build
-  ```
-- Start the production server:
-  ```bash
-  npm run start
-  ```
+1.  Clone the repository.
+2.  Install dependencies:
+    ```bash
+    npm install
+    ```
+3.  Create a `.env` file in the root directory:
+    ```env
+    VITE_GOOGLE_CLIENT_ID=your_google_client_id_here
+    ```
+4.  Start the development server:
+    ```bash
+    npm run dev
+    ```
 
-## Authentication and Authorization
+5.  Open `http://localhost:3001` in your browser.
 
-Quozen uses a robust authentication and authorization system with role-based access control (RBAC). For detailed information about roles, permissions, and session management, refer to the [Authentication and Authorization README](README-AUTH.md).
+## 🧪 Testing
 
+Run the client-side test suite:
 
-### Authentication
-Quozen uses JWT (JSON Web Tokens) for authentication, supporting both Google OAuth 2.0 and username/password login. All API requests are made using an Axios instance provided by the AuthProvider (`axiosWithAuth`), which automatically attaches the JWT from in-memory state to the Authorization header.
+```bash
+npm run test:client
 
-- **Setup Requirements**:
-  1. Create credentials in [Google Cloud Console](https://console.cloud.google.com/):
-     - Enable Google OAuth API.
-     - Create OAuth 2.0 Client ID (Web Application type).
-     - Add authorized redirect URIs:
-       - Local: `http://localhost:5001/api/auth/google/callback`
-       - Production: `https://your-domain.com/api/auth/google/callback`
-  2. Set environment variables:
-     ```bash
-     GOOGLE_CLIENT_ID=your_client_id
-     GOOGLE_CLIENT_SECRET=your_client_secret
-     JWT_SECRET=your_secure_jwt_secret
-     ```
-
-- **Authentication Flow**:
-  1. User initiates Google OAuth login or registers with username/password
-  2. After successful authentication, server generates a JWT token
-  3. Token is returned in the JSON response
-  4. Frontend stores token in memory (React state) and includes it in the Authorization header for all API requests (handled by the AuthProvider's Axios instance)
-  5. Protected routes verify token validity
-
-### Authorization
-- **Role-Based Access Control (RBAC)**:
-  - `admin`: Full access to all resources.
-  - `member`: Read/write access within their groups.
-  - `viewer`: Read-only access within their groups.
-
-## External Dependencies
-
-- **Database**: Neon Database for PostgreSQL in production.
-- **UI Libraries**: Radix UI, Tailwind CSS, Lucide React.
-- **State Management**: TanStack Query, React Hook Form.
-- **API Requests**: Axios (with centralized instance and JWT handling)
-
-## Deployment
-
-### Vercel Deployment
-- Use `vercel.json` for configuration.
-- Ensure environment variables are set for production.
-
-### Google Sheets Integration
-- Follow the setup guide in `server/storage/README.md` for Google Sheets storage.
-
-## Storage System
-
-The storage system in Quozen supports multiple implementations, including in-memory storage, PostgreSQL, Supabase, and Google Sheets. It uses a factory pattern to dynamically select the appropriate storage type based on the environment.
-
-For detailed setup and configuration instructions, refer to the [Storage System README](server/storage/README.md).
-
-## File Structure
-
-```
-├── client/              # React frontend
-│   ├── src/            # React source code
-│   └── index.html      # HTML template
-├── server/             # Express backend
-│   ├── index.ts        # Main server file
-│   ├── routes.ts       # API routes
-│   └── storage/        # Data layer
-├── shared/             # Shared types/schemas
-├── api/                # React frontend
-│   ├── index.js        # Cloud deployment entry point for backend (specifically for Vercel's automatic conversion to Functions)
-├── dist/               # Built files (generated)
-│   ├── client/         # Built React app
-│   └── server/         # Built Express app
-└── package.json        # Root package.json
-```
