@@ -3,15 +3,13 @@ import { getAuthToken } from "./tokenStore";
 const DRIVE_API_URL = "https://www.googleapis.com/drive/v3";
 const SHEETS_API_URL = "https://sheets.googleapis.com/v4/spreadsheets";
 
-// Schema Definitions.
-// NOTE: 'splits' in Expenses is a column that will contain a JSON string.
-const SCHEMAS = {
+// Schema Definitions
+export const SCHEMAS = {
   Expenses: ["id", "date", "description", "amount", "paidBy", "category", "splits", "meta"],
   Settlements: ["id", "date", "fromUserId", "toUserId", "amount", "method", "notes"],
   Members: ["userId", "email", "name", "role", "joinedAt"]
 };
 
-// Helper to get authorization headers
 const getHeaders = () => {
   const token = getAuthToken();
   if (!token) throw new Error("No access token found");
@@ -24,10 +22,8 @@ const getHeaders = () => {
 export const googleApi = {
   // --- DRIVE API (File Management) ---
 
-  /**
-   * List Spreadsheets created by the app (or opened by it)
-   */
   async listGroups() {
+    // Filter for Spreadsheets created by the app (approximate check by name/mimeType)
     const query = "mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false";
     const fields = "files(id, name, createdTime)";
     
@@ -35,24 +31,34 @@ export const googleApi = {
       `${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}`,
       { headers: getHeaders() }
     );
+    
     if (!response.ok) throw new Error("Error listing groups");
-    return (await response.json()).files || [];
+    const data = await response.json();
+    
+    // Map Drive files to Group interface
+    return (data.files || []).map((file: any) => ({
+      id: file.id,
+      name: file.name.replace(/^Quozen - /, ''),
+      description: "Google Sheet Group",
+      createdBy: "me",
+      participants: [], 
+      createdAt: file.createdTime
+    }));
   },
 
-  /**
-   * Create a new Group Spreadsheet and configure initial sheets and headers
-   */
-  async createGroupSheet(title: string, user: { id: string, email: string, name: string }) {
-    // 1. Create the Spreadsheet with the required sheets
+  async createGroupSheet(name: string, user: { id: string, email: string, name: string }) {
+    const title = `Quozen - ${name}`;
+    
+    // 1. Create Spreadsheet
     const createRes = await fetch(SHEETS_API_URL, {
       method: "POST",
       headers: getHeaders(),
       body: JSON.stringify({
         properties: { title },
         sheets: [
-          { properties: { title: "Expenses" } },
-          { properties: { title: "Settlements" } },
-          { properties: { title: "Members" } }
+          { properties: { title: "Expenses", gridProperties: { frozenRowCount: 1 } } },
+          { properties: { title: "Settlements", gridProperties: { frozenRowCount: 1 } } },
+          { properties: { title: "Members", gridProperties: { frozenRowCount: 1 } } }
         ]
       })
     });
@@ -61,14 +67,13 @@ export const googleApi = {
     const sheetFile = await createRes.json();
     const spreadsheetId = sheetFile.spreadsheetId;
 
-    // 2. Write headers and the initial member (creator)
+    // 2. Write Headers and Initial Member
     const valuesBody = {
       valueInputOption: "USER_ENTERED",
       data: [
         { range: "Expenses!A1", values: [SCHEMAS.Expenses] },
         { range: "Settlements!A1", values: [SCHEMAS.Settlements] },
         { range: "Members!A1", values: [SCHEMAS.Members] },
-        // Add creator as admin
         { range: "Members!A2", values: [[user.id, user.email, user.name, "admin", new Date().toISOString()]] }
       ]
     };
@@ -79,16 +84,19 @@ export const googleApi = {
       body: JSON.stringify(valuesBody)
     });
 
-    return sheetFile;
+    return {
+      id: spreadsheetId,
+      name: name,
+      participants: [user.id],
+      createdAt: new Date().toISOString()
+    };
   },
 
   // --- SHEETS API (Data Operations) ---
 
-  /**
-   * Fetch all group data and parse it into objects
-   */
   async getGroupData(spreadsheetId: string) {
-    // Request data ranges (assuming < 10k rows for now)
+    if (!spreadsheetId) return null;
+    
     const ranges = ["Expenses!A2:Z", "Settlements!A2:Z", "Members!A2:Z"];
     const url = `${SHEETS_API_URL}/${spreadsheetId}/values:batchGet?majorDimension=ROWS&${ranges.map(r => `ranges=${r}`).join('&')}`;
     
@@ -96,23 +104,24 @@ export const googleApi = {
     if (!res.ok) throw new Error("Error fetching group data");
     
     const data = await res.json();
-    const valueRanges = data.valueRanges; // Array of results in requested order
+    const valueRanges = data.valueRanges; 
 
-    // Helper to convert array of arrays to array of objects
     const mapRows = (rows: any[][], schema: string[]) => {
       if (!rows) return [];
-      return rows.map(row => {
-        const obj: any = {};
+      return rows.map((row, i) => {
+        const obj: any = { _rowIndex: i + 2 }; 
         schema.forEach((key, index) => {
           let value = row[index];
-          // Automatically detect and parse JSON for fields like 'splits' or 'meta'
           if (key === 'splits' || key === 'meta') {
             try {
-              value = value ? JSON.parse(value) : []; // Default to empty array/obj if empty
+              value = value ? JSON.parse(value) : [];
             } catch (e) {
-              console.warn(`Failed to parse JSON for field ${key}`, value);
-              value = null;
+              value = [];
             }
+          }
+          // Special handling for numeric fields to ensure they are numbers
+          if (['amount'].includes(key) && value) {
+             value = parseFloat(value); 
           }
           obj[key] = value;
         });
@@ -127,16 +136,10 @@ export const googleApi = {
     };
   },
 
-  /**
-   * Append a row. Handles serialization of Objects/Arrays to JSON Strings.
-   */
   async addRow(spreadsheetId: string, sheetName: keyof typeof SCHEMAS, data: any) {
     const schema = SCHEMAS[sheetName];
-    
-    // Sort data according to schema and serialize objects
     const rowValues = schema.map(key => {
       const val = data[key];
-      // Serialize objects/arrays to string to save them in a single cell
       if (typeof val === 'object' && val !== null) {
         return JSON.stringify(val);
       }
@@ -144,16 +147,31 @@ export const googleApi = {
     });
 
     const url = `${SHEETS_API_URL}/${spreadsheetId}/values/${sheetName}!A1:append?valueInputOption=USER_ENTERED`;
-    
-    const res = await fetch(url, {
+    await fetch(url, {
       method: "POST",
       headers: getHeaders(),
-      body: JSON.stringify({
-        values: [rowValues]
-      })
+      body: JSON.stringify({ values: [rowValues] })
     });
+  },
 
-    if (!res.ok) throw new Error(`Error adding row to ${sheetName}`);
-    return res.json();
+  // --- Domain Helper Methods ---
+
+  async addExpense(spreadsheetId: string, expenseData: any) {
+    const newExpense = {
+      id: self.crypto.randomUUID(),
+      ...expenseData,
+      splits: expenseData.splits || [],
+      meta: { createdAt: new Date().toISOString() }
+    };
+    return this.addRow(spreadsheetId, "Expenses", newExpense);
+  },
+
+  async addSettlement(spreadsheetId: string, settlementData: any) {
+    const newSettlement = {
+      id: self.crypto.randomUUID(),
+      ...settlementData,
+      date: settlementData.date || new Date().toISOString()
+    };
+    return this.addRow(spreadsheetId, "Settlements", newSettlement);
   }
 };

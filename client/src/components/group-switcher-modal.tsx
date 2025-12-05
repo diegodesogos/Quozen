@@ -4,24 +4,16 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Users, Check, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { googleApi } from "@/lib/drive";
 
-interface Group {
-  id: string;
-  name: string;
-  participants: string[];
-}
-
-interface GroupSwitcherModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-export default function GroupSwitcherModal({ isOpen, onClose }: GroupSwitcherModalProps) {
-  const { activeGroupId, setActiveGroupId, currentUserId } = useAppContext();
+export default function GroupSwitcherModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { activeGroupId, setActiveGroupId } = useAppContext();
   const navigate = useNavigate();
 
-  const { data: groups = [] } = useQuery<Group[]>({
-    queryKey: ["/api/users", currentUserId, "groups"], // FIX: Added /api prefix
+  // Fetch groups from Drive
+  const { data: groups = [] } = useQuery({
+    queryKey: ["drive", "groups"],
+    queryFn: () => googleApi.listGroups(),
   });
 
   const handleSelectGroup = (groupId: string) => {
@@ -40,12 +32,12 @@ export default function GroupSwitcherModal({ isOpen, onClose }: GroupSwitcherMod
         <DialogHeader>
           <DialogTitle className="text-center">Switch Group</DialogTitle>
           <DialogDescription>
-                Fill in the details to create a new group.
+             Select a group to view or create a new one.
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-3 max-h-96 overflow-y-auto">
-          {groups.map((group) => (
+          {groups.map((group: any) => (
             <button
               key={group.id}
               onClick={() => handleSelectGroup(group.id)}
@@ -59,7 +51,7 @@ export default function GroupSwitcherModal({ isOpen, onClose }: GroupSwitcherMod
                 <div className="flex-1">
                   <h4 className="font-semibold text-foreground">{group.name}</h4>
                   <p className="text-sm text-muted-foreground">
-                    {group.participants.length} members
+                    Google Sheet
                   </p>
                 </div>
                 {group.id === activeGroupId && (

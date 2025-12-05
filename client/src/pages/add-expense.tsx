@@ -7,20 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { googleApi } from "@/lib/drive";
 import { useNavigate } from "react-router-dom";
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-}
-
-interface Group {
-  id: string;
-  name: string;
-  participants: string[];
-}
 
 interface ExpenseSplit {
   userId: string;
@@ -41,29 +29,30 @@ export default function AddExpense() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [splits, setSplits] = useState<ExpenseSplit[]>([]);
 
-  const { data: users = [] } = useQuery<User[]>({
-    queryKey: ["/api/users"],
-  });
-
-  const { data: group } = useQuery<Group>({
-    queryKey: ["/api/groups", activeGroupId],
+  // Fetch group data (including members) from Google Sheet
+  const { data: groupData } = useQuery({
+    queryKey: ["drive", "group", activeGroupId],
+    queryFn: () => googleApi.getGroupData(activeGroupId),
     enabled: !!activeGroupId,
   });
 
+  const users = groupData?.members || [];
+
   const expenseMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("POST", "/api/expenses", data);
+      if (!activeGroupId) throw new Error("No active group");
+      return await googleApi.addExpense(activeGroupId, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/groups", activeGroupId, "expenses"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/groups", activeGroupId, "balances"] });
+      queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
       toast({
         title: "Expense added",
-        description: "Your expense has been added successfully.",
+        description: "Your expense has been added to the spreadsheet.",
       });
       navigate("/dashboard");
     },
-    onError: () => {
+    onError: (error) => {
+      console.error(error);
       toast({
         title: "Error",
         description: "Failed to add expense. Please try again.",
@@ -72,9 +61,8 @@ export default function AddExpense() {
     },
   });
 
-  const getUserById = (id: string) => users.find(u => u.id === id);
+  const getUserById = (id: string) => users.find((u: any) => u.userId === id);
 
-  // FIX: Accept currentAmount as an argument to use the latest value immediately
   const updateSplitEqually = (currentAmount: string) => {
     if (!currentAmount) return;
     
@@ -94,19 +82,16 @@ export default function AddExpense() {
   const handleAmountChange = (value: string) => {
     setAmount(value);
     if (value && splits.length > 0) {
-      updateSplitEqually(value); // FIX: Pass value directly
+      updateSplitEqually(value);
     }
   };
 
   const handleSplitSelection = (userId: string, selected: boolean) => {
-    // We need to update state first, then recalculate based on the new selection state
-    // But since state updates are async, we can calculate the new state here
     setSplits(prev => {
         const newSplits = prev.map(split => 
             split.userId === userId ? { ...split, selected } : split
         );
         
-        // Recalculate amounts if we have a total amount
         if (amount) {
             const selectedCount = newSplits.filter(s => s.selected).length;
             if (selectedCount > 0) {
@@ -172,7 +157,6 @@ export default function AddExpense() {
     const totalSplit = selectedSplits.reduce((sum, s) => sum + s.amount, 0);
     const expenseAmount = parseFloat(amount);
     
-    // Allow small floating point differences
     if (Math.abs(totalSplit - expenseAmount) > 0.05) {
       toast({
         title: "Split mismatch",
@@ -183,9 +167,8 @@ export default function AddExpense() {
     }
 
     expenseMutation.mutate({
-      groupId: activeGroupId,
       description,
-      amount: expenseAmount.toFixed(2),
+      amount: expenseAmount, // Send as number
       paidBy,
       category,
       date: new Date(date).toISOString(),
@@ -194,15 +177,16 @@ export default function AddExpense() {
   };
 
   useEffect(() => {
-    if (group && splits.length === 0) {
-      const initialSplits = group.participants.map(userId => ({
-        userId,
+    // Only set initial splits if users are loaded and splits are empty
+    if (users.length > 0 && splits.length === 0) {
+      const initialSplits = users.map((u: any) => ({
+        userId: u.userId,
         amount: 0,
         selected: true,
       }));
       setSplits(initialSplits);
     }
-  }, [group, splits.length]);
+  }, [users, splits.length]);
 
   return (
     <div className="mx-4 mt-4" data-testid="add-expense-view">
@@ -246,14 +230,11 @@ export default function AddExpense() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {group?.participants.map((userId) => {
-                const user = getUserById(userId);
-                return user ? (
-                  <SelectItem key={userId} value={userId}>
-                    {user.id === currentUserId ? "You" : user.name}
-                  </SelectItem>
-                ) : null;
-              })}
+              {users.map((user: any) => (
+                <SelectItem key={user.userId} value={user.userId}>
+                  {user.userId === currentUserId ? "You" : user.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -322,11 +303,11 @@ export default function AddExpense() {
                     <div className="flex items-center space-x-2">
                       <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                         <span className="text-primary-foreground font-medium text-xs">
-                          {user.name.split(' ').map(n => n[0]).join('')}
+                          {user.name.split(' ').map((n: string) => n[0]).join('')}
                         </span>
                       </div>
                       <span className="text-sm font-medium">
-                        {user.id === currentUserId ? "You" : user.name}
+                        {user.userId === currentUserId ? "You" : user.name}
                       </span>
                     </div>
                   </div>

@@ -1,28 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
-import { useAppContext } from "@/context/app-context";
 import { useAuth } from "@/context/auth-provider";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { User as UserIcon, Settings, HelpCircle, LogOut, Mail } from "lucide-react";
-
-interface UserData {
-  id: string;
-  name: string;
-  email: string;
-  username: string;
-}
+import { googleApi } from "@/lib/drive";
 
 export default function Profile() {
-  const { currentUserId } = useAppContext();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
 
-  const { data: user } = useQuery<UserData>({
-    queryKey: ["/api/users", currentUserId],
-    enabled: !!currentUserId,
-  });
-
-  const { data: groups = [] } = useQuery<any[]>({
-    queryKey: ["/api/users", currentUserId, "groups"],
+  // Fetch groups from Drive to show count
+  const { data: groups = [] } = useQuery({
+    queryKey: ["drive", "groups"],
+    queryFn: () => googleApi.listGroups(),
   });
 
   const handleLogout = () => {
@@ -46,8 +35,12 @@ export default function Profile() {
       <Card>
         <CardContent className="p-6">
           <div className="flex items-center space-x-4">
-            <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center">
-              <UserIcon className="w-8 h-8 text-primary-foreground" />
+            <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center overflow-hidden">
+              {user.picture ? (
+                 <img src={user.picture} alt={user.name} className="w-full h-full object-cover" />
+              ) : (
+                 <UserIcon className="w-8 h-8 text-primary-foreground" />
+              )}
             </div>
             <div className="flex-1">
               <h2 className="text-xl font-bold text-foreground" data-testid="text-user-name">
@@ -55,9 +48,6 @@ export default function Profile() {
               </h2>
               <p className="text-muted-foreground" data-testid="text-user-email">
                 {user.email}
-              </p>
-              <p className="text-sm text-muted-foreground" data-testid="text-username">
-                @{user.username}
               </p>
             </div>
           </div>
@@ -77,7 +67,7 @@ export default function Profile() {
         <Card>
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold text-foreground">
-              0
+              -
             </div>
             <p className="text-sm text-muted-foreground">Total Expenses</p>
           </CardContent>
@@ -151,8 +141,8 @@ export default function Profile() {
 
       {/* App Info */}
       <div className="text-center text-xs text-muted-foreground py-4">
-        <p>SplitEase v1.0.0</p>
-        <p>Built with ❤️ for splitting expenses</p>
+        <p>Quozen v1.0.0</p>
+        <p>Decentralized Expense Sharing</p>
       </div>
     </div>
   );

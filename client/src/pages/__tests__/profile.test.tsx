@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import Profile from "../profile";
-import { useAppContext } from "@/context/app-context";
 import { useAuth } from "@/context/auth-provider";
 import { useQuery } from "@tanstack/react-query";
 
@@ -22,12 +21,20 @@ vi.mock("@tanstack/react-query", async (importOriginal) => {
   };
 });
 
+// Mock googleApi
+vi.mock("@/lib/drive", () => ({
+  googleApi: {
+    listGroups: vi.fn(),
+  },
+}));
+
 describe("Profile Page", () => {
   const mockUser = {
     id: "user1",
     name: "Alice Smith",
     email: "alice@example.com",
     username: "alicesmith",
+    picture: "http://example.com/pic.jpg"
   };
 
   const mockGroups = [
@@ -41,27 +48,17 @@ describe("Profile Page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    (useAppContext as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      currentUserId: "user1",
-    });
-
+    // Mock Auth Provider to return user
     (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      user: mockUser,
       logout: mockLogout,
     });
 
+    // Mock Drive Query
     (useQuery as unknown as ReturnType<typeof vi.fn>).mockImplementation(({ queryKey }) => {
-      const key = queryKey[0];
-      
-      // User Profile Data: queryKey = ["/api/users", "user1"] (Length 2)
-      if (key === "/api/users" && queryKey[1] === "user1" && queryKey.length === 2) {
-        return { data: mockUser };
-      }
-      
-      // User Groups Data: queryKey = ["/api/users", "user1", "groups"] (Length 3)
-      if (key === "/api/users" && queryKey[1] === "user1" && queryKey[2] === "groups") {
+      if (Array.isArray(queryKey) && queryKey[0] === "drive" && queryKey[1] === "groups") {
         return { data: mockGroups };
       }
-      
       return { data: undefined };
     });
   });
@@ -71,7 +68,7 @@ describe("Profile Page", () => {
     
     expect(screen.getByTestId("text-user-name")).toHaveTextContent("Alice Smith");
     expect(screen.getByTestId("text-user-email")).toHaveTextContent("alice@example.com");
-    expect(screen.getByTestId("text-username")).toHaveTextContent("@alicesmith");
+    // Note: username display was removed in favor of cleaner UI or merged with email in the new component
   });
 
   it("displays correct statistics", () => {

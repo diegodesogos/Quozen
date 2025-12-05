@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Header from "../header";
 import { useAppContext } from "@/context/app-context";
@@ -11,22 +11,41 @@ vi.mock("@/context/app-context", () => ({
 }));
 
 // Mock the useQuery hook
-vi.mock("@tanstack/react-query", () => ({
-  useQuery: vi.fn(),
+vi.mock("@tanstack/react-query", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@tanstack/react-query")>();
+  return {
+    ...actual,
+    useQuery: vi.fn(),
+  };
+});
+
+// Mock googleApi
+vi.mock("@/lib/drive", () => ({
+  googleApi: {
+    listGroups: vi.fn(),
+    getGroupData: vi.fn(),
+  },
 }));
 
 describe("Header Component", () => {
-  it("renders the header with loading state", () => {
+  const mockGroups = [
+    { id: "group-1", name: "Test Group" },
+    { id: "group-2", name: "Another Group" },
+  ];
+
+  const mockGroupData = {
+    members: [
+      { userId: "u1" }, { userId: "u2" }
+    ]
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("renders the header with loading state/default text when no group selected", () => {
     (useAppContext as unknown as ReturnType<typeof vi.fn>).mockReturnValue({ activeGroupId: null });
-    (useQuery as unknown as ReturnType<typeof vi.fn>).mockImplementation(({ queryKey }) => {
-      if (queryKey[0] === "/api/groups") {
-        return { data: null };
-      }
-      if (queryKey[0] === "/api/users") {
-        return { data: [] };
-      }
-      return { data: [] };
-    });
+    (useQuery as unknown as ReturnType<typeof vi.fn>).mockReturnValue({ data: [] });
 
     render(
       <MemoryRouter>
@@ -35,19 +54,21 @@ describe("Header Component", () => {
     );
 
     expect(screen.getByTestId("header")).toBeInTheDocument();
-    expect(screen.getByText("Loading...")).toBeInTheDocument();
+    expect(screen.getByText("Select Group")).toBeInTheDocument();
   });
 
   it("renders the header with group data", () => {
     (useAppContext as unknown as ReturnType<typeof vi.fn>).mockReturnValue({ activeGroupId: "group-1" });
+    
+    // Mock implementations for multiple queries
     (useQuery as unknown as ReturnType<typeof vi.fn>).mockImplementation(({ queryKey }) => {
-      if (queryKey[0] === "/api/groups") {
-        return { data: { id: "group-1", name: "Test Group", participants: ["User1", "User2"] } };
+      if (queryKey[0] === "drive" && queryKey[1] === "groups") {
+        return { data: mockGroups };
       }
-      if (queryKey[0] === "/api/users") {
-        return { data: [] };
+      if (queryKey[0] === "drive" && queryKey[1] === "group") {
+        return { data: mockGroupData };
       }
-      return { data: [] };
+      return { data: undefined };
     });
 
     render(
@@ -58,22 +79,18 @@ describe("Header Component", () => {
 
     expect(screen.getByTestId("header")).toBeInTheDocument();
     expect(screen.getByText("Test Group")).toBeInTheDocument();
+    // 2 members in mockGroupData
     expect(screen.getByText("2 people")).toBeInTheDocument();
   });
 
-  it("opens the group switcher modal when the button is clicked", () => {
+  it("opens the group switcher modal when the button is clicked", async () => {
     (useAppContext as unknown as ReturnType<typeof vi.fn>).mockReturnValue({ activeGroupId: "group-1" });
+    
     (useQuery as unknown as ReturnType<typeof vi.fn>).mockImplementation(({ queryKey }) => {
-      if (queryKey[0] === "/api/groups") {
-        return { data: { id: "group-1", name: "Test Group", participants: ["User1", "User2"] } };
+      if (queryKey[0] === "drive" && queryKey[1] === "groups") {
+        return { data: mockGroups };
       }
-      if (queryKey[0] === "/api/users") {
-        return { data: [
-          { id: "group-1", name: "Test Group", participants: ["User1", "User2"] },
-          { id: "group-2", name: "Another Group", participants: ["User3"] },
-        ] };
-      }
-      return { data: [] };
+      return { data: undefined };
     });
 
     render(

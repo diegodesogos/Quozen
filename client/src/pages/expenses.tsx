@@ -1,19 +1,15 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 import { Filter, ArrowUpDown, Utensils, Car, Bed, ShoppingBag, Gamepad2, MoreHorizontal, Trash2 } from "lucide-react";
+import { googleApi } from "@/lib/drive";
 
 interface User {
-  id: string;
+  userId: string;
   name: string;
   email: string;
 }
@@ -21,7 +17,7 @@ interface User {
 interface Expense {
   id: string;
   description: string;
-  amount: string;
+  amount: number;
   paidBy: string;
   category: string;
   date: string;
@@ -30,26 +26,24 @@ interface Expense {
 
 export default function Expenses() {
   const { activeGroupId, currentUserId } = useAppContext();
-  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [editDescription, setEditDescription] = useState("");
-  const [editAmount, setEditAmount] = useState("");
-  const [editCategory, setEditCategory] = useState("");
-  const queryClient = useQueryClient();
+  // Edit state reserved for future implementation
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null); 
   const { toast } = useToast();
 
-  const { data: users = [] } = useQuery<User[]>({
-    queryKey: ["/api/users"], // FIX: Added /api prefix
-  });
-
-  const { data: expenses = [] } = useQuery<Expense[]>({
-    queryKey: ["/api/groups", activeGroupId, "expenses"], // FIX: Added /api prefix
+  // Fetch group data
+  const { data: groupData, isLoading } = useQuery({
+    queryKey: ["drive", "group", activeGroupId],
+    queryFn: () => googleApi.getGroupData(activeGroupId),
     enabled: !!activeGroupId,
   });
 
-  const getUserById = (id: string) => users.find(u => u.id === id);
+  const users = (groupData?.members || []) as User[];
+  const expenses = (groupData?.expenses || []) as Expense[];
+
+  const getUserById = (id: string) => users.find(u => u.userId === id);
 
   const getExpenseIcon = (category: string) => {
-    switch (category.toLowerCase()) {
+    switch (category?.toLowerCase()) {
       case "food": case "food & dining": return Utensils;
       case "transportation": return Car;
       case "accommodation": return Bed;
@@ -60,7 +54,7 @@ export default function Expenses() {
   };
 
   const getCategoryColor = (category: string) => {
-    switch (category.toLowerCase()) {
+    switch (category?.toLowerCase()) {
       case "food": case "food & dining": return "bg-orange-100 text-orange-800";
       case "transportation": return "bg-blue-100 text-blue-800";
       case "accommodation": return "bg-purple-100 text-purple-800";
@@ -70,85 +64,23 @@ export default function Expenses() {
     }
   };
 
-  const updateExpenseMutation = useMutation({
-    mutationFn: async (data: { id: string; description: string; amount: string; category: string }) => {
-      return await apiRequest("PUT", `/api/expenses/${data.id}`,
-        {
-          description: data.description,
-          amount: data.amount,
-          category: data.category,
-        }
-      );
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/groups", activeGroupId, "expenses"] }); // FIX: Added /api prefix
-      queryClient.invalidateQueries({ queryKey: ["/api/groups", activeGroupId, "balances"] }); // FIX: Added /api prefix
-      toast({
-        title: "Success",
-        description: "Expense updated successfully!",
-      });
-      setEditingExpense(null);
-    },
-    onError: () => {
-      toast({
-        title: "Error", 
-        description: "Failed to update expense. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const deleteExpenseMutation = useMutation({
-    mutationFn: async (expenseId: string) => {
-      return await apiRequest("DELETE", `/api/expenses/${expenseId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/groups", activeGroupId, "expenses"] }); // FIX: Added /api prefix
-      queryClient.invalidateQueries({ queryKey: ["/api/groups", activeGroupId, "balances"] }); // FIX: Added /api prefix
-      toast({
-        title: "Success",
-        description: "Expense deleted successfully!",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to delete expense. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
   const handleEditExpense = (expense: Expense) => {
-    setEditingExpense(expense);
-    setEditDescription(expense.description);
-    setEditAmount(expense.amount);
-    setEditCategory(expense.category);
-  };
-
-  const handleUpdateExpense = () => {
-    if (!editingExpense || !editDescription || !editAmount || !editCategory) {
-      toast({
-        title: "Missing information",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    updateExpenseMutation.mutate({
-      id: editingExpense.id,
-      description: editDescription,
-      amount: editAmount,
-      category: editCategory,
+    toast({
+      title: "Not Implemented",
+      description: "Editing expenses is not yet supported in this version.",
     });
   };
 
   const handleDeleteExpense = (expenseId: string) => {
-    if (confirm("Are you sure you want to delete this expense?")) {
-      deleteExpenseMutation.mutate(expenseId);
-    }
+     toast({
+      title: "Not Implemented",
+      description: "Deleting expenses is not yet supported in this version.",
+    });
   };
+
+  if (isLoading) {
+    return <div className="p-4 text-center">Loading expenses...</div>;
+  }
 
   return (
     <div className="mx-4 mt-4" data-testid="expenses-view">
@@ -178,9 +110,9 @@ export default function Expenses() {
             </CardContent>
           </Card>
         ) : (
-          expenses.map((expense) => {
+          expenses.slice().reverse().map((expense) => { // Show newest first
             const paidByUser = getUserById(expense.paidBy);
-            const userSplit = expense.splits.find(s => s.userId === currentUserId);
+            const userSplit = expense.splits?.find(s => s.userId === currentUserId);
             const yourShare = userSplit?.amount || 0;
             const Icon = getExpenseIcon(expense.category);
 
@@ -195,7 +127,7 @@ export default function Expenses() {
                       <div className="flex-1">
                         <h3 className="font-semibold text-foreground">{expense.description}</h3>
                         <p className="text-sm text-muted-foreground mt-1">
-                          Paid by <span className="font-medium">{paidByUser?.name}</span> on{" "}
+                          Paid by <span className="font-medium">{paidByUser?.name || 'Unknown'}</span> on{" "}
                           {new Date(expense.date).toLocaleDateString()}
                         </p>
                         <div className="flex flex-wrap gap-1 mt-2">
@@ -207,7 +139,7 @@ export default function Expenses() {
                     </div>
                     <div className="text-right">
                       <div className="font-bold text-lg text-foreground">
-                        ${parseFloat(expense.amount).toFixed(2)}
+                        ${Number(expense.amount).toFixed(2)}
                       </div>
                       {expense.paidBy === currentUserId ? (
                         <div className="text-sm expense-positive">
@@ -246,72 +178,6 @@ export default function Expenses() {
           })
         )}
       </div>
-
-      {/* Edit Expense Dialog */}
-      <Dialog open={!!editingExpense} onOpenChange={() => setEditingExpense(null)}>
-        <DialogContent data-testid="dialog-edit-expense">
-          <DialogHeader>
-            <DialogTitle>Edit Expense</DialogTitle>
-            <DialogDescription>
-              Update the details for your expense.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="edit-description">Description *</Label>
-              <Input
-                id="edit-description"
-                value={editDescription}
-                onChange={(e) => setEditDescription(e.target.value)}
-                data-testid="input-expense-description"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-amount">Amount *</Label>
-              <Input
-                id="edit-amount"
-                type="number"
-                step="0.01"
-                value={editAmount}
-                onChange={(e) => setEditAmount(e.target.value)}
-                data-testid="input-expense-amount"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-category">Category *</Label>
-              <Select value={editCategory} onValueChange={setEditCategory}>
-                <SelectTrigger data-testid="select-category">
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Food & Dining">Food & Dining</SelectItem>
-                  <SelectItem value="Transportation">Transportation</SelectItem>
-                  <SelectItem value="Accommodation">Accommodation</SelectItem>
-                  <SelectItem value="Entertainment">Entertainment</SelectItem>
-                  <SelectItem value="Shopping">Shopping</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex space-x-2 pt-4">
-              <Button
-                onClick={handleUpdateExpense}
-                disabled={updateExpenseMutation.isPending}
-                data-testid="button-save-expense"
-              >
-                {updateExpenseMutation.isPending ? "Saving..." : "Save Changes"}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setEditingExpense(null)}
-                data-testid="button-cancel-edit"
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

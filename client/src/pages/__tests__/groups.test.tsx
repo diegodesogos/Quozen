@@ -2,11 +2,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import Groups from "../groups";
 import { useAppContext } from "@/context/app-context";
+import { useAuth } from "@/context/auth-provider";
 import { useQuery, useMutation } from "@tanstack/react-query";
 
 // Mock hooks
 vi.mock("@/context/app-context", () => ({
   useAppContext: vi.fn(),
+}));
+
+vi.mock("@/context/auth-provider", () => ({
+  useAuth: vi.fn(),
 }));
 
 vi.mock("@tanstack/react-query", async (importOriginal) => {
@@ -27,12 +32,16 @@ vi.mock("@/hooks/use-toast", () => ({
   }),
 }));
 
-describe("Groups Page", () => {
-  const mockUsers = [
-    { id: "user1", name: "Alice", email: "alice@example.com" },
-    { id: "user2", name: "Bob", email: "bob@example.com" },
-  ];
+// Mock googleApi to avoid errors if code reaches it (though mutation is mocked)
+vi.mock("@/lib/drive", () => ({
+  googleApi: {
+    listGroups: vi.fn(),
+    createGroupSheet: vi.fn(),
+  },
+}));
 
+describe("Groups Page", () => {
+  const mockUser = { id: "user1", name: "Alice", email: "alice@example.com" };
   const mockGroups = [
     {
       id: "group1",
@@ -61,14 +70,16 @@ describe("Groups Page", () => {
       currentUserId: "user1",
     });
 
+    (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      user: mockUser,
+      isAuthenticated: true,
+    });
+
     (useQuery as unknown as ReturnType<typeof vi.fn>).mockImplementation(({ queryKey }) => {
       const key = queryKey[0];
       
-      if (key === "/api/users" && queryKey.length === 1) {
-        return { data: mockUsers };
-      }
-      
-      if (key === "/api/users" && queryKey[2] === "groups") {
+      // Handle the new drive-based query key
+      if (key === "drive" && queryKey[1] === "groups") {
         return { data: mockGroups };
       }
 
@@ -96,39 +107,30 @@ describe("Groups Page", () => {
     
     expect(screen.getByText("Your Groups")).toBeInTheDocument();
     expect(screen.getByText("Trip to Paris")).toBeInTheDocument();
-    expect(screen.getByText("Summer vacation")).toBeInTheDocument();
-    // 2 members
-    expect(screen.getByText(/2 members/)).toBeInTheDocument();
-    // Total spent calculation (100 + 50)
-    expect(screen.getByText("$150.00")).toBeInTheDocument();
+    expect(screen.getByText("Google Sheet")).toBeInTheDocument();
   });
 
   it("opens create group dialog and submits new group", async () => {
     render(<Groups />);
     
     // 1. Click "New Group"
-    const newGroupBtn = screen.getByTestId("button-create-group");
+    const newGroupBtn = screen.getByRole("button", { name: /New Group/i });
     fireEvent.click(newGroupBtn);
 
     // 2. Check dialog
-    expect(screen.getByTestId("modal-create-group")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Create New Group" })).toBeInTheDocument();
 
     // 3. Fill form
-    fireEvent.change(screen.getByTestId("input-group-name"), { target: { value: "New Team" } });
-    fireEvent.change(screen.getByTestId("textarea-group-description"), { target: { value: "Work stuff" } });
-    fireEvent.change(screen.getByTestId("textarea-participant-emails"), { target: { value: "bob@example.com" } });
+    fireEvent.change(screen.getByLabelText(/Group Name/i), { target: { value: "New Team" } });
 
     // 4. Submit
-    const submitBtn = screen.getByTestId("button-submit-create-group");
+    const submitBtn = screen.getByRole("button", { name: /Create Group/i });
     fireEvent.click(submitBtn);
 
     // 5. Verify mutation and side effects
     await waitFor(() => {
-        expect(mutateCreateGroup).toHaveBeenCalledWith(expect.objectContaining({
-            name: "New Team",
-            description: "Work stuff",
-            participants: expect.arrayContaining(["user1", "user2"]) // user1 is creator, user2 is bob found by email
-        }));
+        // Since we are mocking useMutation, we check if the function passed to mutate was called with the right arg
+        expect(mutateCreateGroup).toHaveBeenCalledWith("New Team");
     });
 
     // Should switch to the new group automatically on success
