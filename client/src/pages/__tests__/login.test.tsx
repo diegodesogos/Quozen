@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Login from "../login";
 import { useAuth } from "@/context/auth-provider";
@@ -9,13 +9,18 @@ vi.mock("@/context/auth-provider", () => ({
   useAuth: vi.fn(),
 }));
 
-// Mock react-router-dom's useNavigate to verify redirection
+// Mock router navigation
 const mockNavigate = vi.fn();
 vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual("react-router-dom");
   return {
     ...actual,
     useNavigate: () => mockNavigate,
+    // Explicitly mock Navigate to trigger our spy when rendered
+    Navigate: ({ to, replace }: { to: string, replace?: boolean }) => {
+      mockNavigate(to, { replace });
+      return null;
+    }
   };
 });
 
@@ -32,7 +37,7 @@ describe("Login Page", () => {
     });
   });
 
-  it("renders login form correctly", () => {
+  it("renders google login button", () => {
     render(
       <MemoryRouter>
         <Login />
@@ -40,36 +45,34 @@ describe("Login Page", () => {
     );
 
     expect(screen.getByText("Welcome to Quozen")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Username")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Password")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /sign in with password/i })).toBeInTheDocument();
-  });
-
-  it("handles successful login and redirects", async () => {
-    mockLogin.mockResolvedValue(undefined); // Simulate success
-
-    render(
-      <MemoryRouter>
-        <Login />
-      </MemoryRouter>
-    );
-
-    fireEvent.change(screen.getByPlaceholderText("Username"), { target: { value: "testuser" } });
-    fireEvent.change(screen.getByPlaceholderText("Password"), { target: { value: "password123" } });
-    fireEvent.click(screen.getByRole("button", { name: /sign in with password/i }));
-
-    await waitFor(() => {
-      expect(mockLogin).toHaveBeenCalledWith("testuser", "password123");
-    });
+    expect(screen.getByText(/Sign in to access your shared expenses/i)).toBeInTheDocument();
+    // Check for the Google button
+    expect(screen.getByRole("button", { name: /sign in with google/i })).toBeInTheDocument();
     
-    // Verify redirection to dashboard
-    await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith("/dashboard", { replace: true });
-    });
+    // Ensure old fields are gone
+    expect(screen.queryByPlaceholderText("Username")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Password")).not.toBeInTheDocument();
   });
 
-  it("displays error message on login failure", async () => {
-    mockLogin.mockRejectedValue(new Error("Invalid credentials")); // Simulate failure
+  it("triggers login on button click", async () => {
+    render(
+      <MemoryRouter>
+        <Login />
+      </MemoryRouter>
+    );
+
+    const loginBtn = screen.getByRole("button", { name: /sign in with google/i });
+    fireEvent.click(loginBtn);
+
+    expect(mockLogin).toHaveBeenCalledTimes(1);
+  });
+
+  it("redirects if already authenticated", () => {
+    (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      login: mockLogin,
+      isAuthenticated: true,
+      isLoading: false,
+    });
 
     render(
       <MemoryRouter>
@@ -77,12 +80,7 @@ describe("Login Page", () => {
       </MemoryRouter>
     );
 
-    fireEvent.change(screen.getByPlaceholderText("Username"), { target: { value: "wrong" } });
-    fireEvent.change(screen.getByPlaceholderText("Password"), { target: { value: "wrong" } });
-    fireEvent.click(screen.getByRole("button", { name: /sign in with password/i }));
-
-    await waitFor(() => {
-      expect(screen.getByText("Invalid credentials")).toBeInTheDocument();
-    });
+    // Should redirect to dashboard (default)
+    expect(mockNavigate).toHaveBeenCalledWith("/dashboard", { replace: true });
   });
 });

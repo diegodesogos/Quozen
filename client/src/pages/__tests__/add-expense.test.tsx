@@ -9,7 +9,6 @@ vi.mock("@/context/app-context", () => ({
   useAppContext: vi.fn(),
 }));
 
-// Mock router navigation
 const mockNavigate = vi.fn();
 vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual("react-router-dom");
@@ -37,19 +36,23 @@ vi.mock("@/hooks/use-toast", () => ({
   }),
 }));
 
-describe("Add Expense Page", () => {
-  const mockUsers = [
-    { id: "user1", name: "Alice", email: "alice@example.com" },
-    { id: "user2", name: "Bob", email: "bob@example.com" },
-  ];
+// Mock googleApi
+vi.mock("@/lib/drive", () => ({
+  googleApi: {
+    getGroupData: vi.fn(),
+    addExpense: vi.fn(),
+  },
+}));
 
-  const mockGroup = {
-    id: "group1",
-    name: "Test Group",
-    participants: ["user1", "user2"],
+describe("Add Expense Page", () => {
+  const mockGroupData = {
+    members: [
+      { userId: "user1", name: "Alice", email: "alice@example.com" },
+      { userId: "user2", name: "Bob", email: "bob@example.com" },
+    ]
   };
 
-  const mutateCreateExpense = vi.fn();
+  const mutateAddExpense = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -59,24 +62,17 @@ describe("Add Expense Page", () => {
       currentUserId: "user1",
     });
 
-    (useQuery as unknown as ReturnType<typeof vi.fn>).mockImplementation(({ queryKey }) => {
-      const key = queryKey[0];
-      
-      if (key === "/api/users") {
-        return { data: mockUsers };
-      }
-      
-      if (key === "/api/groups" && queryKey[1] === "group1") {
-        return { data: mockGroup };
-      }
-      
-      return { data: undefined };
+    // Always return the group data for the drive query
+    (useQuery as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: mockGroupData,
+      isLoading: false,
+      isSuccess: true,
     });
 
     (useMutation as unknown as ReturnType<typeof vi.fn>).mockImplementation((options) => {
       return {
         mutate: (data: any) => {
-          mutateCreateExpense(data);
+          mutateAddExpense(data);
           if (options?.onSuccess) options.onSuccess();
         },
         isPending: false,
@@ -87,8 +83,7 @@ describe("Add Expense Page", () => {
   it("renders the add expense form", async () => {
     render(<AddExpense />);
     
-    // Wait for the split item to appear (indicates data loaded)
-    // We use the test ID to be specific and avoid ambiguity
+    // Wait for the data to load and items to render
     await screen.findByTestId("split-item-user2");
 
     expect(screen.getByRole("heading", { name: "Add Expense" })).toBeInTheDocument();
@@ -96,11 +91,9 @@ describe("Add Expense Page", () => {
     expect(screen.getByLabelText(/Amount/)).toBeInTheDocument();
     expect(screen.getByText("Split Between")).toBeInTheDocument();
     
-    // Check for "You" in the split list specifically
     const splitListAlice = screen.getByTestId("split-item-user1");
     expect(within(splitListAlice).getByText("You")).toBeInTheDocument();
     
-    // Check for "Bob" in the split list specifically
     const splitListBob = screen.getByTestId("split-item-user2");
     expect(within(splitListBob).getByText("Bob")).toBeInTheDocument();
   });
@@ -108,7 +101,6 @@ describe("Add Expense Page", () => {
   it("calculates equal splits automatically when amount changes", async () => {
     render(<AddExpense />);
     
-    // Wait for data load via specific test ID
     await screen.findByTestId("split-item-user2");
 
     const amountInput = screen.getByTestId("input-expense-amount");
@@ -124,30 +116,24 @@ describe("Add Expense Page", () => {
   it("submits the form successfully", async () => {
     render(<AddExpense />);
     
-    // Wait for data load
     await screen.findByTestId("split-item-user2");
 
-    // 1. Fill basic info
     fireEvent.change(screen.getByTestId("input-expense-description"), { target: { value: "Dinner" } });
     fireEvent.change(screen.getByTestId("input-expense-amount"), { target: { value: "100" } });
     
-    // 2. Select Category
+    // Select Category
     const categoryTrigger = screen.getByTestId("select-category");
     fireEvent.click(categoryTrigger);
-    
-    // Use findByRole('option') to get the specific dropdown item from the Portal
     const option = await screen.findByRole("option", { name: "Food & Dining" });
     fireEvent.click(option);
 
-    // 3. Submit
     const submitBtn = screen.getByTestId("button-submit-expense");
     fireEvent.click(submitBtn);
 
-    // 4. Verify mutation
     await waitFor(() => {
-        expect(mutateCreateExpense).toHaveBeenCalledWith(expect.objectContaining({
+        expect(mutateAddExpense).toHaveBeenCalledWith(expect.objectContaining({
             description: "Dinner",
-            amount: "100.00",
+            amount: 100,
             category: "Food & Dining",
             splits: expect.arrayContaining([
                 { userId: "user1", amount: 50 },
@@ -156,7 +142,6 @@ describe("Add Expense Page", () => {
         }));
     });
 
-    // 5. Verify redirect
     expect(mockNavigate).toHaveBeenCalledWith("/dashboard");
   });
 });
