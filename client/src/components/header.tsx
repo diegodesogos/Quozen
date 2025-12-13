@@ -1,23 +1,29 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
-import { Bell } from "lucide-react";
+import { Bell, ChevronDown, Users } from "lucide-react";
 import GroupSwitcherModal from "./group-switcher-modal";
 import { useState } from "react";
-
-interface Group {
-  id: string;
-  name: string;
-  participants: string[];
-}
+import { googleApi } from "@/lib/drive";
 
 export default function Header() {
   const { activeGroupId } = useAppContext();
   const [showGroupSwitcher, setShowGroupSwitcher] = useState(false);
 
-  const { data: group } = useQuery<Group>({
-    queryKey: ["/api/groups", activeGroupId],
+  // 1. Fetch list to get the Group Name (metadata)
+  const { data: groups = [] } = useQuery({
+    queryKey: ["drive", "groups"],
+    queryFn: () => googleApi.listGroups(),
+  });
+
+  // 2. Fetch group data to get Participant Count (sheet content)
+  const { data: groupData } = useQuery({
+    queryKey: ["drive", "group", activeGroupId],
+    queryFn: () => googleApi.getGroupData(activeGroupId),
     enabled: !!activeGroupId,
   });
+
+  const activeGroup = groups.find((g: any) => g.id === activeGroupId);
+  const memberCount = groupData?.members?.length || 0;
 
   return (
     <>
@@ -25,7 +31,7 @@ export default function Header() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-              <i className="fas fa-users text-primary-foreground text-sm"></i>
+              <Users className="text-primary-foreground w-4 h-4" />
             </div>
             <div>
               <button 
@@ -34,13 +40,13 @@ export default function Header() {
                 data-testid="button-switch-group"
               >
                 <h1 className="text-lg font-semibold text-foreground">
-                  {group?.name || "Loading..."}
+                  {activeGroup?.name || "Select Group"}
                 </h1>
                 <div className="flex items-center text-sm text-muted-foreground">
                   <span data-testid="text-participant-count">
-                    {group?.participants.length || 0} people
+                    {memberCount} people
                   </span>
-                  <i className="fas fa-chevron-down ml-1 text-xs"></i>
+                  <ChevronDown className="ml-1 w-3 h-3" />
                 </div>
               </button>
             </div>

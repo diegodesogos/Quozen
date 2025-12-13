@@ -1,16 +1,15 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { createContext, useContext, useState, ReactNode } from 'react';
+import { useGoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
-import { User } from '../../../shared/schema';
-// 1. Import from your new token store
 import { setAuthToken, getAuthToken as getTokenFromStore } from '../lib/tokenStore';
 
-// Type for registration data
-export interface RegisterData {
+// Define a client-side User type compatible with the app's needs
+export interface User {
+  id: string;
   username: string;
-  password: string;
   email: string;
   name: string;
+  picture?: string;
 }
 
 interface AuthState {
@@ -18,109 +17,68 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   token: string | null;
-  login: (username: string, password: string) => Promise<void>;
+  login: () => void;
   logout: () => void;
-  register: (userData: RegisterData) => Promise<void>;
-  getToken: () => string | null;
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  // 2. Initialize state from the global store
   const [token, _setToken] = useState<string | null>(() => getTokenFromStore());
+  const [isLoading, setIsLoading] = useState(false);
 
-  const location = useLocation();
-  const navigate = useNavigate();
-
-  const apiBaseUrl = (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.VITE_API_URL)
-    ? (import.meta as any).env.VITE_API_URL
-    : 'http://localhost:5001';
-
-  // 3. Create a new setToken function that updates both stores
   const setToken = (newToken: string | null) => {
-    setAuthToken(newToken); // Update global store
-    _setToken(newToken);   // Update React state
+    setAuthToken(newToken);
+    _setToken(newToken);
   };
 
-  const getToken = () => token;
-
-  // Capture token from URL on load
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const tokenFromUrl = searchParams.get('token');
-
-    if (tokenFromUrl) {
-      setToken(tokenFromUrl); // Use our new setter
-      navigate(location.pathname, { replace: true });
-    }
-  }, [location.search]); // Removed navigate dependency
-
-  // Check authentication status on mount
-  useEffect(() => {
-    const checkAuth = async () => {
-      if (!token) {
-        setIsLoading(false);
-        setIsAuthenticated(false);
-        setUser(null);
-        return;
-      }
-
+  const login = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      const accessToken = tokenResponse.access_token;
+      setToken(accessToken);
       setIsLoading(true);
+      
       try {
-        // 4. Use raw axios, not the instance, to avoid interceptor loop
-        const response = await axios.get<User>(`${apiBaseUrl}/api/auth/me`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
+        // Fetch user profile from Google
+        const userInfo = await axios.get(
+          'https://www.googleapis.com/oauth2/v3/userinfo',
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
         
-        setUser(response.data);
-        setIsAuthenticated(true);
+        setUser({
+          id: userInfo.data.sub,
+          username: userInfo.data.email, // Use email as username
+          email: userInfo.data.email,
+          name: userInfo.data.name,
+          picture: userInfo.data.picture
+        });
       } catch (error) {
-        console.error("Auth check failed:", error);
-        setUser(null);
-        setIsAuthenticated(false);
-        setToken(null); // Clear the bad token
+        console.error("Failed to fetch user info", error);
+        logout();
       } finally {
         setIsLoading(false);
       }
-    };
-    checkAuth();
-  }, [token, apiBaseUrl]);
-
-  const login = async (username: string, password: string) => {
-    const response = await axios.post<{ token: string; user: User }>(`${apiBaseUrl}/api/auth/login`, { username, password });
-    const { token: newToken, user } = response.data;
-    setToken(newToken); // Use our new setter
-    setUser(user);
-    setIsAuthenticated(true);
-    setIsLoading(false);
-  };
-
-  // 5. REVERT to your original register logic
-  const register = async (userData: RegisterData) => {
-    // This will now work because the server returns { token, user }
-    const response = await axios.post<{ token: string; user: User }>(`${apiBaseUrl}/api/auth/register`, userData);
-    const { token: newToken, user } = response.data;
-    setToken(newToken);
-    setUser(user);
-    setIsAuthenticated(true);
-    setIsLoading(false);
-  };
+    },
+    onError: error => console.error('Login Failed:', error),
+    // Request scopes for Google Sheets and Drive
+    scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file',
+  });
 
   const logout = () => {
-    setToken(null); // Use our new setter
+    setToken(null);
     setUser(null);
-    setIsAuthenticated(false);
-    navigate('/login'); // Redirect to login
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, token, login, logout, register, getToken }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      isAuthenticated: !!token && !!user, 
+      isLoading, 
+      token, 
+      login, 
+      logout 
+    }}>
       {children}
     </AuthContext.Provider>
   );
@@ -132,4 +90,4 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}
+};

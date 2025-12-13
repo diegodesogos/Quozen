@@ -19,17 +19,12 @@ export default defineConfig({
     },
   },
   root: path.resolve(__dirname, "client"),
+  envDir: "../",
   build: {
     outDir: "../dist/client",
     emptyOutDir: true,
   },
   server: {
     port: VITE_PORT,
-    proxy: {
-      "/api": {
-        target: `http://localhost:${BACKEND_PORT}`,
-        changeOrigin: true,
-      },
-    },
   },
 });
