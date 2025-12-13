@@ -26,11 +26,5 @@ export default defineConfig({
   },
   server: {
     port: VITE_PORT,
-    proxy: {
-      "/api": {
-        target: `http://localhost:${BACKEND_PORT}`,
-        changeOrigin: true,
-      },
-    },
   },
 });
