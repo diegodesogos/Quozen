@@ -9,6 +9,12 @@ on:
     branches: [ main ]
   # Add this to allow manual runs from the Actions tab
   workflow_dispatch:
+    inputs:
+      run_e2e:
+        description: 'Run E2E Tests?'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
 
@@ -42,9 +48,8 @@ jobs:
     # This job will only run if the unit tests pass
     needs: [test-client] 
     
-    # This is the conditional logic you requested.
-    # It runs UNLESS the variable RUN_E2E_TESTS is set to 'false'
-    if: vars.RUN_E2E_TESTS != 'false'
+    # Run if the global var is true OR if the manual checkbox was checked
+    if: vars.RUN_E2E_TESTS == 'true' || inputs.run_e2e == true
 
     steps:
       - name: Checkout code
