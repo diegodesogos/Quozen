@@ -14,6 +14,10 @@ Transition Quozen from a Node/PostgreSQL architecture to a Serverless/Client-Sid
 - [x] Phase 2: Google Authentication (Auth Provider & Login)
 - [x] Phase 3: Data Layer (Drive Client, Groups, Expenses, Balances)
 - [x] Phase 4: Cleanup & Configuration
+  - [x] Delete `server/` and `shared/` directories.
+  - [x] Purge Node.js backend dependencies from `package.json`.
+  - [x] Reconfigure `vercel.json` for static deployment.
+  - [x] Clean up environment templates.
 
 ## Task List
 

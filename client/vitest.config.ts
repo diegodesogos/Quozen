@@ -7,14 +7,12 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: './client/src/test/setup.ts', // Updated path to setup file
-    include: ['client/src/**/*.test.ts', 'client/src/**/*.test.tsx'], // <-- ADD THIS LINE
+    setupFiles: './client/src/test/setup.ts',
+    include: ['client/src/**/*.test.ts', 'client/src/**/*.test.tsx'],
   },
   resolve: {
     alias: {
-      // This ensures your test environment understands your path aliases
       '@': path.resolve(__dirname, './src'),
-      '@shared': path.resolve(__dirname, '../shared'), // Added alias for shared directory
     },
   },
 });
