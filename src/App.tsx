@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import Dashboard from "@/pages/dashboard";
 import Expenses from "@/pages/expenses";
 import AddExpense from "@/pages/add-expense";
+import EditExpense from "@/pages/edit-expense";
 import Groups from "@/pages/groups";
 import Profile from "@/pages/profile";
 import NotFound from "@/pages/not-found";
@@ -102,6 +103,10 @@ function AuthenticatedApp() {
         <Route
           path="/add-expense"
           element={<ProtectedRoute><AppLayout><AddExpense /></AppLayout></ProtectedRoute>}
+        />
+        <Route
+          path="/edit-expense/:id"
+          element={<ProtectedRoute><AppLayout><EditExpense /></AppLayout></ProtectedRoute>}
         />
         <Route
           path="/groups"

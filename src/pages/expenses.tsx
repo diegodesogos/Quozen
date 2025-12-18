@@ -10,6 +10,7 @@ import {
   Gamepad2, MoreHorizontal, Trash2 
 } from "lucide-react";
 import { googleApi } from "@/lib/drive";
+import { useNavigate } from "react-router-dom";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,8 +43,10 @@ export default function Expenses() {
   const { activeGroupId, currentUserId } = useAppContext();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
-  const [deleteId, setDeleteId] = useState<number | null>(null);
+  // State to track which expense is being prompted for deletion
+  const [deleteRowIndex, setDeleteRowIndex] = useState<number | null>(null);
 
   // Fetch group data
   const { data: groupData, isLoading } = useQuery({
@@ -55,16 +58,24 @@ export default function Expenses() {
   const users = (groupData?.members || []) as User[];
   const expenses = (groupData?.expenses || []) as Expense[];
 
+  // Mutation to delete the expense row in Google Sheets
   const deleteMutation = useMutation({
     mutationFn: (rowIndex: number) => googleApi.deleteExpense(activeGroupId, rowIndex),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
-      toast({ title: "Expense deleted", description: "The spreadsheet has been updated." });
+      toast({ 
+        title: "Expense deleted", 
+        description: "The spreadsheet has been updated successfully." 
+      });
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to delete expense.", variant: "destructive" });
+      toast({ 
+        title: "Error", 
+        description: "Failed to delete expense. Please try again.", 
+        variant: "destructive" 
+      });
     },
-    onSettled: () => setDeleteId(null)
+    onSettled: () => setDeleteRowIndex(null)
   });
 
   const getUserById = (id: string) => users.find(u => u.userId === id);
@@ -163,8 +174,17 @@ export default function Expenses() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          className="text-primary text-sm h-auto p-0"
+                          onClick={() => navigate(`/edit-expense/${expense.id}`)}
+                          data-testid={`button-edit-expense-${expense.id}`}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="text-destructive text-sm h-auto p-0"
-                          onClick={() => setDeleteId(expense._rowIndex)}
+                          onClick={() => setDeleteRowIndex(expense._rowIndex)}
                           data-testid={`button-delete-expense-${expense.id}`}
                         >
                           <Trash2 className="w-3 h-3" />
@@ -179,7 +199,8 @@ export default function Expenses() {
         )}
       </div>
 
-      <AlertDialog open={deleteId !== null} onOpenChange={(open) => !open && setDeleteId(null)}>
+      {/* Deletion Confirmation Dialog */}
+      <AlertDialog open={deleteRowIndex !== null} onOpenChange={(open) => !open && setDeleteRowIndex(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Expense?</AlertDialogTitle>
@@ -190,7 +211,7 @@ export default function Expenses() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction 
-              onClick={() => deleteId && deleteMutation.mutate(deleteId)}
+              onClick={() => deleteRowIndex && deleteMutation.mutate(deleteRowIndex)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteMutation.isPending ? "Deleting..." : "Delete"}
