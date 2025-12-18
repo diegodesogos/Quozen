@@ -20,10 +20,9 @@ const getHeaders = () => {
 };
 
 export const googleApi = {
-  // --- DRIVE API (File Management) ---
+  // --- DRIVE API ---
 
   async listGroups() {
-    // Filter for Spreadsheets created by the app (approximate check by name/mimeType)
     const query = "mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false";
     const fields = "files(id, name, createdTime)";
     
@@ -35,7 +34,6 @@ export const googleApi = {
     if (!response.ok) throw new Error("Error listing groups");
     const data = await response.json();
     
-    // Map Drive files to Group interface
     return (data.files || []).map((file: any) => ({
       id: file.id,
       name: file.name.replace(/^Quozen - /, ''),
@@ -49,7 +47,6 @@ export const googleApi = {
   async createGroupSheet(name: string, user: { id: string, email: string, name: string }) {
     const title = `Quozen - ${name}`;
     
-    // 1. Create Spreadsheet
     const createRes = await fetch(SHEETS_API_URL, {
       method: "POST",
       headers: getHeaders(),
@@ -67,7 +64,6 @@ export const googleApi = {
     const sheetFile = await createRes.json();
     const spreadsheetId = sheetFile.spreadsheetId;
 
-    // 2. Write Headers and Initial Member
     const valuesBody = {
       valueInputOption: "USER_ENTERED",
       data: [
@@ -92,7 +88,7 @@ export const googleApi = {
     };
   },
 
-  // --- SHEETS API (Data Operations) ---
+  // --- SHEETS API ---
 
   async getGroupData(spreadsheetId: string) {
     if (!spreadsheetId) return null;
@@ -113,16 +109,9 @@ export const googleApi = {
         schema.forEach((key, index) => {
           let value = row[index];
           if (key === 'splits' || key === 'meta') {
-            try {
-              value = value ? JSON.parse(value) : [];
-            } catch (e) {
-              value = [];
-            }
+            try { value = value ? JSON.parse(value) : []; } catch (e) { value = []; }
           }
-          // Special handling for numeric fields to ensure they are numbers
-          if (['amount'].includes(key) && value) {
-             value = parseFloat(value); 
-          }
+          if (['amount'].includes(key) && value) { value = parseFloat(value); }
           obj[key] = value;
         });
         return obj;
@@ -140,10 +129,7 @@ export const googleApi = {
     const schema = SCHEMAS[sheetName];
     const rowValues = schema.map(key => {
       const val = data[key];
-      if (typeof val === 'object' && val !== null) {
-        return JSON.stringify(val);
-      }
-      return val === undefined || val === null ? "" : val;
+      return (typeof val === 'object' && val !== null) ? JSON.stringify(val) : (val ?? "");
     });
 
     const url = `${SHEETS_API_URL}/${spreadsheetId}/values/${sheetName}!A1:append?valueInputOption=USER_ENTERED`;
@@ -151,6 +137,54 @@ export const googleApi = {
       method: "POST",
       headers: getHeaders(),
       body: JSON.stringify({ values: [rowValues] })
+    });
+  },
+
+  // NEW: Helper to find the numeric Sheet ID (GID)
+  async getSheetId(spreadsheetId: string, sheetName: string): Promise<number> {
+    const res = await fetch(`${SHEETS_API_URL}/${spreadsheetId}?fields=sheets.properties`, { headers: getHeaders() });
+    const data = await res.json();
+    const sheet = data.sheets.find((s: any) => s.properties.title === sheetName);
+    if (!sheet) throw new Error(`Sheet ${sheetName} not found`);
+    return sheet.properties.sheetId;
+  },
+
+  // NEW: Update an existing row
+  async updateRow(spreadsheetId: string, sheetName: keyof typeof SCHEMAS, rowIndex: number, data: any) {
+    const schema = SCHEMAS[sheetName];
+    const rowValues = schema.map(key => {
+      const val = data[key];
+      return (typeof val === 'object' && val !== null) ? JSON.stringify(val) : (val ?? "");
+    });
+
+    const url = `${SHEETS_API_URL}/${spreadsheetId}/values/${sheetName}!A${rowIndex}:Z${rowIndex}?valueInputOption=USER_ENTERED`;
+    await fetch(url, {
+      method: "PUT",
+      headers: getHeaders(),
+      body: JSON.stringify({ values: [rowValues] })
+    });
+  },
+
+  // NEW: Delete a specific row
+  async deleteRow(spreadsheetId: string, sheetName: keyof typeof SCHEMAS, rowIndex: number) {
+    const sheetId = await this.getSheetId(spreadsheetId, sheetName);
+    const body = {
+      requests: [{
+        deleteDimension: {
+          range: {
+            sheetId: sheetId,
+            dimension: "ROWS",
+            startIndex: rowIndex - 1, // 0-indexed, inclusive
+            endIndex: rowIndex        // 0-indexed, exclusive
+          }
+        }
+      }]
+    };
+
+    await fetch(`${SHEETS_API_URL}/${spreadsheetId}:batchUpdate`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify(body)
     });
   },
 
@@ -164,6 +198,10 @@ export const googleApi = {
       meta: { createdAt: new Date().toISOString() }
     };
     return this.addRow(spreadsheetId, "Expenses", newExpense);
+  },
+
+  async deleteExpense(spreadsheetId: string, rowIndex: number) {
+    return this.deleteRow(spreadsheetId, "Expenses", rowIndex);
   },
 
   async addSettlement(spreadsheetId: string, settlementData: any) {

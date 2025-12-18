@@ -1,11 +1,14 @@
-// A simple in-memory store for the auth token that can be accessed outside of React.
-
-let inMemoryToken: string | null = null;
+// A simple store for the auth token with localStorage persistence.
+const TOKEN_KEY = "quozen_access_token";
 
 export const setAuthToken = (token: string | null) => {
-  inMemoryToken = token;
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+  }
 };
 
 export const getAuthToken = (): string | null => {
-  return inMemoryToken;
+  return localStorage.getItem(TOKEN_KEY);
 };

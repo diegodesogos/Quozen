@@ -24,10 +24,12 @@ Transition Quozen from a Node/PostgreSQL architecture to a Serverless/Client-Sid
 
 ## Task List
 
-### Phase 5: Functionality Gaps (Next)
-- [ ] 1. **Edit/Delete Expenses**: Implement `updateRow` and `deleteRow` logic in `drive.ts`.
-- [ ] 2. **Manual Refresh**: Add a "Sync/Refresh" button to the UI (since WebSockets are gone).
-- [ ] 3. **Offline Resilience**: Add basic `localStorage` caching for the `token`.
+## Task List
+
+### Phase 5: Functionality Gaps
+- [x] 1. **Edit/Delete Expenses**: Implement `deleteRow` logic and UI. (`updateRow` API implemented, UI pending).
+- [x] 2. **Manual Refresh**: Add a "Sync/Refresh" button to the UI.
+- [x] 3. **Offline Resilience**: Add basic `localStorage` caching for the `token`.
 
 ### Phase 6: Polish
 - [ ] 4. **Error Boundaries**: Handle Drive API quota limits or permission errors gracefully.

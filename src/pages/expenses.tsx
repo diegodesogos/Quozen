@@ -1,12 +1,25 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Filter, ArrowUpDown, Utensils, Car, Bed, ShoppingBag, Gamepad2, MoreHorizontal, Trash2 } from "lucide-react";
+import { 
+  Filter, ArrowUpDown, Utensils, Car, Bed, ShoppingBag, 
+  Gamepad2, MoreHorizontal, Trash2 
+} from "lucide-react";
 import { googleApi } from "@/lib/drive";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface User {
   userId: string;
@@ -22,13 +35,15 @@ interface Expense {
   category: string;
   date: string;
   splits: { userId: string; amount: number }[];
+  _rowIndex: number; // Internal row index from Google Sheets
 }
 
 export default function Expenses() {
   const { activeGroupId, currentUserId } = useAppContext();
-  // Edit state reserved for future implementation
-  const [editingExpense, setEditingExpense] = useState<Expense | null>(null); 
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
   // Fetch group data
   const { data: groupData, isLoading } = useQuery({
@@ -39,6 +54,18 @@ export default function Expenses() {
 
   const users = (groupData?.members || []) as User[];
   const expenses = (groupData?.expenses || []) as Expense[];
+
+  const deleteMutation = useMutation({
+    mutationFn: (rowIndex: number) => googleApi.deleteExpense(activeGroupId, rowIndex),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
+      toast({ title: "Expense deleted", description: "The spreadsheet has been updated." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete expense.", variant: "destructive" });
+    },
+    onSettled: () => setDeleteId(null)
+  });
 
   const getUserById = (id: string) => users.find(u => u.userId === id);
 
@@ -62,20 +89,6 @@ export default function Expenses() {
       case "entertainment": return "bg-pink-100 text-pink-800";
       default: return "bg-gray-100 text-gray-800";
     }
-  };
-
-  const handleEditExpense = (expense: Expense) => {
-    toast({
-      title: "Not Implemented",
-      description: "Editing expenses is not yet supported in this version.",
-    });
-  };
-
-  const handleDeleteExpense = (expenseId: string) => {
-     toast({
-      title: "Not Implemented",
-      description: "Deleting expenses is not yet supported in this version.",
-    });
   };
 
   if (isLoading) {
@@ -110,7 +123,7 @@ export default function Expenses() {
             </CardContent>
           </Card>
         ) : (
-          expenses.slice().reverse().map((expense) => { // Show newest first
+          expenses.slice().reverse().map((expense) => {
             const paidByUser = getUserById(expense.paidBy);
             const userSplit = expense.splits?.find(s => s.userId === currentUserId);
             const yourShare = userSplit?.amount || 0;
@@ -142,29 +155,16 @@ export default function Expenses() {
                         ${Number(expense.amount).toFixed(2)}
                       </div>
                       {expense.paidBy === currentUserId ? (
-                        <div className="text-sm expense-positive">
-                          You paid
-                        </div>
+                        <div className="text-sm expense-positive">You paid</div>
                       ) : (
-                        <div className="text-sm expense-negative">
-                          You owe ${yourShare.toFixed(2)}
-                        </div>
+                        <div className="text-sm expense-negative">You owe ${yourShare.toFixed(2)}</div>
                       )}
                       <div className="flex space-x-2 mt-2">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-primary text-sm h-auto p-0"
-                          onClick={() => handleEditExpense(expense)}
-                          data-testid={`button-edit-expense-${expense.id}`}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
                           className="text-destructive text-sm h-auto p-0"
-                          onClick={() => handleDeleteExpense(expense.id)}
+                          onClick={() => setDeleteId(expense._rowIndex)}
                           data-testid={`button-delete-expense-${expense.id}`}
                         >
                           <Trash2 className="w-3 h-3" />
@@ -178,6 +178,26 @@ export default function Expenses() {
           })
         )}
       </div>
+
+      <AlertDialog open={deleteId !== null} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Expense?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the expense from your Google Sheet. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => deleteId && deleteMutation.mutate(deleteId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

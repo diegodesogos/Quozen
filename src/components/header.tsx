@@ -1,22 +1,24 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
-import { Bell, ChevronDown, Users } from "lucide-react";
+import { Bell, ChevronDown, Users, RefreshCw } from "lucide-react";
 import GroupSwitcherModal from "./group-switcher-modal";
 import { useState } from "react";
 import { googleApi } from "@/lib/drive";
+import { cn } from "@/lib/utils";
 
 export default function Header() {
   const { activeGroupId } = useAppContext();
   const [showGroupSwitcher, setShowGroupSwitcher] = useState(false);
+  const queryClient = useQueryClient();
 
-  // 1. Fetch list to get the Group Name (metadata)
-  const { data: groups = [] } = useQuery({
+  // 1. Fetch group list (metadata)
+  const { data: groups = [], isFetching: isGroupsFetching } = useQuery({
     queryKey: ["drive", "groups"],
     queryFn: () => googleApi.listGroups(),
   });
 
-  // 2. Fetch group data to get Participant Count (sheet content)
-  const { data: groupData } = useQuery({
+  // 2. Fetch active group data (content)
+  const { data: groupData, isFetching: isDataFetching } = useQuery({
     queryKey: ["drive", "group", activeGroupId],
     queryFn: () => googleApi.getGroupData(activeGroupId),
     enabled: !!activeGroupId,
@@ -24,6 +26,14 @@ export default function Header() {
 
   const activeGroup = groups.find((g: any) => g.id === activeGroupId);
   const memberCount = groupData?.members?.length || 0;
+  
+  // The button will spin if any drive-related query is currently fetching
+  const isSyncing = isGroupsFetching || isDataFetching;
+
+  const handleRefresh = async () => {
+    // Invalidate all queries starting with 'drive' to force a fresh pull from Google
+    await queryClient.invalidateQueries({ queryKey: ["drive"] });
+  };
 
   return (
     <>
@@ -51,9 +61,26 @@ export default function Header() {
               </button>
             </div>
           </div>
-          <button className="w-8 h-8 rounded-full bg-muted flex items-center justify-center" data-testid="button-notifications">
-            <Bell className="w-4 h-4 text-muted-foreground" />
-          </button>
+          
+          <div className="flex items-center space-x-2">
+            {/* New Sync/Refresh Button */}
+            <button 
+              className="w-8 h-8 rounded-full bg-muted flex items-center justify-center hover:bg-accent transition-colors disabled:opacity-50"
+              onClick={handleRefresh}
+              disabled={isSyncing}
+              title="Sync with Google Drive"
+              data-testid="button-refresh"
+            >
+              <RefreshCw className={cn(
+                "w-4 h-4 text-muted-foreground", 
+                isSyncing && "animate-spin text-primary"
+              )} />
+            </button>
+            
+            <button className="w-8 h-8 rounded-full bg-muted flex items-center justify-center" data-testid="button-notifications">
+              <Bell className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </div>
         </div>
       </header>
 

@@ -1,7 +1,9 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
 import { setAuthToken, getAuthToken as getTokenFromStore } from '../lib/tokenStore';
+
+const USER_STORAGE_KEY = "quozen_user_profile";
 
 // Define a client-side User type compatible with the app's needs
 export interface User {
@@ -24,13 +26,31 @@ interface AuthState {
 const AuthContext = createContext<AuthState | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  // Initialize user from localStorage if available
+  const [user, setUserState] = useState<User | null>(() => {
+    const savedUser = localStorage.getItem(USER_STORAGE_KEY);
+    try {
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
   const [token, _setToken] = useState<string | null>(() => getTokenFromStore());
   const [isLoading, setIsLoading] = useState(false);
 
   const setToken = (newToken: string | null) => {
     setAuthToken(newToken);
     _setToken(newToken);
+  };
+
+  const setUser = (newUser: User | null) => {
+    if (newUser) {
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(newUser));
+    } else {
+      localStorage.removeItem(USER_STORAGE_KEY);
+    }
+    setUserState(newUser);
   };
 
   const login = useGoogleLogin({
