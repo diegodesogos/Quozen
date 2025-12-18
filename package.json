@@ -8,8 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "tsc --noEmit",
-    "test": "vitest --config ./client/vitest.config.ts --run",
-    "test:watch": "vitest --config ./client/vitest.config.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "test:e2e": "playwright test"
   },
   "dependencies": {

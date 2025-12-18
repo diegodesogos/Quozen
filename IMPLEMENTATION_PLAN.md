@@ -9,6 +9,8 @@ Transition Quozen from a Node/PostgreSQL architecture to a Serverless/Client-Sid
 - **Auth**: Google Identity Services (Implicit Grant / Token)
 - **State**: React Query (TanStack)
 
+# Implementation Plan: Decentralized Architecture Migration
+
 ## Current Status
 - [x] Phase 1: Setup & Dependencies
 - [x] Phase 2: Google Authentication (Auth Provider & Login)
@@ -17,7 +19,8 @@ Transition Quozen from a Node/PostgreSQL architecture to a Serverless/Client-Sid
   - [x] Delete `server/` and `shared/` directories.
   - [x] Purge Node.js backend dependencies from `package.json`.
   - [x] Reconfigure `vercel.json` for static deployment.
-  - [x] Clean up environment templates.
+  - [x] Flatten repository structure (move `client/*` to root).
+  - [x] Unify TypeScript and Vitest configuration.
 
 ## Task List
 

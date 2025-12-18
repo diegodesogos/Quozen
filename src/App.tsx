@@ -15,7 +15,17 @@ import BottomNavigation from "@/components/bottom-navigation";
 import Header from "@/components/header";
 import { AppContext } from "@/context/app-context";
 import { AuthProvider, useAuth } from "@/context/auth-provider";
-import { googleApi } from "@/lib/drive"; // Import googleApi
+import { googleApi } from "@/lib/drive";
+
+// Define a simple interface for Group metadata
+interface GroupMetadata {
+  id: string;
+  name: string;
+  description?: string;
+  createdBy?: string;
+  participants?: string[];
+  createdAt?: string;
+}
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -37,7 +47,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => (
-  <div className="max-w-md mx-auto bg-background shadow-2xl min-h-screen relative">
+  <div className="max-w-md mx-auto bg-background shadow-2xl min-h-screen relative border-x border-border">
     <Header />
     <main className="pb-20">
       {children}
@@ -52,8 +62,8 @@ function AuthenticatedApp() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Use googleApi to fetch groups
-  const { data: groups, isLoading: groupsLoading } = useQuery({
+  // Explicitly type the query data as GroupMetadata[]
+  const { data: groups, isLoading: groupsLoading } = useQuery<GroupMetadata[]>({
     queryKey: ["drive", "groups"],
     queryFn: () => googleApi.listGroups(),
     enabled: isAuthenticated,
@@ -64,6 +74,7 @@ function AuthenticatedApp() {
 
     if (isAuthenticated && user) {
       if (groups && groups.length > 0) {
+        // 'g' is now correctly inferred as GroupMetadata
         const currentGroupIsValid = groups.some(g => g.id === activeGroupId);
         if (!activeGroupId || !currentGroupIsValid) {
           setActiveGroupId(groups[0].id);
@@ -129,4 +140,3 @@ function App() {
 }
 
 export default App;
-
