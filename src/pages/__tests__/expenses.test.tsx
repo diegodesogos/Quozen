@@ -1,19 +1,36 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import Expenses from "../expenses";
 import { useAppContext } from "@/context/app-context";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 // Mock hooks
 vi.mock("@/context/app-context", () => ({
   useAppContext: vi.fn(),
 }));
 
+const mockNavigate = vi.fn();
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
 vi.mock("@tanstack/react-query", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@tanstack/react-query")>();
   return {
     ...actual,
     useQuery: vi.fn(),
+    useMutation: vi.fn(() => ({
+      mutate: vi.fn(),
+      isPending: false,
+    })),
+    useQueryClient: vi.fn(() => ({
+      invalidateQueries: vi.fn(),
+    })),
   };
 });
 
@@ -27,6 +44,7 @@ vi.mock("@/hooks/use-toast", () => ({
 vi.mock("@/lib/drive", () => ({
   googleApi: {
     getGroupData: vi.fn(),
+    deleteExpense: vi.fn(),
   },
 }));
 
@@ -46,6 +64,7 @@ describe("Expenses Page", () => {
       category: "Food",
       date: new Date().toISOString(),
       splits: [{ userId: "user1", amount: 25 }, { userId: "user2", amount: 25 }],
+      _rowIndex: 2,
     },
     {
       id: "exp2",
@@ -55,6 +74,7 @@ describe("Expenses Page", () => {
       category: "Transportation",
       date: new Date().toISOString(),
       splits: [{ userId: "user1", amount: 7.5 }, { userId: "user2", amount: 7.5 }],
+      _rowIndex: 3,
     },
   ];
 
@@ -84,7 +104,11 @@ describe("Expenses Page", () => {
   });
 
   it("renders the list of expenses", () => {
-    render(<Expenses />);
+    render(
+      <MemoryRouter>
+        <Expenses />
+      </MemoryRouter>
+    );
     
     expect(screen.getByText("All Expenses")).toBeInTheDocument();
     expect(screen.getByText("Grocery Run")).toBeInTheDocument();
@@ -94,7 +118,11 @@ describe("Expenses Page", () => {
   });
 
   it("calculates 'You paid' and 'You owe' correctly", () => {
-    render(<Expenses />);
+    render(
+      <MemoryRouter>
+        <Expenses />
+      </MemoryRouter>
+    );
     
     // User1 (Alice) paid for Grocery Run ($50)
     const groceryCard = screen.getByTestId("card-expense-exp1");
@@ -106,18 +134,27 @@ describe("Expenses Page", () => {
   });
 
   it("shows placeholder for delete button click", () => {
-    // Since we don't have delete implemented yet, we verify it doesn't crash
-    // and perhaps check for the toast (optional, simplified here)
-    render(<Expenses />);
+    render(
+      <MemoryRouter>
+        <Expenses />
+      </MemoryRouter>
+    );
     const deleteBtn = screen.getByTestId("button-delete-expense-exp1");
     fireEvent.click(deleteBtn);
-    // Logic is handled by stub, no crash means success for this phase
+    
+    // Check that AlertDialog appears
+    expect(screen.getByText(/Delete Expense\?/i)).toBeInTheDocument();
   });
 
-  it("shows placeholder for edit button click", () => {
-    render(<Expenses />);
+  it("triggers navigation when edit button is clicked", () => {
+    render(
+      <MemoryRouter>
+        <Expenses />
+      </MemoryRouter>
+    );
     const editBtn = screen.getByTestId("button-edit-expense-exp1");
     fireEvent.click(editBtn);
-    // Logic is handled by stub
+    
+    expect(mockNavigate).toHaveBeenCalledWith("/edit-expense/exp1");
   });
 });

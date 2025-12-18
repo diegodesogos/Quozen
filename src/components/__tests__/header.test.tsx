@@ -1,21 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Header from "../header";
 import { useAppContext } from "@/context/app-context";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 // Mock the useAppContext hook
 vi.mock("@/context/app-context", () => ({
   useAppContext: vi.fn(),
 }));
 
-// Mock the useQuery hook
+// Mock the TanStack Query hooks
 vi.mock("@tanstack/react-query", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@tanstack/react-query")>();
   return {
     ...actual,
     useQuery: vi.fn(),
+    useQueryClient: vi.fn(() => ({
+      invalidateQueries: vi.fn(),
+    })),
   };
 });
 
