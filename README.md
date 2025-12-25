@@ -19,7 +19,7 @@ Quozen utilizes **Client-Side OAuth 2.0** via Google Identity Services. There is
 
 ### How it Works
 1.  **Implicit Grant Flow**: When you sign in, the app requests an access token directly from Google.
-2.  **Token Storage**: The access token is stored securely in your browser's memory for the duration of the session.
+2.  **Token Storage**: The access token is stored securely in your browser's (localStorage) for the duration of the session.
 3.  **Direct API Calls**: The app uses this token to fetch/update files directly via the Google Drive and Sheets APIs.
 
 ### Required Permissions (Scopes)
@@ -67,5 +67,7 @@ To function, Quozen requests these specific permissions:
 Run the client-side test suite:
 
 ```bash
-npm run test:client
+npm run test       # Run unit tests
+npm run test:e2e   # Run Playwright end-to-end tests
+```
 

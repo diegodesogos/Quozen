@@ -10,6 +10,34 @@ export const SCHEMAS = {
   Members: ["userId", "email", "name", "role", "joinedAt"]
 };
 
+// Helper to handle Auth and Error Parsing
+const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+  const token = getAuthToken();
+  if (!token) throw new Error("No access token found. Please sign in.");
+
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+    ...options.headers,
+  };
+
+  const response = await fetch(url, { ...options, headers });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error("Session expired (401). Please reload to sign in again.");
+    }
+    if (response.status === 403) {
+      throw new Error("Permission denied (403). You may not have access to this file.");
+    }
+    const errorBody = await response.text();
+    throw new Error(`Google API Error: ${response.status} - ${errorBody}`);
+  }
+
+  return response;
+};
+
+// Legacy helper kept for compatibility if needed internally, but prefer fetchWithAuth
 const getHeaders = () => {
   const token = getAuthToken();
   if (!token) throw new Error("No access token found");
@@ -25,31 +53,28 @@ export const googleApi = {
   async listGroups() {
     const query = "mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false";
     const fields = "files(id, name, createdTime)";
-    
-    const response = await fetch(
-      `${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}`,
-      { headers: getHeaders() }
+
+    const response = await fetchWithAuth(
+      `${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}`
     );
-    
-    if (!response.ok) throw new Error("Error listing groups");
+
     const data = await response.json();
-    
+
     return (data.files || []).map((file: any) => ({
       id: file.id,
       name: file.name.replace(/^Quozen - /, ''),
       description: "Google Sheet Group",
       createdBy: "me",
-      participants: [], 
+      participants: [],
       createdAt: file.createdTime
     }));
   },
 
   async createGroupSheet(name: string, user: { id: string, email: string, name: string }) {
     const title = `Quozen - ${name}`;
-    
-    const createRes = await fetch(SHEETS_API_URL, {
+
+    const createRes = await fetchWithAuth(SHEETS_API_URL, {
       method: "POST",
-      headers: getHeaders(),
       body: JSON.stringify({
         properties: { title },
         sheets: [
@@ -59,8 +84,7 @@ export const googleApi = {
         ]
       })
     });
-    
-    if (!createRes.ok) throw new Error("Failed to create spreadsheet");
+
     const sheetFile = await createRes.json();
     const spreadsheetId = sheetFile.spreadsheetId;
 
@@ -74,9 +98,8 @@ export const googleApi = {
       ]
     };
 
-    await fetch(`${SHEETS_API_URL}/${spreadsheetId}/values:batchUpdate`, {
+    await fetchWithAuth(`${SHEETS_API_URL}/${spreadsheetId}/values:batchUpdate`, {
       method: "POST",
-      headers: getHeaders(),
       body: JSON.stringify(valuesBody)
     });
 
@@ -92,20 +115,19 @@ export const googleApi = {
 
   async getGroupData(spreadsheetId: string) {
     if (!spreadsheetId) return null;
-    
+
     const ranges = ["Expenses!A2:Z", "Settlements!A2:Z", "Members!A2:Z"];
     const url = `${SHEETS_API_URL}/${spreadsheetId}/values:batchGet?majorDimension=ROWS&${ranges.map(r => `ranges=${r}`).join('&')}`;
-    
-    const res = await fetch(url, { headers: getHeaders() });
-    if (!res.ok) throw new Error("Error fetching group data");
-    
+
+    const res = await fetchWithAuth(url);
+
     const data = await res.json();
-    const valueRanges = data.valueRanges; 
+    const valueRanges = data.valueRanges;
 
     const mapRows = (rows: any[][], schema: string[]) => {
       if (!rows) return [];
       return rows.map((row, i) => {
-        const obj: any = { _rowIndex: i + 2 }; 
+        const obj: any = { _rowIndex: i + 2 };
         schema.forEach((key, index) => {
           let value = row[index];
           if (key === 'splits' || key === 'meta') {
@@ -133,16 +155,15 @@ export const googleApi = {
     });
 
     const url = `${SHEETS_API_URL}/${spreadsheetId}/values/${sheetName}!A1:append?valueInputOption=USER_ENTERED`;
-    await fetch(url, {
+    await fetchWithAuth(url, {
       method: "POST",
-      headers: getHeaders(),
       body: JSON.stringify({ values: [rowValues] })
     });
   },
 
   // NEW: Helper to find the numeric Sheet ID (GID)
   async getSheetId(spreadsheetId: string, sheetName: string): Promise<number> {
-    const res = await fetch(`${SHEETS_API_URL}/${spreadsheetId}?fields=sheets.properties`, { headers: getHeaders() });
+    const res = await fetchWithAuth(`${SHEETS_API_URL}/${spreadsheetId}?fields=sheets.properties`);
     const data = await res.json();
     const sheet = data.sheets.find((s: any) => s.properties.title === sheetName);
     if (!sheet) throw new Error(`Sheet ${sheetName} not found`);
@@ -158,9 +179,8 @@ export const googleApi = {
     });
 
     const url = `${SHEETS_API_URL}/${spreadsheetId}/values/${sheetName}!A${rowIndex}:Z${rowIndex}?valueInputOption=USER_ENTERED`;
-    await fetch(url, {
+    await fetchWithAuth(url, {
       method: "PUT",
-      headers: getHeaders(),
       body: JSON.stringify({ values: [rowValues] })
     });
   },
@@ -181,9 +201,8 @@ export const googleApi = {
       }]
     };
 
-    await fetch(`${SHEETS_API_URL}/${spreadsheetId}:batchUpdate`, {
+    await fetchWithAuth(`${SHEETS_API_URL}/${spreadsheetId}:batchUpdate`, {
       method: "POST",
-      headers: getHeaders(),
       body: JSON.stringify(body)
     });
   },
