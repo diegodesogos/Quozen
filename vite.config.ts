@@ -2,34 +2,23 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
-// Defaults (keep your original defaults here)
-const DEFAULT_VITE_PORT = 3001;    // defaul Vite frontend port
-const DEFAULT_BACKEND_PORT = 5001; // proxy target default
-// Allow overrides via env vars. Use process.env.PORT as fallback for some platforms.
-const VITE_PORT = Number(process.env.VITE_PORT || process.env.PORT || DEFAULT_VITE_PORT);
-const BACKEND_PORT = Number(process.env.BACKEND_PORT || process.env.SERVER_PORT || DEFAULT_BACKEND_PORT);
-
+// Allow overrides via env vars for 2025 deployment flexibility
+const VITE_PORT = Number(process.env.VITE_PORT || process.env.PORT || 3001);
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "client", "src"),
-      "@shared": path.resolve(__dirname, "shared"),
+      "@": path.resolve(__dirname, "src"), // Pointing directly to root src
     },
   },
-  root: path.resolve(__dirname, "client"),
+  root: "./", // Entry point is now in the project root
   build: {
-    outDir: "../dist/client",
+    outDir: "dist", // Standard output directory at root
     emptyOutDir: true,
   },
   server: {
     port: VITE_PORT,
-    proxy: {
-      "/api": {
-        target: `http://localhost:${BACKEND_PORT}`,
-        changeOrigin: true,
-      },
-    },
+    strictPort: true,
   },
 });

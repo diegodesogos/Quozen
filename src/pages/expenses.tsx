@@ -1,0 +1,224 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAppContext } from "@/context/app-context";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { 
+  Filter, ArrowUpDown, Utensils, Car, Bed, ShoppingBag, 
+  Gamepad2, MoreHorizontal, Trash2 
+} from "lucide-react";
+import { googleApi } from "@/lib/drive";
+import { useNavigate } from "react-router-dom";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+interface User {
+  userId: string;
+  name: string;
+  email: string;
+}
+
+interface Expense {
+  id: string;
+  description: string;
+  amount: number;
+  paidBy: string;
+  category: string;
+  date: string;
+  splits: { userId: string; amount: number }[];
+  _rowIndex: number; // Internal row index from Google Sheets
+}
+
+export default function Expenses() {
+  const { activeGroupId, currentUserId } = useAppContext();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  // State to track which expense is being prompted for deletion
+  const [deleteRowIndex, setDeleteRowIndex] = useState<number | null>(null);
+
+  // Fetch group data
+  const { data: groupData, isLoading } = useQuery({
+    queryKey: ["drive", "group", activeGroupId],
+    queryFn: () => googleApi.getGroupData(activeGroupId),
+    enabled: !!activeGroupId,
+  });
+
+  const users = (groupData?.members || []) as User[];
+  const expenses = (groupData?.expenses || []) as Expense[];
+
+  // Mutation to delete the expense row in Google Sheets
+  const deleteMutation = useMutation({
+    mutationFn: (rowIndex: number) => googleApi.deleteExpense(activeGroupId, rowIndex),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
+      toast({ 
+        title: "Expense deleted", 
+        description: "The spreadsheet has been updated successfully." 
+      });
+    },
+    onError: () => {
+      toast({ 
+        title: "Error", 
+        description: "Failed to delete expense. Please try again.", 
+        variant: "destructive" 
+      });
+    },
+    onSettled: () => setDeleteRowIndex(null)
+  });
+
+  const getUserById = (id: string) => users.find(u => u.userId === id);
+
+  const getExpenseIcon = (category: string) => {
+    switch (category?.toLowerCase()) {
+      case "food": case "food & dining": return Utensils;
+      case "transportation": return Car;
+      case "accommodation": return Bed;
+      case "shopping": return ShoppingBag;
+      case "entertainment": return Gamepad2;
+      default: return MoreHorizontal;
+    }
+  };
+
+  const getCategoryColor = (category: string) => {
+    switch (category?.toLowerCase()) {
+      case "food": case "food & dining": return "bg-orange-100 text-orange-800";
+      case "transportation": return "bg-blue-100 text-blue-800";
+      case "accommodation": return "bg-purple-100 text-purple-800";
+      case "shopping": return "bg-green-100 text-green-800";
+      case "entertainment": return "bg-pink-100 text-pink-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  if (isLoading) {
+    return <div className="p-4 text-center">Loading expenses...</div>;
+  }
+
+  return (
+    <div className="mx-4 mt-4" data-testid="expenses-view">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold">All Expenses</h2>
+        <div className="flex space-x-2">
+          <Button variant="outline" size="icon" data-testid="button-filter-expenses">
+            <Filter className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="icon" data-testid="button-sort-expenses">
+            <ArrowUpDown className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+      
+      <div className="space-y-3">
+        {expenses.length === 0 ? (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                <Utensils className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <h3 className="font-semibold text-foreground mb-2">No expenses yet</h3>
+              <p className="text-sm text-muted-foreground">
+                Start by adding your first expense to track group spending
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          expenses.slice().reverse().map((expense) => {
+            const paidByUser = getUserById(expense.paidBy);
+            const userSplit = expense.splits?.find(s => s.userId === currentUserId);
+            const yourShare = userSplit?.amount || 0;
+            const Icon = getExpenseIcon(expense.category);
+
+            return (
+              <Card key={expense.id} data-testid={`card-expense-${expense.id}`}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start space-x-3">
+                      <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center">
+                        <Icon className="w-6 h-6 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-foreground">{expense.description}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Paid by <span className="font-medium">{paidByUser?.name || 'Unknown'}</span> on{" "}
+                          {new Date(expense.date).toLocaleDateString()}
+                        </p>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          <Badge variant="secondary" className={getCategoryColor(expense.category)}>
+                            {expense.category}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-lg text-foreground">
+                        ${Number(expense.amount).toFixed(2)}
+                      </div>
+                      {expense.paidBy === currentUserId ? (
+                        <div className="text-sm expense-positive">You paid</div>
+                      ) : (
+                        <div className="text-sm expense-negative">You owe ${yourShare.toFixed(2)}</div>
+                      )}
+                      <div className="flex space-x-2 mt-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-primary text-sm h-auto p-0"
+                          onClick={() => navigate(`/edit-expense/${expense.id}`)}
+                          data-testid={`button-edit-expense-${expense.id}`}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive text-sm h-auto p-0"
+                          onClick={() => setDeleteRowIndex(expense._rowIndex)}
+                          data-testid={`button-delete-expense-${expense.id}`}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
+      </div>
+
+      {/* Deletion Confirmation Dialog */}
+      <AlertDialog open={deleteRowIndex !== null} onOpenChange={(open) => !open && setDeleteRowIndex(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Expense?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the expense from your Google Sheet. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => deleteRowIndex && deleteMutation.mutate(deleteRowIndex)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

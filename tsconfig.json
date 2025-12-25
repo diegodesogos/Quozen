@@ -1,21 +1,24 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "module": "esnext",
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "module": "ESNext",
+    "skipLibCheck": true,
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
-    "esModuleInterop": true,
+    "isolatedModules": true,
+    "noEmit": true,
     "jsx": "react-jsx",
-    "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true,
     "strict": true,
     "noImplicitAny": true,
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["client/src/*"],
-      "@shared/*": ["shared/*"]
-    }
+      "@/*": ["src/*"]
+    },
+    "types": ["vite/client", "vitest/globals"]
   },
-  "include": ["server", "shared", "client", "tests"],
+  "include": ["src", "tests"],
   "exclude": ["node_modules", "dist"]
 }
