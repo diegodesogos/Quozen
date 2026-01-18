@@ -10,7 +10,8 @@
     "check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:mock": "VITE_USE_MOCK_STORAGE=true playwright test"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

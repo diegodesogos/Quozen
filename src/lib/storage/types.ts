@@ -1,0 +1,105 @@
+
+export const SCHEMAS = {
+  Expenses: ["id", "date", "description", "amount", "paidBy", "category", "splits", "meta"],
+  Settlements: ["id", "date", "fromUserId", "toUserId", "amount", "method", "notes"],
+  Members: ["userId", "email", "name", "role", "joinedAt"]
+} as const;
+
+export type SchemaType = keyof typeof SCHEMAS;
+
+export interface Group {
+  id: string;
+  name: string;
+  description: string;
+  createdBy: string;
+  participants: string[];
+  createdAt: string;
+}
+
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  name: string;
+  picture?: string;
+}
+
+export interface Expense {
+  id: string;
+  date: string;
+  description: string;
+  amount: number;
+  paidBy: string;
+  category: string;
+  splits: any[];
+  meta: any;
+  _rowIndex?: number;
+}
+
+export interface Settlement {
+  id: string;
+  date: string;
+  fromUserId: string;
+  toUserId: string;
+  amount: number;
+  method: string;
+  notes?: string;
+  _rowIndex?: number;
+}
+
+export interface Member {
+  userId: string;
+  email: string;
+  name: string;
+  role: string;
+  joinedAt: string;
+  _rowIndex?: number;
+}
+
+export interface GroupData {
+  expenses: Expense[];
+  settlements: Settlement[];
+  members: Member[];
+}
+
+export interface IStorageProvider {
+  /**
+   * List all available groups (spreadsheets)
+   */
+  listGroups(): Promise<Group[]>;
+
+  /**
+   * Create a new group/spreadsheet
+   */
+  createGroupSheet(name: string, user: User): Promise<Group>;
+
+  /**
+   * Get all data for a specific group
+   */
+  getGroupData(spreadsheetId: string): Promise<GroupData | null>;
+
+  /**
+   * Add a new expense
+   */
+  addExpense(spreadsheetId: string, expenseData: Partial<Expense>): Promise<void>;
+
+  /**
+   * Delete an expense by row index
+   */
+  deleteExpense(spreadsheetId: string, rowIndex: number): Promise<void>;
+
+  /**
+   * Add a new settlement
+   */
+  addSettlement(spreadsheetId: string, settlementData: Partial<Settlement>): Promise<void>;
+
+  /**
+   * Update a row in any sheet
+   */
+  updateRow(spreadsheetId: string, sheetName: SchemaType, rowIndex: number, data: any): Promise<void>;
+
+  /**
+   * Delete a row in any sheet
+   */
+  deleteRow(spreadsheetId: string, sheetName: SchemaType, rowIndex: number): Promise<void>;
+}

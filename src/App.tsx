@@ -16,18 +16,9 @@ import BottomNavigation from "@/components/bottom-navigation";
 import Header from "@/components/header";
 import { AppContext } from "@/context/app-context";
 import { AuthProvider, useAuth } from "@/context/auth-provider";
-import { googleApi } from "@/lib/drive";
+import { googleApi, Group } from "@/lib/drive";
 
-// Define a simple interface for Group metadata
-interface GroupMetadata {
-  id: string;
-  name: string;
-  description?: string;
-  createdBy?: string;
-  participants?: string[];
-  createdAt?: string;
-}
-
+// ProtectedRoute definition...
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
@@ -63,8 +54,8 @@ function AuthenticatedApp() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Explicitly type the query data as GroupMetadata[]
-  const { data: groups, isLoading: groupsLoading } = useQuery<GroupMetadata[]>({
+  // Explicitly type the query data as Group[]
+  const { data: groups, isLoading: groupsLoading } = useQuery<Group[]>({
     queryKey: ["drive", "groups"],
     queryFn: () => googleApi.listGroups(),
     enabled: isAuthenticated,
@@ -75,7 +66,7 @@ function AuthenticatedApp() {
 
     if (isAuthenticated && user) {
       if (groups && groups.length > 0) {
-        // 'g' is now correctly inferred as GroupMetadata
+        // 'g' is now correctly inferred as Group
         const currentGroupIsValid = groups.some(g => g.id === activeGroupId);
         if (!activeGroupId || !currentGroupIsValid) {
           setActiveGroupId(groups[0].id);
@@ -120,7 +111,7 @@ function AuthenticatedApp() {
           path="/"
           element={
             isLoading ? <div>Loading...</div> :
-            isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
+              isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
           }
         />
         <Route path="*" element={<NotFound />} />

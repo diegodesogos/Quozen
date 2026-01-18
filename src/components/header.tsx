@@ -3,7 +3,7 @@ import { useAppContext } from "@/context/app-context";
 import { Bell, ChevronDown, Users, RefreshCw } from "lucide-react";
 import GroupSwitcherModal from "./group-switcher-modal";
 import { useState } from "react";
-import { googleApi } from "@/lib/drive";
+import { googleApi, Group } from "@/lib/drive";
 import { cn } from "@/lib/utils";
 
 export default function Header() {
@@ -12,7 +12,7 @@ export default function Header() {
   const queryClient = useQueryClient();
 
   // 1. Fetch group list (metadata)
-  const { data: groups = [], isFetching: isGroupsFetching } = useQuery({
+  const { data: groups = [], isFetching: isGroupsFetching } = useQuery<Group[]>({
     queryKey: ["drive", "groups"],
     queryFn: () => googleApi.listGroups(),
   });
@@ -24,9 +24,9 @@ export default function Header() {
     enabled: !!activeGroupId,
   });
 
-  const activeGroup = groups.find((g: any) => g.id === activeGroupId);
+  const activeGroup = groups.find((g) => g.id === activeGroupId);
   const memberCount = groupData?.members?.length || 0;
-  
+
   // The button will spin if any drive-related query is currently fetching
   const isSyncing = isGroupsFetching || isDataFetching;
 
@@ -44,7 +44,7 @@ export default function Header() {
               <Users className="text-primary-foreground w-4 h-4" />
             </div>
             <div>
-              <button 
+              <button
                 onClick={() => setShowGroupSwitcher(true)}
                 className="text-left"
                 data-testid="button-switch-group"
@@ -61,10 +61,10 @@ export default function Header() {
               </button>
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             {/* New Sync/Refresh Button */}
-            <button 
+            <button
               className="w-8 h-8 rounded-full bg-muted flex items-center justify-center hover:bg-accent transition-colors disabled:opacity-50"
               onClick={handleRefresh}
               disabled={isSyncing}
@@ -72,11 +72,11 @@ export default function Header() {
               data-testid="button-refresh"
             >
               <RefreshCw className={cn(
-                "w-4 h-4 text-muted-foreground", 
+                "w-4 h-4 text-muted-foreground",
                 isSyncing && "animate-spin text-primary"
               )} />
             </button>
-            
+
             <button className="w-8 h-8 rounded-full bg-muted flex items-center justify-center" data-testid="button-notifications">
               <Bell className="w-4 h-4 text-muted-foreground" />
             </button>
@@ -84,9 +84,9 @@ export default function Header() {
         </div>
       </header>
 
-      <GroupSwitcherModal 
-        isOpen={showGroupSwitcher} 
-        onClose={() => setShowGroupSwitcher(false)} 
+      <GroupSwitcherModal
+        isOpen={showGroupSwitcher}
+        onClose={() => setShowGroupSwitcher(false)}
       />
     </>
   );

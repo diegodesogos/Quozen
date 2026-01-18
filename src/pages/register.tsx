@@ -14,7 +14,9 @@ export default function Register() {
     name: "",
   });
   const [error, setError] = useState<string | null>(null);
-  const { register, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
+  // Stub register for now as it is not in AuthContext
+  const register = async (data: any) => { throw new Error("Registration not supported"); };
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
