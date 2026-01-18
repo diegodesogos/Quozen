@@ -24,11 +24,11 @@ export default function EditExpense() {
 
   const editMutation = useMutation({
     mutationFn: (updatedData: any) => {
-      if (!activeGroupId || !expense) throw new Error("Missing required data");
+      if (!activeGroupId || !expense || typeof expense._rowIndex !== 'number') throw new Error("Missing required data");
       return googleApi.updateRow(
-        activeGroupId, 
-        "Expenses", 
-        expense._rowIndex, 
+        activeGroupId,
+        "Expenses",
+        expense._rowIndex,
         { ...expense, ...updatedData }
       );
     },
@@ -39,10 +39,10 @@ export default function EditExpense() {
     },
     onError: (error) => {
       console.error(error);
-      toast({ 
-        title: "Error", 
-        description: "Failed to update expense. Please check your connection.", 
-        variant: "destructive" 
+      toast({
+        title: "Error",
+        description: "Failed to update expense. Please check your connection.",
+        variant: "destructive"
       });
     }
   });
@@ -58,7 +58,7 @@ export default function EditExpense() {
   }
 
   return (
-    <ExpenseForm 
+    <ExpenseForm
       title="Edit Expense"
       initialData={expense}
       users={groupData.members}

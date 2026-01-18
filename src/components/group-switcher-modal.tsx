@@ -4,14 +4,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Users, Check, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { googleApi } from "@/lib/drive";
+import { googleApi, Group } from "@/lib/drive";
 
 export default function GroupSwitcherModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { activeGroupId, setActiveGroupId } = useAppContext();
   const navigate = useNavigate();
 
   // Fetch groups from Drive
-  const { data: groups = [] } = useQuery({
+  const { data: groups = [] } = useQuery<Group[]>({
     queryKey: ["drive", "groups"],
     queryFn: () => googleApi.listGroups(),
   });
@@ -32,12 +32,12 @@ export default function GroupSwitcherModal({ isOpen, onClose }: { isOpen: boolea
         <DialogHeader>
           <DialogTitle className="text-center">Switch Group</DialogTitle>
           <DialogDescription>
-             Select a group to view or create a new one.
+            Select a group to view or create a new one.
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-3 max-h-96 overflow-y-auto">
-          {groups.map((group: any) => (
+          {groups.map((group) => (
             <button
               key={group.id}
               onClick={() => handleSelectGroup(group.id)}
