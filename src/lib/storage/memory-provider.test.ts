@@ -7,6 +7,7 @@ describe('InMemoryProvider', () => {
     let provider: InMemoryProvider;
     const mockUser: User = {
         id: 'user1',
+        username: 'testuser',
         name: 'Test User',
         email: 'test@example.com'
     };
