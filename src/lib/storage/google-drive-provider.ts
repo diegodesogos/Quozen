@@ -205,11 +205,21 @@ export class GoogleDriveProvider implements IStorageProvider {
         });
     }
 
+    private sheetIdCache = new Map<string, number>();
+
     private async getSheetId(spreadsheetId: string, sheetName: string): Promise<number> {
+        const cacheKey = `${spreadsheetId}:${sheetName}`;
+        if (this.sheetIdCache.has(cacheKey)) {
+            return this.sheetIdCache.get(cacheKey)!;
+        }
+
         const res = await this.fetchWithAuth(`${SHEETS_API_URL}/${spreadsheetId}?fields=sheets.properties`);
         const data = await res.json();
         const sheet = data.sheets.find((s: any) => s.properties.title === sheetName);
         if (!sheet) throw new Error(`Sheet ${sheetName} not found`);
-        return sheet.properties.sheetId;
+
+        const sheetId = sheet.properties.sheetId;
+        this.sheetIdCache.set(cacheKey, sheetId);
+        return sheetId;
     }
 }
