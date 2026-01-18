@@ -2,17 +2,11 @@ import { createContext, useContext, useState, ReactNode, useEffect } from 'react
 import { useGoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
 import { setAuthToken, getAuthToken as getTokenFromStore } from '../lib/tokenStore';
+import { User } from '../lib/storage/types';
 
 const USER_STORAGE_KEY = "quozen_user_profile";
 
-// Define a client-side User type compatible with the app's needs
-export interface User {
-  id: string;
-  username: string;
-  email: string;
-  name: string;
-  picture?: string;
-}
+// User type imported from ../lib/storage/types
 
 interface AuthState {
   user: User | null;
@@ -58,14 +52,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const accessToken = tokenResponse.access_token;
       setToken(accessToken);
       setIsLoading(true);
-      
+
       try {
         // Fetch user profile from Google
         const userInfo = await axios.get(
           'https://www.googleapis.com/oauth2/v3/userinfo',
           { headers: { Authorization: `Bearer ${accessToken}` } }
         );
-        
+
         setUser({
           id: userInfo.data.sub,
           username: userInfo.data.email, // Use email as username
@@ -91,13 +85,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      isAuthenticated: !!token && !!user, 
-      isLoading, 
-      token, 
-      login, 
-      logout 
+    <AuthContext.Provider value={{
+      user,
+      isAuthenticated: !!token && !!user,
+      isLoading,
+      token,
+      login,
+      logout
     }}>
       {children}
     </AuthContext.Provider>

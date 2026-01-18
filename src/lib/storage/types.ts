@@ -18,8 +18,10 @@ export interface Group {
 
 export interface User {
   id: string;
+  username: string;
   email: string;
   name: string;
+  picture?: string;
 }
 
 export interface Expense {
@@ -90,7 +92,7 @@ export interface IStorageProvider {
    * Add a new settlement
    */
   addSettlement(spreadsheetId: string, settlementData: Partial<Settlement>): Promise<void>;
-  
+
   /**
    * Update a row in any sheet
    */
