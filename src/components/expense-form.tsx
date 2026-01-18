@@ -12,11 +12,13 @@ interface ExpenseSplit {
   selected: boolean;
 }
 
+import { Expense, Member } from "@/lib/storage/types";
+
 interface ExpenseFormProps {
-  initialData?: any;
-  users: any[];
+  initialData?: Partial<Expense>;
+  users: Member[];
   currentUserId: string;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: Partial<Expense>) => void;
   isPending: boolean;
   title: string;
 }
@@ -32,7 +34,7 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
 
   useEffect(() => {
     if (users.length > 0 && splits.length === 0) {
-      const initialSplits = users.map((u: any) => {
+      const initialSplits = users.map((u) => {
         const existingSplit = initialData?.splits?.find((s: any) => s.userId === u.userId);
         return {
           userId: u.userId,
