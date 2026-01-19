@@ -33,24 +33,47 @@ This plan details the implementation of multi-user group support for Quozen, ena
 
 ### Story 2.1: Create Group with Members (Owner)
 
-**Scope**: Enhance group creation dialog to optionally accept member emails
+**Scope**: Enhance group creation dialog to optionally accept member emails or usernames
+
+**Member Input Rules**:
+> [!NOTE]
+> The Members field accepts two types of input (comma-separated):
+> - **Valid email addresses** (e.g., `alice@gmail.com`) → App shares the file via Google Drive
+> - **Usernames** (alphanumeric, no special chars/spaces, e.g., `bob123`) → Added to Members tab for expense tracking only (no Drive access)
+
+No validation warnings are needed. Both input types are valid. This allows tracking expenses for people who don't use the app.
 
 **Tasks**:
 1. **UI Changes** - `src/pages/groups.tsx`:
-   - Add "Members" textarea field (comma-separated emails)
-   - Add email validation helper (warn but don't block on invalid)
-   - Update form submission to pass member list
+   - Add "Members" textarea field (comma-separated)
+   - Add placeholder/hint: "Enter emails or usernames, separated by commas"
+   - Implement input parser to separate emails vs usernames
+   - Update form submission to pass parsed member list
 
 2. **Storage Layer** - `src/lib/storage/google-drive-provider.ts`:
-   - Extend `createGroupSheet()` to accept `memberEmails: string[]`
-   - Add each valid member to Members tab with `role="member"`
-   - Implement `shareSpreadsheet(fileId, email)` using Drive Permissions API
-   - Handle partial sharing failures gracefully
+   - Extend `createGroupSheet()` to accept `members: { email?: string; username?: string }[]`
+   - For each member:
+     - If valid email: 
+       - Share spreadsheet via Drive API
+       - On success: Fetch Google user's display name from the permission response or People API
+       - Add to Members tab with fetched `name` (or email as fallback if name unavailable)
+     - If username only: 
+       - Add to Members tab with username as both `userId` and `name`
+   - Track sharing results for toast message
+
+   **Display Name Resolution** (at write-time):
+   > [!NOTE]
+   > The `name` column in Members tab is populated when members are added:
+   > - **Shared email members**: Google user's display name (fetched from Drive API permission response)
+   > - **Username-only members**: The username itself
+   > 
+   > All display logic (e.g., "Paid by [Name]") simply reads the `name` field from Members tab.
 
 3. **Interface Updates** - `src/lib/storage/types.ts`:
    - Update `IStorageProvider.createGroupSheet` signature
+   - Add `MemberInput` type: `{ email?: string; username?: string }`
 
-4. **Tests**: Add unit tests for email validation, integration test for sharing
+4. **Tests**: Add unit tests for email/username parsing logic
 
 ---
 
@@ -241,24 +264,26 @@ graph TD
 ```
 
 **Recommended sequence**:
-1. **Story 2.3** - Foundation: Discover shared groups (enables seeing shared content)
-2. **Story 2.1** - Create group with members (enables sharing)
-3. **Story 2.2** - Edit group members (full member management)
-4. **Story 2.4** - Delete group (owner cleanup)
-5. **Story 2.5** - Leave group (member cleanup)
-6. **Story 2.10** - View other members' expenses (better multi-user UX)
-7. **Story 2.7** - Edit conflict detection (data integrity)
-8. **Story 2.8** - Delete conflict handling (data integrity)
+1. **Task P1** - Google Picker integration (prerequisite for shared group discovery)
+2. **Story 2.3** - Foundation: Discover shared groups (enables seeing shared content)
+3. **Story 2.1** - Create group with members (enables sharing)
+4. **Story 2.2** - Edit group members (full member management)
+5. **Story 2.4** - Delete group (owner cleanup)
+6. **Story 2.5** - Leave group (member cleanup)
+7. **Story 2.10** - View other members' expenses (better multi-user UX)
+8. **Story 2.7** - Edit conflict detection (data integrity)
+9. **Story 2.8** - Delete conflict handling (data integrity)
 
 ---
 
 ## Project Tracker
 
-| Story | Status | Notes |
-|-------|--------|-------|
+| Task/Story | Status | Notes |
+|------------|--------|-------|
+| P1 - Google Picker Integration | [ ] Not Started | Prerequisite for shared group discovery |
 | 2.1 - Create Group with Members | [ ] Not Started | |
 | 2.2 - Edit Group Members | [ ] Not Started | Depends on 2.1 |
-| 2.3 - Discover Shared Groups | [ ] Not Started | Foundation story |
+| 2.3 - Discover Shared Groups | [ ] Not Started | Depends on P1 |
 | 2.4 - Delete Group (Owner) | [ ] Not Started | |
 | 2.5 - Leave Group (Member) | [ ] Not Started | |
 | 2.6 - Manual Refresh Button | [x] Complete | Already implemented |
@@ -272,14 +297,54 @@ graph TD
 ## Technical Considerations
 
 ### OAuth Scopes
-Current scopes (`spreadsheets`, `drive.file`) should be sufficient for:
-- Creating spreadsheets
-- Reading/writing to spreadsheets user can access
-- Sharing files user owns
 
-May need to add `https://www.googleapis.com/auth/drive` for:
-- Listing `sharedWithMe` files
-- Revoking permissions
+> [!IMPORTANT]
+> **Decision**: Keep `drive.file` scope to avoid Google Restricted Scope Verification.
+
+Current scopes (`spreadsheets`, `drive.file`) are sufficient for:
+- ✅ Creating spreadsheets
+- ✅ Reading/writing to spreadsheets user can access
+- ✅ Sharing files user owns
+
+**Challenge**: `drive.file` scope does NOT allow listing `sharedWithMe` files directly via Drive API query.
+
+**Solution**: Use **Google Picker API** to let users explicitly select shared spreadsheets. When a user selects a file through the Picker, Google grants the app access to that specific file under the `drive.file` scope.
+
+---
+
+## Prerequisite Task: Google Picker Integration for Shared Files
+
+### Task P1: Design & Implement Google Picker for Shared Group Discovery
+
+**Objective**: Enable users to access shared Quozen groups without requiring the full `drive` scope.
+
+**Background**: The `drive.file` scope only grants access to files the app created or files the user explicitly selects via Google Picker. To discover shared groups, we need an alternative to the `sharedWithMe` query.
+
+**Analysis Required**:
+1. Research Google Picker API integration in React/Vite apps
+2. Determine how to filter Picker to show only spreadsheets with "Quozen - " prefix (if possible)
+3. Design UX flow: Where does the "Import Shared Group" button appear?
+4. Determine if Picker selection persists across sessions or needs re-selection
+5. Handle edge cases: invalid spreadsheets, corrupted structure, user not in Members tab
+
+**Proposed UX Approach** (to be validated):
+- Add "Import Shared Group" button on Groups page
+- Button opens Google Picker filtered to spreadsheets
+- User selects a shared Quozen spreadsheet
+- App validates structure and adds to local group list
+- Group remains accessible in future sessions (file ID stored locally)
+
+**Technical Tasks**:
+- [ ] Add Google Picker API script to `index.html`
+- [ ] Create `useGooglePicker` hook or utility function
+- [ ] Implement Picker popup flow with appropriate view/filters
+- [ ] Store imported group IDs in localStorage for persistence
+- [ ] Validate selected spreadsheet has correct Quozen structure
+- [ ] Add imported groups to the groups query result
+
+**Dependencies**: This task must be completed before Story 2.3 can be fully implemented.
+
+---
 
 ### Google Drive API Permissions
 ```typescript
