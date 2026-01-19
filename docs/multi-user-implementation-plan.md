@@ -318,31 +318,86 @@ Current scopes (`spreadsheets`, `drive.file`) are sufficient for:
 
 **Objective**: Enable users to access shared Quozen groups without requiring the full `drive` scope.
 
-**Background**: The `drive.file` scope only grants access to files the app created or files the user explicitly selects via Google Picker. To discover shared groups, we need an alternative to the `sharedWithMe` query.
+---
 
-**Analysis Required**:
-1. Research Google Picker API integration in React/Vite apps
-2. Determine how to filter Picker to show only spreadsheets with "Quozen - " prefix (if possible)
-3. Design UX flow: Where does the "Import Shared Group" button appear?
-4. Determine if Picker selection persists across sessions or needs re-selection
-5. Handle edge cases: invalid spreadsheets, corrupted structure, user not in Members tab
+### Background: The "Blessing" Mechanism
 
-**Proposed UX Approach** (to be validated):
-- Add "Import Shared Group" button on Groups page
-- Button opens Google Picker filtered to spreadsheets
-- User selects a shared Quozen spreadsheet
-- App validates structure and adds to local group list
-- Group remains accessible in future sessions (file ID stored locally)
+> [!IMPORTANT]
+> **Key Insight**: When a user selects a file via Google Picker, Google "blesses" the app with permanent access to that specific file under the `drive.file` scope.
 
-**Technical Tasks**:
-- [ ] Add Google Picker API script to `index.html`
+**How it works**:
+1. App triggers the Google Picker (Google-provided file selection window)
+2. User selects a shared file from the Picker
+3. Google grants persistent access to that file for your Client ID + user account
+4. App can now read/write that file using standard Drive API calls
+
+**Key Characteristics of the Persistent Blessing**:
+
+| Characteristic | Description |
+|----------------|-------------|
+| **Persistence** | Access survives app restarts. No need to re-pick the file every session. |
+| **Searchability** | Once blessed, the file appears in `drive.files.list` results! It was hidden before, now it's visible. |
+| **Scope** | Works with `drive.file` scope - no Restricted Scope Verification needed. |
+
+**V1 Simplicity Goal**: User uses Picker once per shared file. That's all we need for version 1.
+
+---
+
+### Design Implications
+
+Since blessed files automatically appear in `drive.files.list`:
+
+1. **No custom caching needed** for V1 - blessed files show up in standard queries
+2. **`listGroups()` query continues to work** - blessed shared files will be included
+3. **One-time action per shared file** - "Import Shared Group" button triggers Picker
+
+---
+
+### Analysis Tasks
+- [ ] Research Google Picker API integration in React/Vite apps
+- [ ] Determine how to filter Picker to show only spreadsheets (mimeType filter)
+- [ ] Test if Picker can filter by filename prefix "Quozen - " (likely not, validation post-selection)
+- [ ] Design UX: "Import Shared Group" button placement on Groups page
+- [ ] Verify blessed files appear in subsequent `drive.files.list` calls
+
+### Implementation Tasks
+- [ ] Add Google Picker API script to `index.html` or load dynamically
 - [ ] Create `useGooglePicker` hook or utility function
-- [ ] Implement Picker popup flow with appropriate view/filters
-- [ ] Store imported group IDs in localStorage for persistence
-- [ ] Validate selected spreadsheet has correct Quozen structure
-- [ ] Add imported groups to the groups query result
+- [ ] Implement Picker popup flow with spreadsheet mimeType filter
+- [ ] Validate selected spreadsheet has correct Quozen structure (tabs: Members, Expenses, Settlements)
+- [ ] Validate current user exists in Members tab
+- [ ] Show success/error toast based on validation
+- [ ] Test that imported group appears in groups list on next query
 
-**Dependencies**: This task must be completed before Story 2.3 can be fully implemented.
+### Proposed UX Flow
+```
+Groups Page
+├── [+ New Group] button (existing)
+└── [📥 Import Shared Group] button (new)
+         │
+         ▼
+    Google Picker opens
+    (filtered to spreadsheets)
+         │
+         ▼
+    User selects file
+         │
+         ▼
+    App validates structure
+         │
+    ┌────┴────┐
+    │         │
+  Valid    Invalid
+    │         │
+    ▼         ▼
+ Toast:    Toast:
+ "Group    "Invalid
+ imported"  file"
+    │
+    ▼
+ Group appears
+ in list
+```
 
 ---
 
