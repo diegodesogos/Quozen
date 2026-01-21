@@ -3,11 +3,17 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Header from "../header";
 import { useAppContext } from "@/context/app-context";
+import { useAuth } from "@/context/auth-provider";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 // Mock the useAppContext hook
 vi.mock("@/context/app-context", () => ({
   useAppContext: vi.fn(),
+}));
+
+// Mock the useAuth hook (Required by GroupSwitcherModal -> useGooglePicker)
+vi.mock("@/context/auth-provider", () => ({
+  useAuth: vi.fn(),
 }));
 
 // Mock the TanStack Query hooks
@@ -27,6 +33,7 @@ vi.mock("@/lib/drive", () => ({
   googleApi: {
     listGroups: vi.fn(),
     getGroupData: vi.fn(),
+    validateQuozenSpreadsheet: vi.fn(),
   },
 }));
 
@@ -42,8 +49,20 @@ describe("Header Component", () => {
     ]
   };
 
+  const mockUser = {
+    email: "test@example.com",
+    name: "Test User"
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Default mock for useAuth
+    (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      user: mockUser,
+      token: "mock-token",
+      isAuthenticated: true
+    });
   });
 
   it("renders the header with loading state/default text when no group selected", () => {
@@ -62,7 +81,7 @@ describe("Header Component", () => {
 
   it("renders the header with group data", () => {
     (useAppContext as unknown as ReturnType<typeof vi.fn>).mockReturnValue({ activeGroupId: "group-1" });
-    
+
     // Mock implementations for multiple queries
     (useQuery as unknown as ReturnType<typeof vi.fn>).mockImplementation(({ queryKey }) => {
       if (queryKey[0] === "drive" && queryKey[1] === "groups") {
@@ -88,7 +107,7 @@ describe("Header Component", () => {
 
   it("opens the group switcher modal when the button is clicked", async () => {
     (useAppContext as unknown as ReturnType<typeof vi.fn>).mockReturnValue({ activeGroupId: "group-1" });
-    
+
     (useQuery as unknown as ReturnType<typeof vi.fn>).mockImplementation(({ queryKey }) => {
       if (queryKey[0] === "drive" && queryKey[1] === "groups") {
         return { data: mockGroups };

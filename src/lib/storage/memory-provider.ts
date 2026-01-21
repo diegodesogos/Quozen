@@ -1,4 +1,3 @@
-
 import { IStorageProvider, Group, User, GroupData, SCHEMAS, SchemaType, Expense, Settlement, Member } from "./types";
 
 interface MockSheet {
@@ -56,6 +55,17 @@ export class InMemoryProvider implements IStorageProvider {
         });
 
         return group;
+    }
+
+    async validateQuozenSpreadsheet(
+        spreadsheetId: string,
+        userEmail: string
+    ): Promise<{ valid: boolean; error?: string; name?: string }> {
+        // Mock validation
+        if (this.groups.has(spreadsheetId)) {
+            return { valid: true, name: this.groups.get(spreadsheetId)!.name };
+        }
+        return { valid: false, error: "Mock sheet not found" };
     }
 
     async getGroupData(spreadsheetId: string): Promise<GroupData | null> {

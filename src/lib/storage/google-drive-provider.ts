@@ -1,9 +1,14 @@
-
 import { IStorageProvider, Group, User, GroupData, SCHEMAS, SchemaType } from "./types";
 import { getAuthToken } from "../tokenStore";
 
 const DRIVE_API_URL = "https://www.googleapis.com/drive/v3";
 const SHEETS_API_URL = "https://sheets.googleapis.com/v4/spreadsheets";
+
+/** Naming convention for Quozen spreadsheets */
+export const QUOZEN_PREFIX = "Quozen - ";
+
+/** Required sheet tabs for a valid Quozen spreadsheet */
+export const REQUIRED_SHEETS = ["Expenses", "Settlements", "Members"] as const;
 
 export class GoogleDriveProvider implements IStorageProvider {
     private async fetchWithAuth(url: string, options: RequestInit = {}) {
@@ -33,7 +38,7 @@ export class GoogleDriveProvider implements IStorageProvider {
     }
 
     async listGroups(): Promise<Group[]> {
-        const query = "mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false";
+        const query = `mimeType = 'application/vnd.google-apps.spreadsheet' and name contains '${QUOZEN_PREFIX}' and trashed = false`;
         const fields = "files(id, name, createdTime)";
 
         const response = await this.fetchWithAuth(
@@ -42,9 +47,14 @@ export class GoogleDriveProvider implements IStorageProvider {
 
         const data = await response.json();
 
-        return (data.files || []).map((file: any) => ({
+        // Filter to only files that start with prefix (contains is case-insensitive)
+        const quozenFiles = (data.files || []).filter((file: any) =>
+            file.name.startsWith(QUOZEN_PREFIX)
+        );
+
+        return quozenFiles.map((file: any) => ({
             id: file.id,
-            name: file.name.replace(/^Quozen - /, ''),
+            name: file.name.slice(QUOZEN_PREFIX.length),
             description: "Google Sheet Group",
             createdBy: "me",
             participants: [],
@@ -53,7 +63,7 @@ export class GoogleDriveProvider implements IStorageProvider {
     }
 
     async createGroupSheet(name: string, user: User): Promise<Group> {
-        const title = `Quozen - ${name}`;
+        const title = `${QUOZEN_PREFIX}${name}`;
 
         const createRes = await this.fetchWithAuth(SHEETS_API_URL, {
             method: "POST",
@@ -93,6 +103,85 @@ export class GoogleDriveProvider implements IStorageProvider {
             participants: [user.id],
             createdAt: new Date().toISOString()
         };
+    }
+
+    /**
+     * Validates that a spreadsheet has the correct Quozen structure
+     * @param spreadsheetId The spreadsheet ID to validate
+     * @param userEmail The current user's email to check membership
+     * @returns Validation result with success status and error message if failed
+     */
+    async validateQuozenSpreadsheet(
+        spreadsheetId: string,
+        userEmail: string
+    ): Promise<{ valid: boolean; error?: string; name?: string }> {
+        try {
+            // 1. Fetch spreadsheet metadata to check tabs and name
+            const metadataRes = await this.fetchWithAuth(
+                `${SHEETS_API_URL}/${spreadsheetId}?fields=properties.title,sheets.properties.title`
+            );
+            const metadata = await metadataRes.json();
+            const sheetName = metadata.properties?.title || "";
+            const sheetTitles = metadata.sheets?.map((s: any) => s.properties.title) || [];
+
+            // 2. Validate name starts with Quozen prefix
+            if (!sheetName.startsWith(QUOZEN_PREFIX)) {
+                return {
+                    valid: false,
+                    error: `Invalid file: must be a Quozen group (name should start with "${QUOZEN_PREFIX}")`
+                };
+            }
+
+            // 3. Validate required sheets exist
+            const missingSheets = REQUIRED_SHEETS.filter(
+                (required) => !sheetTitles.includes(required)
+            );
+            if (missingSheets.length > 0) {
+                return {
+                    valid: false,
+                    error: `Invalid structure: missing tabs: ${missingSheets.join(", ")}`
+                };
+            }
+
+            // 4. Check if current user is a member
+            const membersRes = await this.fetchWithAuth(
+                `${SHEETS_API_URL}/${spreadsheetId}/values/Members!A2:E`
+            );
+            const membersData = await membersRes.json();
+            const members = membersData.values || [];
+
+            // Members schema: [userId, email, name, role, joinedAt]
+            const userIsMember = members.some((row: string[]) => row[1] === userEmail);
+
+            if (!userIsMember) {
+                return {
+                    valid: false,
+                    error: "Access denied: you are not a member of this group"
+                };
+            }
+
+            return {
+                valid: true,
+                name: sheetName.slice(QUOZEN_PREFIX.length)
+            };
+        } catch (error: any) {
+            if (error.message?.includes("403")) {
+                return {
+                    valid: false,
+                    error: "Access denied: you don't have permission to access this file"
+                };
+            }
+            if (error.message?.includes("404")) {
+                return {
+                    valid: false,
+                    error: "File not found"
+                };
+            }
+            return {
+                valid: false,
+                error: `Validation failed: ${error.message || "Unknown error"}`
+            };
+        }
     }
 
     async getGroupData(spreadsheetId: string): Promise<GroupData | null> {

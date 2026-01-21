@@ -1,4 +1,3 @@
-
 export const SCHEMAS = {
   Expenses: ["id", "date", "description", "amount", "paidBy", "category", "splits", "meta"],
   Settlements: ["id", "date", "fromUserId", "toUserId", "amount", "method", "notes"],
@@ -72,6 +71,14 @@ export interface IStorageProvider {
    * Create a new group/spreadsheet
    */
   createGroupSheet(name: string, user: User): Promise<Group>;
+
+  /**
+   * Validates that a spreadsheet has the correct Quozen structure
+   */
+  validateQuozenSpreadsheet(
+    spreadsheetId: string,
+    userEmail: string
+  ): Promise<{ valid: boolean; error?: string; name?: string }>;
 
   /**
    * Get all data for a specific group
