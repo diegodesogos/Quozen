@@ -11,16 +11,17 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useToast } from "@/hooks/use-toast";
 import { googleApi } from "@/lib/drive"; // Import googleApi
 import { Users, Plus } from "lucide-react";
+import { MemberInput } from "@/lib/storage/types";
 
 export default function Groups() {
   const { activeGroupId, setActiveGroupId } = useAppContext();
   const { user } = useAuth(); // Get user from auth context
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [groupName, setGroupName] = useState("");
-  const [groupDescription, setGroupDescription] = useState("");
+  const [membersInput, setMembersInput] = useState("");
 
   const { data: groups = [] } = useQuery({
     queryKey: ["drive", "groups"],
@@ -28,10 +29,9 @@ export default function Groups() {
   });
 
   const createGroupMutation = useMutation({
-    mutationFn: async (name: string) => {
+    mutationFn: async (data: { name: string, members: MemberInput[] }) => {
       if (!user) throw new Error("User not authenticated");
-      // Description is not stored in drive properties in this simple version, but could be added later
-      return await googleApi.createGroupSheet(name, user);
+      return await googleApi.createGroupSheet(data.name, user, data.members);
     },
     onSuccess: (newGroup) => {
       queryClient.invalidateQueries({ queryKey: ["drive", "groups"] });
@@ -41,8 +41,8 @@ export default function Groups() {
       });
       setShowCreateDialog(false);
       setGroupName("");
-      setGroupDescription("");
-      
+      setMembersInput("");
+
       if (newGroup?.id) {
         setActiveGroupId(newGroup.id);
       }
@@ -57,10 +57,30 @@ export default function Groups() {
     },
   });
 
+  const parseMembers = (input: string): MemberInput[] => {
+    if (!input.trim()) return [];
+
+    return input.split(',').map(item => {
+      const trimmed = item.trim();
+      const isEmail = trimmed.includes('@') && trimmed.includes('.');
+
+      if (isEmail) {
+        return { email: trimmed };
+      } else {
+        return { username: trimmed };
+      }
+    }).filter(m => m.email || m.username);
+  };
+
   const handleCreateGroup = (e: React.FormEvent) => {
     e.preventDefault();
     if (!groupName.trim()) return;
-    createGroupMutation.mutate(groupName.trim());
+
+    const members = parseMembers(membersInput);
+    createGroupMutation.mutate({
+      name: groupName.trim(),
+      members
+    });
   };
 
   const handleSwitchToGroup = (groupId: string) => {
@@ -94,10 +114,25 @@ export default function Groups() {
                   placeholder="e.g., Weekend Trip"
                   value={groupName}
                   onChange={(e) => setGroupName(e.target.value)}
+                  required
                 />
               </div>
-              
-              <div className="flex space-x-3">
+
+              <div>
+                <Label htmlFor="members">Members (Optional)</Label>
+                <Textarea
+                  id="members"
+                  placeholder="Enter emails or usernames, separated by commas (e.g., alice@gmail.com, bob123)"
+                  value={membersInput}
+                  onChange={(e) => setMembersInput(e.target.value)}
+                  className="mt-1"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Emails will receive a Google Drive share invite. Usernames are for tracking only.
+                </p>
+              </div>
+
+              <div className="flex space-x-3 pt-2">
                 <Button
                   type="button"
                   variant="secondary"

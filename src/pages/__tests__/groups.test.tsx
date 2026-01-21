@@ -77,7 +77,7 @@ describe("Groups Page", () => {
 
     (useQuery as unknown as ReturnType<typeof vi.fn>).mockImplementation(({ queryKey }) => {
       const key = queryKey[0];
-      
+
       // Handle the new drive-based query key
       if (key === "drive" && queryKey[1] === "groups") {
         return { data: mockGroups };
@@ -86,7 +86,7 @@ describe("Groups Page", () => {
       if (key === "/api/groups" && queryKey[2] === "expenses") {
         return { data: mockExpenses };
       }
-      
+
       return { data: [] };
     });
 
@@ -104,7 +104,7 @@ describe("Groups Page", () => {
 
   it("renders the list of groups", () => {
     render(<Groups />);
-    
+
     expect(screen.getByText("Your Groups")).toBeInTheDocument();
     expect(screen.getByText("Trip to Paris")).toBeInTheDocument();
     expect(screen.getByText("Google Sheet")).toBeInTheDocument();
@@ -112,7 +112,7 @@ describe("Groups Page", () => {
 
   it("opens create group dialog and submits new group", async () => {
     render(<Groups />);
-    
+
     // 1. Click "New Group"
     const newGroupBtn = screen.getByRole("button", { name: /New Group/i });
     fireEvent.click(newGroupBtn);
@@ -129,8 +129,12 @@ describe("Groups Page", () => {
 
     // 5. Verify mutation and side effects
     await waitFor(() => {
-        // Since we are mocking useMutation, we check if the function passed to mutate was called with the right arg
-        expect(mutateCreateGroup).toHaveBeenCalledWith("New Team");
+      // Since we are mocking useMutation, we check if the function passed to mutate was called with the right arg
+      // Updated to expect object structure
+      expect(mutateCreateGroup).toHaveBeenCalledWith({
+        name: "New Team",
+        members: []
+      });
     });
 
     // Should switch to the new group automatically on success

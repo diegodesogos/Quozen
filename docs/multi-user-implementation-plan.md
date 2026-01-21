@@ -33,6 +33,8 @@ This plan details the implementation of multi-user group support for Quozen, ena
 
 ### Story 2.1: Create Group with Members (Owner)
 
+**Status**: ✅ **Completed**
+
 **Scope**: Enhance group creation dialog to optionally accept member emails or usernames
 
 **Member Input Rules**:

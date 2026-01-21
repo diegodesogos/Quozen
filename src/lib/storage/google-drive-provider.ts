@@ -1,4 +1,4 @@
-import { IStorageProvider, Group, User, GroupData, SCHEMAS, SchemaType } from "./types";
+import { IStorageProvider, Group, User, GroupData, SCHEMAS, SchemaType, MemberInput } from "./types";
 import { getAuthToken } from "../tokenStore";
 
 const DRIVE_API_URL = "https://www.googleapis.com/drive/v3";
@@ -37,6 +37,24 @@ export class GoogleDriveProvider implements IStorageProvider {
         return response;
     }
 
+    private async shareFile(fileId: string, email: string): Promise<string> {
+        try {
+            const res = await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}/permissions`, {
+                method: "POST",
+                body: JSON.stringify({
+                    role: "writer",
+                    type: "user",
+                    emailAddress: email
+                })
+            });
+            const data = await res.json();
+            return data.displayName || email;
+        } catch (e) {
+            console.error(`Failed to share with ${email}`, e);
+            return email; // Fallback to email if sharing fails or name unavailable
+        }
+    }
+
     async listGroups(): Promise<Group[]> {
         const query = `mimeType = 'application/vnd.google-apps.spreadsheet' and name contains '${QUOZEN_PREFIX}' and trashed = false`;
         const fields = "files(id, name, createdTime)";
@@ -62,9 +80,10 @@ export class GoogleDriveProvider implements IStorageProvider {
         }));
     }
 
-    async createGroupSheet(name: string, user: User): Promise<Group> {
+    async createGroupSheet(name: string, user: User, members: MemberInput[] = []): Promise<Group> {
         const title = `${QUOZEN_PREFIX}${name}`;
 
+        // 1. Create Spreadsheet
         const createRes = await this.fetchWithAuth(SHEETS_API_URL, {
             method: "POST",
             body: JSON.stringify({
@@ -80,13 +99,35 @@ export class GoogleDriveProvider implements IStorageProvider {
         const sheetFile = await createRes.json();
         const spreadsheetId = sheetFile.spreadsheetId;
 
+        // 2. Process Initial Members
+        const initialMembersRows = [];
+
+        // Add current user (Admin)
+        initialMembersRows.push([user.id, user.email, user.name, "admin", new Date().toISOString()]);
+
+        // Add additional members
+        for (const member of members) {
+            let memberName = member.username || member.email || "Unknown";
+            let memberId = member.email || member.username || `user-${self.crypto.randomUUID()}`;
+
+            if (member.email) {
+                // If valid email, try to share and get real name
+                const displayName = await this.shareFile(spreadsheetId, member.email);
+                if (displayName) memberName = displayName;
+                memberId = member.email; // Use email as ID for shared users
+            }
+
+            initialMembersRows.push([memberId, member.email || "", memberName, "member", new Date().toISOString()]);
+        }
+
+        // 3. Write Headers and Data
         const valuesBody = {
             valueInputOption: "USER_ENTERED",
             data: [
                 { range: "Expenses!A1", values: [SCHEMAS.Expenses] },
                 { range: "Settlements!A1", values: [SCHEMAS.Settlements] },
                 { range: "Members!A1", values: [SCHEMAS.Members] },
-                { range: "Members!A2", values: [[user.id, user.email, user.name, "admin", new Date().toISOString()]] }
+                { range: "Members!A2", values: initialMembersRows }
             ]
         };
 
@@ -99,8 +140,8 @@ export class GoogleDriveProvider implements IStorageProvider {
             id: spreadsheetId,
             name: name,
             description: "Google Sheet Group",
-            createdBy: "me", // In this flow creator is always "me" effectively
-            participants: [user.id],
+            createdBy: "me",
+            participants: initialMembersRows.map(row => row[0]),
             createdAt: new Date().toISOString()
         };
     }

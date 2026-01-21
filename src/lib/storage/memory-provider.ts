@@ -1,4 +1,4 @@
-import { IStorageProvider, Group, User, GroupData, SCHEMAS, SchemaType, Expense, Settlement, Member } from "./types";
+import { IStorageProvider, Group, User, GroupData, SCHEMAS, SchemaType, Expense, Settlement, Member, MemberInput } from "./types";
 
 interface MockSheet {
     expenses: Expense[];
@@ -28,14 +28,47 @@ export class InMemoryProvider implements IStorageProvider {
         return Array.from(this.groups.values());
     }
 
-    async createGroupSheet(name: string, user: User): Promise<Group> {
+    async createGroupSheet(name: string, user: User, members: MemberInput[] = []): Promise<Group> {
         const id = "mock-sheet-" + self.crypto.randomUUID();
+
+        // Prepare initial members list
+        const initialMembers: Member[] = [];
+
+        // 1. Add Admin (Current User)
+        initialMembers.push({
+            userId: user.id,
+            email: user.email,
+            name: user.name,
+            role: "admin",
+            joinedAt: new Date().toISOString(),
+            _rowIndex: 2
+        });
+
+        // 2. Add other members
+        let rowIndex = 3;
+        const participantIds = [user.id];
+
+        for (const member of members) {
+            const memberId = member.email || member.username || `user-${self.crypto.randomUUID()}`;
+            const memberName = member.username || member.email || "Unknown";
+
+            initialMembers.push({
+                userId: memberId,
+                email: member.email || "",
+                name: memberName,
+                role: "member",
+                joinedAt: new Date().toISOString(),
+                _rowIndex: rowIndex++
+            });
+            participantIds.push(memberId);
+        }
+
         const group: Group = {
             id,
             name,
             description: "Mock Sheet Group",
             createdBy: "me",
-            participants: [user.id],
+            participants: participantIds,
             createdAt: new Date().toISOString()
         };
 
@@ -44,14 +77,7 @@ export class InMemoryProvider implements IStorageProvider {
         this.sheets.set(id, {
             expenses: [],
             settlements: [],
-            members: [{
-                userId: user.id,
-                email: user.email,
-                name: user.name,
-                role: "admin",
-                joinedAt: new Date().toISOString(),
-                _rowIndex: 2
-            }]
+            members: initialMembers
         });
 
         return group;

@@ -23,6 +23,11 @@ export interface User {
   picture?: string;
 }
 
+export interface MemberInput {
+  email?: string;
+  username?: string;
+}
+
 export interface Expense {
   id: string;
   date: string;
@@ -68,9 +73,9 @@ export interface IStorageProvider {
   listGroups(): Promise<Group[]>;
 
   /**
-   * Create a new group/spreadsheet
+   * Create a new group/spreadsheet with optional initial members
    */
-  createGroupSheet(name: string, user: User): Promise<Group>;
+  createGroupSheet(name: string, user: User, members?: MemberInput[]): Promise<Group>;
 
   /**
    * Validates that a spreadsheet has the correct Quozen structure
