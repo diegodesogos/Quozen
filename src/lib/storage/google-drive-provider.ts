@@ -1,4 +1,4 @@
-import { IStorageProvider, Group, User, GroupData, SCHEMAS, SchemaType, MemberInput } from "./types";
+import { IStorageProvider, Group, User, GroupData, SCHEMAS, SchemaType, MemberInput, Member } from "./types";
 import { getAuthToken } from "../tokenStore";
 
 const DRIVE_API_URL = "https://www.googleapis.com/drive/v3";
@@ -144,6 +144,111 @@ export class GoogleDriveProvider implements IStorageProvider {
             participants: initialMembersRows.map(row => row[0]),
             createdAt: new Date().toISOString()
         };
+    }
+
+    async updateGroup(groupId: string, name: string, members: MemberInput[]): Promise<void> {
+        // 1. Rename file if needed
+        const newTitle = `${QUOZEN_PREFIX}${name}`;
+        // We always update the name to ensure it matches, minimal overhead
+        await this.fetchWithAuth(`${DRIVE_API_URL}/files/${groupId}`, {
+            method: "PATCH",
+            body: JSON.stringify({ name: newTitle })
+        });
+
+        // 2. Fetch current members
+        const groupData = await this.getGroupData(groupId);
+        if (!groupData) throw new Error("Group not found");
+        const currentMembers = groupData.members;
+
+        // 3. Diff members
+        const currentMemberIds = new Set(currentMembers.map(m => m.userId));
+
+        // Members to keep or add
+        const updatedMembersRows: any[] = [];
+        const keptMemberIds = new Set<string>();
+
+        // Note: We always preserve the first admin (creator) or anyone marked as admin if they aren't in the list?
+        // Logic: The input `members` list from UI is the *desired* state.
+        // However, we must ensure we don't accidentally remove the current user if the UI didn't pass them.
+        // NOTE: The UI should pass ALL members including the current user.
+
+        // For existing members, we keep their row data (joinedAt, role, etc)
+        // For new members, we add them.
+
+        // Helper to normalize input
+        const desiredMembers = members.map(m => ({
+            id: m.email || m.username || "",
+            ...m
+        })).filter(m => m.id);
+
+        const processedIds = new Set<string>();
+
+        for (const desired of desiredMembers) {
+            // Check if exists
+            const existing = currentMembers.find(c =>
+                (desired.email && c.email === desired.email) ||
+                (desired.username && c.userId === desired.username)
+            );
+
+            if (existing) {
+                // Keep existing row, maybe update name if needed? For now just keep.
+                // We don't write to the sheet here, we will reconstruct the sheet or append/delete.
+                // Actually, deleting specific rows in Sheets is hard because indices shift.
+                // STRATEGY: 
+                // 1. Identify rows to DELETE (members not in desired list)
+                // 2. Identify rows to APPEND (new members)
+                processedIds.add(existing.userId);
+            } else {
+                // New Member
+                let memberName = desired.username || desired.email || "Unknown";
+                let memberId = desired.email || desired.username || `user-${self.crypto.randomUUID()}`;
+
+                if (desired.email) {
+                    const displayName = await this.shareFile(groupId, desired.email);
+                    if (displayName) memberName = displayName;
+                    memberId = desired.email;
+                }
+
+                // Add to sheet
+                await this.addRow(groupId, "Members", {
+                    userId: memberId,
+                    email: desired.email || "",
+                    name: memberName,
+                    role: "member",
+                    joinedAt: new Date().toISOString()
+                });
+                processedIds.add(memberId);
+            }
+        }
+
+        // 4. Remove members not in the processed list
+        // We iterate backwards to avoid index shift issues affecting subsequent deletions
+        // Filter out admins from deletion to prevent locking oneself out
+        const membersToDelete = currentMembers
+            .filter(m => !processedIds.has(m.userId) && m.role !== 'admin')
+            .sort((a, b) => (b._rowIndex || 0) - (a._rowIndex || 0));
+
+        for (const member of membersToDelete) {
+            if (member._rowIndex) {
+                await this.deleteRow(groupId, "Members", member._rowIndex);
+                // Attempt to revoke permission if email exists
+                // Note: This requires getting permissionId first. Skipping for MVP iteration 
+                // as it adds significant API complexity/latency. Removing from list denies app access.
+            }
+        }
+    }
+
+    async checkMemberHasExpenses(groupId: string, userId: string): Promise<boolean> {
+        const data = await this.getGroupData(groupId);
+        if (!data) return false;
+
+        return data.expenses.some(e => {
+            // Did they pay?
+            if (e.paidBy === userId) return true;
+            // Are they part of the split with > 0 amount?
+            if (e.splits && e.splits.some((s: any) => s.userId === userId && s.amount > 0)) return true;
+            return false;
+        });
     }
 
     /**

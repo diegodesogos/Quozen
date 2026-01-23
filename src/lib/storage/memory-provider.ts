@@ -83,6 +83,65 @@ export class InMemoryProvider implements IStorageProvider {
         return group;
     }
 
+    async updateGroup(groupId: string, name: string, members: MemberInput[]): Promise<void> {
+        const group = this.groups.get(groupId);
+        if (!group) throw new Error("Group not found");
+        const sheet = this.getSheet(groupId);
+
+        // 1. Update name
+        group.name = name;
+
+        // 2. Reconcile members
+        // Logic similar to drive provider but synchronous on in-memory object
+        const currentMembers = sheet.members;
+        const desiredMembers = members.map(m => ({
+            id: m.email || m.username || "",
+            ...m
+        })).filter(m => m.id);
+
+        const processedIds = new Set<string>();
+
+        // Add or match
+        for (const desired of desiredMembers) {
+            const existing = currentMembers.find(c =>
+                (desired.email && c.email === desired.email) ||
+                (desired.username && c.userId === desired.username)
+            );
+
+            if (existing) {
+                processedIds.add(existing.userId);
+            } else {
+                // New
+                const memberId = desired.email || desired.username || `user-${self.crypto.randomUUID()}`;
+                sheet.members.push({
+                    userId: memberId,
+                    email: desired.email || "",
+                    name: desired.username || desired.email || "Unknown",
+                    role: "member",
+                    joinedAt: new Date().toISOString(),
+                    _rowIndex: sheet.members.length + 2
+                });
+                processedIds.add(memberId);
+            }
+        }
+
+        // Remove
+        // Filter in place
+        const newMembersList = sheet.members.filter(m => processedIds.has(m.userId) || m.role === 'admin');
+
+        // Re-assign and re-index
+        sheet.members = newMembersList.map((m, i) => ({ ...m, _rowIndex: i + 2 }));
+    }
+
+    async checkMemberHasExpenses(groupId: string, userId: string): Promise<boolean> {
+        const sheet = this.getSheet(groupId);
+        return sheet.expenses.some(e => {
+            if (e.paidBy === userId) return true;
+            if (e.splits && e.splits.some((s: any) => s.userId === userId && s.amount > 0)) return true;
+            return false;
+        });
+    }
+
     async validateQuozenSpreadsheet(
         spreadsheetId: string,
         userEmail: string

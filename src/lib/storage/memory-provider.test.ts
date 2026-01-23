@@ -1,4 +1,3 @@
-
 import { describe, it, expect, beforeEach } from 'vitest';
 import { InMemoryProvider } from './memory-provider';
 import { User } from './types';
@@ -74,5 +73,72 @@ describe('InMemoryProvider', () => {
 
         data = await provider.getGroupData(group.id);
         expect(data!.expenses).toHaveLength(0);
+    });
+
+    // --- New Tests for Story 2.2 ---
+
+    it('checkMemberHasExpenses returns true if member paid', async () => {
+        const group = await provider.createGroupSheet("Test Group", mockUser);
+        await provider.addExpense(group.id, {
+            description: "Lunch",
+            amount: 20,
+            paidBy: "user1"
+        });
+
+        const hasExpenses = await provider.checkMemberHasExpenses(group.id, "user1");
+        expect(hasExpenses).toBe(true);
+    });
+
+    it('checkMemberHasExpenses returns true if member is in split', async () => {
+        const group = await provider.createGroupSheet("Test Group", mockUser);
+        await provider.addExpense(group.id, {
+            description: "Lunch",
+            amount: 20,
+            paidBy: "user1",
+            splits: [{ userId: "other-user", amount: 10 }]
+        });
+
+        const hasExpenses = await provider.checkMemberHasExpenses(group.id, "other-user");
+        expect(hasExpenses).toBe(true);
+    });
+
+    it('checkMemberHasExpenses returns false for uninvolved member', async () => {
+        const group = await provider.createGroupSheet("Test Group", mockUser);
+        await provider.addExpense(group.id, {
+            description: "Lunch",
+            amount: 20,
+            paidBy: "user1"
+        });
+
+        const hasExpenses = await provider.checkMemberHasExpenses(group.id, "unused-user");
+        expect(hasExpenses).toBe(false);
+    });
+
+    it('updateGroup updates name and members', async () => {
+        // 1. Setup
+        const group = await provider.createGroupSheet("Original Name", mockUser, [{ username: "old-member" }]);
+        let data = await provider.getGroupData(group.id);
+
+        // Should have Admin + 1 member
+        expect(data!.members).toHaveLength(2);
+
+        // 2. Update: Rename and change members (remove old-member, add new-member)
+        // Note: The mock requires full replacement list or logic similar to backend?
+        // The implementation mimics the "desired state" logic.
+        await provider.updateGroup(group.id, "Updated Name", [{ username: "new-member" }]);
+
+        // 3. Verify Name via listGroups (metadata)
+        const groups = await provider.listGroups();
+        const updatedGroup = groups.find(g => g.id === group.id);
+        expect(updatedGroup!.name).toBe("Updated Name");
+
+        // 4. Verify Members via getGroupData (sheet content)
+        data = await provider.getGroupData(group.id);
+
+        // Should have Admin (preserved) + new-member. old-member should be gone.
+        const memberNames = data!.members.map(m => m.name);
+        expect(memberNames).toContain("Test User"); // Admin
+        expect(memberNames).toContain("new-member");
+        expect(memberNames).not.toContain("old-member");
     });
 });

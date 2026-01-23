@@ -47,21 +47,21 @@ No validation warnings are needed. Both input types are valid. This allows track
 
 **Tasks**:
 1. **UI Changes** - `src/pages/groups.tsx`:
-   - Add "Members" textarea field (comma-separated)
-   - Add placeholder/hint: "Enter emails or usernames, separated by commas"
-   - Implement input parser to separate emails vs usernames
-   - Update form submission to pass parsed member list
+   - ✅ Add "Members" textarea field (comma-separated)
+   - ✅ Add placeholder/hint: "Enter emails or usernames, separated by commas"
+   - ✅ Implement input parser to separate emails vs usernames
+   - ✅ Update form submission to pass parsed member list
 
 2. **Storage Layer** - `src/lib/storage/google-drive-provider.ts`:
-   - Extend `createGroupSheet()` to accept `members: { email?: string; username?: string }[]`
-   - For each member:
+   - ✅ Extend `createGroupSheet()` to accept `members: { email?: string; username?: string }[]`
+   - ✅ For each member:
      - If valid email: 
        - Share spreadsheet via Drive API
        - On success: Fetch Google user's display name from the permission response or People API
        - Add to Members tab with fetched `name` (or email as fallback if name unavailable)
      - If username only: 
        - Add to Members tab with username as both `userId` and `name`
-   - Track sharing results for toast message
+   - ✅ Track sharing results for toast message
 
    **Display Name Resolution** (at write-time):
    > [!NOTE]
@@ -72,35 +72,41 @@ No validation warnings are needed. Both input types are valid. This allows track
    > All display logic (e.g., "Paid by [Name]") simply reads the `name` field from Members tab.
 
 3. **Interface Updates** - `src/lib/storage/types.ts`:
-   - Update `IStorageProvider.createGroupSheet` signature
-   - Add `MemberInput` type: `{ email?: string; username?: string }`
+   - ✅ Update `IStorageProvider.createGroupSheet` signature
+   - ✅ Add `MemberInput` type: `{ email?: string; username?: string }`
 
-4. **Tests**: Add unit tests for email/username parsing logic
+4. **Tests**: ✅ Add unit tests for email/username parsing logic
 
 ---
 
 ### Story 2.2: Edit Group Members (Owner)
 
+**Status**: ✅ **Completed**
+
 **Scope**: Allow owners to add/remove members from existing groups
 
 **Tasks**:
 1. **UI Changes** - `src/pages/groups.tsx`:
-   - Add "Edit" button (visible only if user is admin)
-   - Reuse create dialog with pre-filled data (name, members)
-   - Show validation error if removing member with expenses
+   - ✅ Add "Edit" button (visible only if user is admin)
+   - ✅ Reuse create dialog with pre-filled data (name, members)
+   - ✅ Show validation error if removing member with expenses
 
 2. **Storage Layer** - `src/lib/storage/google-drive-provider.ts`:
-   - Implement `updateGroupMembers(spreadsheetId, members[])`:
+   - ✅ Implement `updateGroup(spreadsheetId, name, members[])`:
      - Add new member rows to Members tab
      - Delete removed member rows
      - Share with new members
-     - Revoke permissions for removed members via `permissions.delete`
-   - Implement `checkMemberHasExpenses(spreadsheetId, userId)`:
+     - (Note: Revoke permissions skipped for MVP to simplify API usage)
+   - ✅ Implement `checkMemberHasExpenses(spreadsheetId, userId)`:
      - Scan Expenses tab for `paidBy` matching userId
      - Scan splits in each expense for userId
 
 3. **Interface Updates** - `src/lib/storage/types.ts`:
-   - Add `updateGroupMembers()` and `checkMemberHasExpenses()` to interface
+   - ✅ Add `updateGroup()` and `checkMemberHasExpenses()` to interface
+
+4. **Tests**: 
+   - ✅ Unit tests for `updateGroup` and `checkMemberHasExpenses`
+   - ✅ E2E tests for editing group name and members
 
 ---
 

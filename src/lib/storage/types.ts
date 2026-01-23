@@ -78,6 +78,16 @@ export interface IStorageProvider {
   createGroupSheet(name: string, user: User, members?: MemberInput[]): Promise<Group>;
 
   /**
+   * Update an existing group (rename and/or update members)
+   */
+  updateGroup(groupId: string, name: string, members: MemberInput[]): Promise<void>;
+
+  /**
+   * Check if a member has any associated expenses (paidBy or in splits)
+   */
+  checkMemberHasExpenses(groupId: string, userId: string): Promise<boolean>;
+
+  /**
    * Validates that a spreadsheet has the correct Quozen structure
    */
   validateQuozenSpreadsheet(

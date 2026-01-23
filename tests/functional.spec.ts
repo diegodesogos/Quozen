@@ -1,4 +1,3 @@
-
 import { test, expect } from '@playwright/test';
 
 test.describe('Functional Flow with Mock Storage', () => {
@@ -83,5 +82,51 @@ test.describe('Functional Flow with Mock Storage', () => {
 
         // Verify removed
         await expect(page.getByText('Dinner')).not.toBeVisible();
+    });
+
+    test('should edit an existing group name and members', async ({ page }) => {
+        await page.goto('/groups');
+
+        // 1. Create initial group
+        await page.getByRole('button', { name: 'New Group' }).click();
+        await page.getByLabel('Group Name').fill('Original Name');
+        await page.getByRole('button', { name: 'Create Group' }).click();
+
+        // Wait for creation and verify it appears in the list (H3)
+        // Note: Using level 3 to distinguish from the H1 header which also updates
+        await expect(page.getByRole('heading', { name: 'Original Name', level: 3 })).toBeVisible();
+
+        // 2. Click Edit button on the group card
+        // Note: The UI only shows the Edit button if the user is the owner ('me')
+        // In mock storage, createdBy is hardcoded to 'me', so it should appear.
+        // We ensure we click the button associated with this specific group card
+        await page.locator('.rounded-lg', { hasText: 'Original Name' })
+            .getByRole('button', { name: 'Edit' })
+            .click();
+
+        // 3. Verify Edit Dialog
+        await expect(page.getByRole('heading', { name: 'Edit Group' })).toBeVisible();
+        await expect(page.getByLabel('Group Name')).toHaveValue('Original Name');
+
+        // 4. Change Name and Add Member
+        await page.getByLabel('Group Name').fill('Renamed Group');
+        await page.getByLabel('Members (Optional)').fill('newuser@example.com');
+
+        await page.getByRole('button', { name: 'Update Group' }).click();
+
+        // 5. Verify Updates in Group List
+        await expect(page.getByRole('heading', { name: 'Edit Group' })).not.toBeVisible();
+        // Check for the new name in the list (H3)
+        await expect(page.getByRole('heading', { name: 'Renamed Group', level: 3 })).toBeVisible();
+        // Ensure old name is gone from the list
+        await expect(page.getByRole('heading', { name: 'Original Name', level: 3 })).not.toBeVisible();
+
+        // 6. Verify Header reflects the change (Group is already active)
+        // Since we created it in step 1, it's active. "Switch To" button won't exist.
+        // We just verify the header updated.
+        await expect(page.getByTestId('header').getByText('Renamed Group')).toBeVisible();
+
+        // 7. Verify member count (Admin + newuser = 2)
+        await expect(page.getByTestId('text-participant-count')).toHaveText('2 people');
     });
 });
