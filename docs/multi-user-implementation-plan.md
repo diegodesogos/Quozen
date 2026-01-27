@@ -4,6 +4,8 @@
 
 This plan details the implementation of multi-user group support for Quozen, enabling multiple Google users to collaborate on shared expense groups. The feature leverages Google Drive's sharing mechanism and implements manual sync with conflict detection.
 
+**Status**: ✅ **Completed** The entire epic is now completed. Leaving this doc for documentation purposes only.
+
 ---
 
 ## Current Architecture Analysis
@@ -192,42 +194,46 @@ The refresh button already exists in `src/components/header.tsx`:
 
 ### Story 2.7: Edit Conflict Detection
 
+**Status**: ✅ **Completed**
+
 **Scope**: Detect and prevent overwrites when editing expenses/settlements
 
 **Tasks**:
 1. **Schema Changes**:
-   - Ensure `meta.lastModified` is tracked (already partially in place)
-   - Update expense creation to include `lastModified`
+   - ✅ Ensure `meta.lastModified` is tracked (already partially in place)
+   - ✅ Update expense creation to include `lastModified`
 
 2. **Storage Layer** - `src/lib/storage/google-drive-provider.ts`:
-   - Implement `getExpenseByRowIndex(spreadsheetId, rowIndex)` for conflict check
-   - Implement `updateExpenseWithConflictCheck()`:
+   - ✅ Implement `getExpenseByRowIndex(spreadsheetId, rowIndex)` for conflict check (Integrated into update logic)
+   - ✅ Implement `updateExpenseWithConflictCheck()`:
      - Fetch current state before saving
      - Compare `lastModified` timestamps
      - Throw `ConflictError` if different
      - Update `lastModified` on successful save
 
 3. **UI Changes** - `src/pages/edit-expense.tsx`:
-   - Catch `ConflictError` and show conflict dialog
-   - "Refresh Data" button reloads and returns to expenses list
+   - ✅ Catch `ConflictError` and show conflict dialog
+   - ✅ "Refresh Data" button reloads and returns to expenses list
 
 4. **Error Types** - Create `src/lib/errors.ts`:
-   - Define `ConflictError` class
+   - ✅ Define `ConflictError` class
 
 ---
 
 ### Story 2.8: Delete Conflict Handling
 
+**Status**: ✅ **Completed**
+
 **Scope**: Handle deleted expenses gracefully
 
 **Tasks**:
 1. **UI Changes** - `src/pages/edit-expense.tsx`:
-   - Check if expense exists before showing edit form
-   - If not found, show "Expense Not Found" dialog
-   - Implement "Refresh & Go Back" flow
+   - ✅ Check if expense exists before showing edit form
+   - ✅ If not found, show "Expense Not Found" dialog
+   - ✅ Implement "Refresh & Go Back" flow
 
 2. **Storage Layer** - `src/lib/storage/google-drive-provider.ts`:
-   - Enhance `deleteExpense()` with existence check
+   - ✅ Enhance `deleteExpense()` with existence check
 
 ---
 
