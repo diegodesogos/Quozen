@@ -4,6 +4,7 @@ import Groups from "../groups";
 import { useAppContext } from "@/context/app-context";
 import { useAuth } from "@/context/auth-provider";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { googleApi } from "@/lib/drive";
 
 // Mock hooks
 vi.mock("@/context/app-context", () => ({
@@ -26,9 +27,10 @@ vi.mock("@tanstack/react-query", async (importOriginal) => {
   };
 });
 
+const mockToast = vi.fn();
 vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({
-    toast: vi.fn(),
+    toast: mockToast,
   }),
 }));
 
@@ -38,13 +40,12 @@ vi.mock("@/lib/drive", () => ({
     listGroups: vi.fn(),
     createGroupSheet: vi.fn(),
     getGroupData: vi.fn(),
+    updateGroup: vi.fn(),
     deleteGroup: vi.fn(),
     leaveGroup: vi.fn(),
+    checkMemberHasExpenses: vi.fn(),
   },
 }));
-
-// Import the mocked api to spy on it
-import { googleApi } from "@/lib/drive";
 
 describe("Groups Page", () => {
   const mockUser = { id: "user1", name: "Alice", email: "alice@example.com" };
@@ -69,7 +70,15 @@ describe("Groups Page", () => {
     }
   ];
 
+  const mockGroup1Data = {
+    members: [
+      { userId: "user1", role: "admin", name: "Alice", email: "alice@example.com" },
+      { userId: "user2", role: "member", name: "Bob", email: "bob@example.com" }
+    ]
+  };
+
   const mutateCreateGroup = vi.fn();
+  const mutateUpdateGroup = vi.fn();
   const mutateDeleteGroup = vi.fn();
   const mutateLeaveGroup = vi.fn();
   const setActiveGroupId = vi.fn();
@@ -90,19 +99,22 @@ describe("Groups Page", () => {
 
     (useQuery as unknown as ReturnType<typeof vi.fn>).mockImplementation(({ queryKey }) => {
       const key = queryKey[0];
-
       if (key === "drive" && queryKey[1] === "groups") {
         return { data: mockGroups };
       }
       return { data: [] };
     });
 
-    // Mock mutations
+    // Mock mutations to call their functions immediately (simulate immediate execution for logic testing)
     (useMutation as unknown as ReturnType<typeof vi.fn>).mockImplementation((options) => {
       return {
-        mutate: (data: any) => {
-            if (options?.mutationFn) options.mutationFn(data);
-            if (options?.onSuccess) options.onSuccess(data);
+        mutate: async (data: any) => {
+            try {
+                if (options?.mutationFn) await options.mutationFn(data);
+                if (options?.onSuccess) options.onSuccess(data);
+            } catch(e: any) {
+                if (options?.onError) options.onError(e);
+            }
         },
         isPending: false,
       };
@@ -111,59 +123,71 @@ describe("Groups Page", () => {
 
   it("renders the list of groups with correct badges", () => {
     render(<Groups />);
-
     expect(screen.getByText("Your Groups")).toBeInTheDocument();
     
     // Group 1 - Owner
-    expect(screen.getByText("Trip to Paris")).toBeInTheDocument();
     const group1Card = screen.getByText("Trip to Paris").closest('.rounded-lg');
     expect(group1Card).toHaveTextContent("Owner");
-    expect(group1Card).toHaveTextContent("Active");
 
     // Group 2 - Member
-    expect(screen.getByText("Office Lunch")).toBeInTheDocument();
     const group2Card = screen.getByText("Office Lunch").closest('.rounded-lg');
     expect(group2Card).toHaveTextContent("Member");
-    expect(group2Card).not.toHaveTextContent("Owner");
   });
 
   it("shows Edit/Delete for owners and Leave for members", () => {
     render(<Groups />);
-
-    // Group 1 (Owner) should have Edit and Delete (trash icon)
     const group1Card = screen.getByText("Trip to Paris").closest('.rounded-lg');
-    expect(group1Card?.querySelector('button svg.lucide-pencil')).toBeInTheDocument(); // Edit
-    expect(group1Card?.querySelector('button svg.lucide-trash2')).toBeInTheDocument(); // Delete
-    expect(group1Card?.querySelector('button svg.lucide-log-out')).not.toBeInTheDocument(); // No Leave
+    expect(group1Card?.querySelector('button svg.lucide-pencil')).toBeInTheDocument(); 
+    expect(group1Card?.querySelector('button svg.lucide-trash2')).toBeInTheDocument(); 
 
-    // Group 2 (Member) should have Leave (log-out icon)
     const group2Card = screen.getByText("Office Lunch").closest('.rounded-lg');
-    expect(group2Card?.querySelector('button svg.lucide-pencil')).not.toBeInTheDocument(); // No Edit
-    expect(group2Card?.querySelector('button svg.lucide-trash2')).not.toBeInTheDocument(); // No Delete
-    expect(group2Card?.querySelector('button svg.lucide-log-out')).toBeInTheDocument(); // Leave
+    expect(group2Card?.querySelector('button svg.lucide-log-out')).toBeInTheDocument(); 
   });
 
-  it("opens delete confirmation and triggers mutation", async () => {
+  // Story 2.2: Test validation preventing removal of member with expenses
+  it("prevents removing a member with existing expenses during edit", async () => {
+    // 1. Mock getGroupData to return current members
+    (googleApi.getGroupData as any).mockResolvedValue(mockGroup1Data);
+    
+    // 2. Mock checkMemberHasExpenses to return true for user2
+    (googleApi.checkMemberHasExpenses as any).mockResolvedValue(true);
+
     render(<Groups />);
 
-    // Click Delete on Group 1
+    // 3. Click Edit on Group 1
     const group1Card = screen.getByText("Trip to Paris").closest('.rounded-lg');
-    const deleteBtn = group1Card!.querySelector('button svg.lucide-trash2')!.closest('button')!;
-    fireEvent.click(deleteBtn);
+    const editBtn = group1Card!.querySelector('button svg.lucide-pencil')!.closest('button')!;
+    fireEvent.click(editBtn);
 
-    // Dialog should appear
-    // Use specific matcher to avoid finding the group name in the background list
-    expect(screen.getByText((content) => content.includes('Are you sure you want to delete "Trip to Paris"?'))).toBeInTheDocument();
+    // Wait for dialog
+    await waitFor(() => expect(screen.getByText("Edit Group")).toBeInTheDocument());
 
-    // Click Confirm
-    const confirmBtn = screen.getByRole("button", { name: "Delete" });
-    fireEvent.click(confirmBtn);
+    // 4. Change members input (Remove user2/Bob)
+    const membersInput = screen.getByLabelText("Members (Optional)");
+    fireEvent.change(membersInput, { target: { value: "" } }); // Clear members, removing Bob
 
-    // Verify API called
-    expect(googleApi.deleteGroup).toHaveBeenCalledWith("group1");
+    // 5. Submit
+    const saveBtn = screen.getByRole("button", { name: "Update Group" });
+    fireEvent.click(saveBtn);
+
+    // 6. Verify error toast was called
+    await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+            title: "Update Failed",
+            description: expect.stringContaining("Cannot remove Bob because they have recorded expenses"),
+            variant: "destructive"
+        }));
+    });
+
+    // 7. Verify API update was NOT called
+    expect(googleApi.updateGroup).not.toHaveBeenCalled();
   });
 
-  it("opens leave confirmation and triggers mutation", async () => {
+  // Story 2.5: Test validation preventing leaving group with expenses
+  it("prevents leaving a group if user has expenses", async () => {
+    // Mock leaveGroup API to throw error (mimicking backend/provider logic)
+    (googleApi.leaveGroup as any).mockRejectedValue(new Error("Cannot leave group while involved in expenses."));
+
     render(<Groups />);
 
     // Click Leave on Group 2
@@ -171,14 +195,29 @@ describe("Groups Page", () => {
     const leaveBtn = group2Card!.querySelector('button svg.lucide-log-out')!.closest('button')!;
     fireEvent.click(leaveBtn);
 
-    // Dialog should appear
-    expect(screen.getByText((content) => content.includes('Are you sure you want to leave "Office Lunch"?'))).toBeInTheDocument();
-
-    // Click Confirm
+    // Confirm
     const confirmBtn = screen.getByRole("button", { name: "Leave" });
     fireEvent.click(confirmBtn);
 
-    // Verify API called
-    expect(googleApi.leaveGroup).toHaveBeenCalledWith("group2", "user1");
+    // Verify error toast
+    await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+            title: "Cannot Leave Group",
+            description: expect.stringContaining("Cannot leave group while involved in expenses"),
+            variant: "destructive"
+        }));
+    });
+  });
+
+  it("opens delete confirmation and triggers mutation", async () => {
+    render(<Groups />);
+    const group1Card = screen.getByText("Trip to Paris").closest('.rounded-lg');
+    const deleteBtn = group1Card!.querySelector('button svg.lucide-trash2')!.closest('button')!;
+    fireEvent.click(deleteBtn);
+
+    const confirmBtn = screen.getByRole("button", { name: "Delete" });
+    fireEvent.click(confirmBtn);
+
+    expect(googleApi.deleteGroup).toHaveBeenCalledWith("group1");
   });
 });

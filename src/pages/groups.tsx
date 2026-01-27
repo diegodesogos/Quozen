@@ -14,6 +14,7 @@ import { googleApi } from "@/lib/drive"; // Import googleApi
 import { Users, Plus, Pencil, Shield, User, Trash2, LogOut } from "lucide-react";
 import { MemberInput, GroupData, Group } from "@/lib/storage/types";
 import { Badge } from "@/components/ui/badge";
+import { parseMembers } from "@/lib/utils";
 
 export default function Groups() {
   const { activeGroupId, setActiveGroupId, currentUserId } = useAppContext();
@@ -200,25 +201,6 @@ export default function Groups() {
         setAlertState({ open: false, type: "leave" });
     }
   });
-
-  const parseMembers = (input: string): MemberInput[] => {
-    if (!input.trim()) return [];
-
-    return input.split(',')
-      .map(item => {
-        const trimmed = item.trim();
-        if (!trimmed) return null;
-        const isEmail = trimmed.includes('@') && trimmed.includes('.');
-
-        // Explicitly cast to MemberInput to satisfy the array type
-        if (isEmail) {
-          return { email: trimmed } as MemberInput;
-        } else {
-          return { username: trimmed } as MemberInput;
-        }
-      })
-      .filter((m): m is MemberInput => m !== null);
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

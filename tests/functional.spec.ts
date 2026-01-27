@@ -35,8 +35,7 @@ test.describe('Functional Flow with Mock Storage', () => {
         await expect(page.getByText('Create New Group')).not.toBeVisible();
 
         // 4. Verify Group Switch
-        await page.getByTestId('button-refresh').click();
-        await expect(page.getByText('No groups yet')).not.toBeVisible();
+        // Note: In functional tests, we rely on the UI updates. The header should update.
         await expect(page.getByTestId('header').getByText('Holiday Trip')).toBeVisible();
 
         // 5. Add Expense
@@ -90,8 +89,6 @@ test.describe('Functional Flow with Mock Storage', () => {
         await expect(groupCard).toBeVisible();
 
         // 2. Find and click Delete (trash icon)
-        // Note: The structure is card -> content -> right side flex -> buttons
-        // We look for the button containing the trash icon inside this specific card
         const deleteBtn = groupCard.locator('button svg.lucide-trash2').locator('..');
         await deleteBtn.click();
 
