@@ -1,6 +1,6 @@
 # Quozen - Decentralized Expense Sharing
 
-Quozen is a modern expense sharing application designed for simplicity and privacy. Unlike traditional split-wise clones that store your financial data on their servers, **Quozen is decentralized**.
+Quozen is a modern expense sharing application designed for simplicity, privacy, and collaboration. Unlike traditional split-wise clones that store your financial data on their servers, **Quozen is decentralized**.
 
 **Your Data, Your Drive.**
 Quozen operates entirely within your browser (Single Page Application). It uses your personal Google Drive to store groups, expenses, and settlements as standard Google Sheets. This means you own your data, and you can even view or edit it directly in Google Sheets!
@@ -8,9 +8,16 @@ Quozen operates entirely within your browser (Single Page Application). It uses 
 ## 🚀 Features
 
 * **Google Sign-In**: Secure authentication using your existing Google account.
-* **Decentralized Storage**: Automatically creates a "Quozen" spreadsheet in your Google Drive for every group.
-* **Expense Tracking**: Add expenses with categories, descriptions, and custom splits.
-* **Smart Settlements**: Client-side algorithms calculate who owes whom to simplify debt settlement.
+* **Collaborative Groups**: 
+    * **Share via Email**: Invite friends by email to give them access to the group. They will see it in their "Shared with me" list and can edit expenses.
+    * **Offline Members**: Add members by username (e.g., "Bob") to track expenses for people who don't use the app.
+* **Role-Based Access**:
+    * **Owners**: Can edit group settings, manage members, and delete the group.
+    * **Members**: Can add/edit expenses, view balances, and leave the group.
+* **Data Integrity**:
+    * **Conflict Detection**: Prevents accidental overwrites if multiple users edit an expense simultaneously.
+    * **Manual Sync**: Refresh data instantly to see the latest changes from other members.
+* **Smart Settlements**: Client-side algorithms calculate the most efficient way to settle debts.
 * **Transparent Data**: Every group is just a Google Sheet. You can export, backup, or analyze your data using Excel/Sheets tools anytime.
 
 ## 🔐 Architecture & Security
@@ -34,15 +41,19 @@ To function, Quozen requests these specific permissions:
 * **Frontend**: React, TypeScript, Vite
 * **Styling**: Tailwind CSS, Shadcn UI
 * **State Management**: TanStack Query (React Query)
-* **Authentication & Data**: Google Identity Services & Google Drive/Sheets API v4
+* **Authentication & Data**: Google Identity Services, Google Drive API v3, Google Sheets API v4
 
 ## 🏃‍♂️ Getting Started
 
 ### Prerequisites
 
-1.  Node.js installed.
-2.  A Google Cloud Console project with **Google Drive API** and **Google Sheets API** enabled.
-3.  An OAuth 2.0 Client ID configured for your development URL (e.g., `http://localhost:3001`).
+1.  **Node.js** (v18+) installed.
+2.  A **Google Cloud Console** project with the following APIs enabled:
+    * **Google Drive API**
+    * **Google Sheets API**
+    * **Google Picker API** (Required for importing shared groups)
+3.  An **OAuth 2.0 Client ID** configured for your development URL (e.g., `http://localhost:3001`).
+4.  An **API Key** restricted to the Google Picker API.
 
 ### Installation
 
@@ -51,9 +62,16 @@ To function, Quozen requests these specific permissions:
     ```bash
     npm install
     ```
-3.  Create a `.env` file in the root directory:
+3.  Create a `.env` file in the root directory (see `.env.example`):
     ```env
+    # OAuth Client ID
     VITE_GOOGLE_CLIENT_ID=your_google_client_id_here
+    
+    # API Key for Google Picker (File Selection)
+    VITE_GOOGLE_PICKER_API_KEY=your_google_api_key_here
+    
+    # App Port
+    VITE_PORT=3001
     ```
 4.  Start the development server:
     ```bash
@@ -67,7 +85,5 @@ To function, Quozen requests these specific permissions:
 Run the client-side test suite:
 
 ```bash
-npm run test       # Run unit tests
-npm run test:e2e   # Run Playwright end-to-end tests
-```
-
+npm run test       # Run unit tests (Vitest)
+npm run test:e2e   # Run Playwright end-to-end tests (Mocked Storage)

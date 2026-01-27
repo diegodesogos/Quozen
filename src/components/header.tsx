@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
+import { useAuth } from "@/context/auth-provider";
 import { Bell, ChevronDown, Users, RefreshCw } from "lucide-react";
 import GroupSwitcherModal from "./group-switcher-modal";
 import { useState } from "react";
@@ -8,13 +9,15 @@ import { cn } from "@/lib/utils";
 
 export default function Header() {
   const { activeGroupId } = useAppContext();
+  const { user } = useAuth();
   const [showGroupSwitcher, setShowGroupSwitcher] = useState(false);
   const queryClient = useQueryClient();
 
   // 1. Fetch group list (metadata)
   const { data: groups = [], isFetching: isGroupsFetching } = useQuery<Group[]>({
-    queryKey: ["drive", "groups"],
-    queryFn: () => googleApi.listGroups(),
+    queryKey: ["drive", "groups", user?.email],
+    queryFn: () => googleApi.listGroups(user?.email),
+    enabled: !!user?.email
   });
 
   // 2. Fetch active group data (content)

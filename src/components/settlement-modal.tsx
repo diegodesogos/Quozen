@@ -8,11 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { googleApi } from "@/lib/drive"; // Fixed import
 import { ArrowRight } from "lucide-react";
 
 interface User {
-  id: string;
+  userId: string; // Changed from id to userId to match Member interface consistency
   name: string;
 }
 
@@ -31,7 +31,7 @@ export default function SettlementModal({
   toUser, 
   suggestedAmount = 0 
 }: SettlementModalProps) {
-  const { activeGroupId, currentUserId } = useAppContext();
+  const { activeGroupId } = useAppContext();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -41,11 +41,12 @@ export default function SettlementModal({
 
   const settlementMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("POST", "/api/settlements", data);
+      // Use the googleApi directly instead of apiRequest
+      return await googleApi.addSettlement(activeGroupId, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/groups", activeGroupId, "balances"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/groups", activeGroupId, "settlements"] });
+      // Invalidate the group data query to refresh expenses and settlements
+      queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
       toast({
         title: "Settlement recorded",
         description: "The payment has been recorded successfully.",
@@ -54,7 +55,8 @@ export default function SettlementModal({
       setAmount("0");
       setNotes("");
     },
-    onError: () => {
+    onError: (error) => {
+      console.error(error);
       toast({
         title: "Error",
         description: "Failed to record settlement. Please try again.",
@@ -76,12 +78,12 @@ export default function SettlementModal({
     }
 
     settlementMutation.mutate({
-      groupId: activeGroupId,
-      fromUserId: fromUser.id,
-      toUserId: toUser.id,
-      amount: parseFloat(amount).toFixed(2),
+      fromUserId: fromUser.userId,
+      toUserId: toUser.userId,
+      amount: parseFloat(amount), // Ensure number type
       method,
       notes: notes.trim() || undefined,
+      date: new Date().toISOString(),
     });
   };
 

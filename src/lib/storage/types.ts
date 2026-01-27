@@ -1,4 +1,3 @@
-
 export const SCHEMAS = {
   Expenses: ["id", "date", "description", "amount", "paidBy", "category", "splits", "meta"],
   Settlements: ["id", "date", "fromUserId", "toUserId", "amount", "method", "notes"],
@@ -14,6 +13,7 @@ export interface Group {
   createdBy: string;
   participants: string[];
   createdAt: string;
+  isOwner: boolean;
 }
 
 export interface User {
@@ -24,6 +24,11 @@ export interface User {
   picture?: string;
 }
 
+export interface MemberInput {
+  email?: string;
+  username?: string;
+}
+
 export interface Expense {
   id: string;
   date: string;
@@ -32,7 +37,11 @@ export interface Expense {
   paidBy: string;
   category: string;
   splits: any[];
-  meta: any;
+  meta: {
+    createdAt: string;
+    lastModified?: string;
+    [key: string]: any;
+  };
   _rowIndex?: number;
 }
 
@@ -66,12 +75,40 @@ export interface IStorageProvider {
   /**
    * List all available groups (spreadsheets)
    */
-  listGroups(): Promise<Group[]>;
+  listGroups(userEmail?: string): Promise<Group[]>;
 
   /**
-   * Create a new group/spreadsheet
+   * Create a new group/spreadsheet with optional initial members
    */
-  createGroupSheet(name: string, user: User): Promise<Group>;
+  createGroupSheet(name: string, user: User, members?: MemberInput[]): Promise<Group>;
+
+  /**
+   * Update an existing group (rename and/or update members)
+   */
+  updateGroup(groupId: string, name: string, members: MemberInput[]): Promise<void>;
+
+  /**
+   * Permanently delete a group (Owner only)
+   */
+  deleteGroup(groupId: string): Promise<void>;
+
+  /**
+   * Leave a group (Member only)
+   */
+  leaveGroup(groupId: string, userId: string): Promise<void>;
+
+  /**
+   * Check if a member has any associated expenses (paidBy or in splits)
+   */
+  checkMemberHasExpenses(groupId: string, userId: string): Promise<boolean>;
+
+  /**
+   * Validates that a spreadsheet has the correct Quozen structure
+   */
+  validateQuozenSpreadsheet(
+    spreadsheetId: string,
+    userEmail: string
+  ): Promise<{ valid: boolean; error?: string; name?: string }>;
 
   /**
    * Get all data for a specific group
@@ -84,9 +121,23 @@ export interface IStorageProvider {
   addExpense(spreadsheetId: string, expenseData: Partial<Expense>): Promise<void>;
 
   /**
-   * Delete an expense by row index
+   * Update an existing expense with conflict detection
+   * @param spreadsheetId Group ID
+   * @param rowIndex Row index in the sheet
+   * @param expenseData New data
+   * @param expectedLastModified Timestamp of the version the client has
    */
-  deleteExpense(spreadsheetId: string, rowIndex: number): Promise<void>;
+  updateExpense(
+    spreadsheetId: string, 
+    rowIndex: number, 
+    expenseData: Partial<Expense>, 
+    expectedLastModified?: string
+  ): Promise<void>;
+
+  /**
+   * Delete an expense by row index with existence check
+   */
+  deleteExpense(spreadsheetId: string, rowIndex: number, expenseId: string): Promise<void>;
 
   /**
    * Add a new settlement
@@ -94,7 +145,7 @@ export interface IStorageProvider {
   addSettlement(spreadsheetId: string, settlementData: Partial<Settlement>): Promise<void>;
 
   /**
-   * Update a row in any sheet
+   * Update a row in any sheet (Generic, use updateExpense for conflict checks)
    */
   updateRow(spreadsheetId: string, sheetName: SchemaType, rowIndex: number, data: any): Promise<void>;
 

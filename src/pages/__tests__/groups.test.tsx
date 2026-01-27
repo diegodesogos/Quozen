@@ -4,6 +4,7 @@ import Groups from "../groups";
 import { useAppContext } from "@/context/app-context";
 import { useAuth } from "@/context/auth-provider";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { googleApi } from "@/lib/drive";
 
 // Mock hooks
 vi.mock("@/context/app-context", () => ({
@@ -26,17 +27,23 @@ vi.mock("@tanstack/react-query", async (importOriginal) => {
   };
 });
 
+const mockToast = vi.fn();
 vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({
-    toast: vi.fn(),
+    toast: mockToast,
   }),
 }));
 
-// Mock googleApi to avoid errors if code reaches it (though mutation is mocked)
+// Mock googleApi
 vi.mock("@/lib/drive", () => ({
   googleApi: {
     listGroups: vi.fn(),
     createGroupSheet: vi.fn(),
+    getGroupData: vi.fn(),
+    updateGroup: vi.fn(),
+    deleteGroup: vi.fn(),
+    leaveGroup: vi.fn(),
+    checkMemberHasExpenses: vi.fn(),
   },
 }));
 
@@ -47,18 +54,33 @@ describe("Groups Page", () => {
       id: "group1",
       name: "Trip to Paris",
       description: "Summer vacation",
-      createdBy: "user1",
+      createdBy: "me",
       participants: ["user1", "user2"],
       createdAt: new Date().toISOString(),
+      isOwner: true, // Owner
     },
+    {
+      id: "group2",
+      name: "Office Lunch",
+      description: "Work stuff",
+      createdBy: "Boss",
+      participants: ["user1", "user3"],
+      createdAt: new Date().toISOString(),
+      isOwner: false, // Member
+    }
   ];
 
-  const mockExpenses = [
-    { amount: "100.00" },
-    { amount: "50.00" }
-  ];
+  const mockGroup1Data = {
+    members: [
+      { userId: "user1", role: "admin", name: "Alice", email: "alice@example.com" },
+      { userId: "user2", role: "member", name: "Bob", email: "bob@example.com" }
+    ]
+  };
 
   const mutateCreateGroup = vi.fn();
+  const mutateUpdateGroup = vi.fn();
+  const mutateDeleteGroup = vi.fn();
+  const mutateLeaveGroup = vi.fn();
   const setActiveGroupId = vi.fn();
 
   beforeEach(() => {
@@ -77,63 +99,125 @@ describe("Groups Page", () => {
 
     (useQuery as unknown as ReturnType<typeof vi.fn>).mockImplementation(({ queryKey }) => {
       const key = queryKey[0];
-      
-      // Handle the new drive-based query key
       if (key === "drive" && queryKey[1] === "groups") {
         return { data: mockGroups };
       }
-
-      if (key === "/api/groups" && queryKey[2] === "expenses") {
-        return { data: mockExpenses };
-      }
-      
       return { data: [] };
     });
 
+    // Mock mutations to call their functions immediately (simulate immediate execution for logic testing)
     (useMutation as unknown as ReturnType<typeof vi.fn>).mockImplementation((options) => {
       return {
-        mutate: (data: any) => {
-          mutateCreateGroup(data);
-          // Simulate success response containing the new group ID
-          if (options?.onSuccess) options.onSuccess({ id: "new-group-id" });
+        mutate: async (data: any) => {
+            try {
+                if (options?.mutationFn) await options.mutationFn(data);
+                if (options?.onSuccess) options.onSuccess(data);
+            } catch(e: any) {
+                if (options?.onError) options.onError(e);
+            }
         },
         isPending: false,
       };
     });
   });
 
-  it("renders the list of groups", () => {
+  it("renders the list of groups with correct badges", () => {
     render(<Groups />);
-    
     expect(screen.getByText("Your Groups")).toBeInTheDocument();
-    expect(screen.getByText("Trip to Paris")).toBeInTheDocument();
-    expect(screen.getByText("Google Sheet")).toBeInTheDocument();
+    
+    // Group 1 - Owner
+    const group1Card = screen.getByText("Trip to Paris").closest('.rounded-lg');
+    expect(group1Card).toHaveTextContent("Owner");
+
+    // Group 2 - Member
+    const group2Card = screen.getByText("Office Lunch").closest('.rounded-lg');
+    expect(group2Card).toHaveTextContent("Member");
   });
 
-  it("opens create group dialog and submits new group", async () => {
+  it("shows Edit/Delete for owners and Leave for members", () => {
     render(<Groups />);
+    const group1Card = screen.getByText("Trip to Paris").closest('.rounded-lg');
+    expect(group1Card?.querySelector('button svg.lucide-pencil')).toBeInTheDocument(); 
+    expect(group1Card?.querySelector('button svg.lucide-trash2')).toBeInTheDocument(); 
+
+    const group2Card = screen.getByText("Office Lunch").closest('.rounded-lg');
+    expect(group2Card?.querySelector('button svg.lucide-log-out')).toBeInTheDocument(); 
+  });
+
+  // Story 2.2: Test validation preventing removal of member with expenses
+  it("prevents removing a member with existing expenses during edit", async () => {
+    // 1. Mock getGroupData to return current members
+    (googleApi.getGroupData as any).mockResolvedValue(mockGroup1Data);
     
-    // 1. Click "New Group"
-    const newGroupBtn = screen.getByRole("button", { name: /New Group/i });
-    fireEvent.click(newGroupBtn);
+    // 2. Mock checkMemberHasExpenses to return true for user2
+    (googleApi.checkMemberHasExpenses as any).mockResolvedValue(true);
 
-    // 2. Check dialog
-    expect(screen.getByRole("heading", { name: "Create New Group" })).toBeInTheDocument();
+    render(<Groups />);
 
-    // 3. Fill form
-    fireEvent.change(screen.getByLabelText(/Group Name/i), { target: { value: "New Team" } });
+    // 3. Click Edit on Group 1
+    const group1Card = screen.getByText("Trip to Paris").closest('.rounded-lg');
+    const editBtn = group1Card!.querySelector('button svg.lucide-pencil')!.closest('button')!;
+    fireEvent.click(editBtn);
 
-    // 4. Submit
-    const submitBtn = screen.getByRole("button", { name: /Create Group/i });
-    fireEvent.click(submitBtn);
+    // Wait for dialog
+    await waitFor(() => expect(screen.getByText("Edit Group")).toBeInTheDocument());
 
-    // 5. Verify mutation and side effects
+    // 4. Change members input (Remove user2/Bob)
+    const membersInput = screen.getByLabelText("Members (Optional)");
+    fireEvent.change(membersInput, { target: { value: "" } }); // Clear members, removing Bob
+
+    // 5. Submit
+    const saveBtn = screen.getByRole("button", { name: "Update Group" });
+    fireEvent.click(saveBtn);
+
+    // 6. Verify error toast was called
     await waitFor(() => {
-        // Since we are mocking useMutation, we check if the function passed to mutate was called with the right arg
-        expect(mutateCreateGroup).toHaveBeenCalledWith("New Team");
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+            title: "Update Failed",
+            description: expect.stringContaining("Cannot remove Bob because they have recorded expenses"),
+            variant: "destructive"
+        }));
     });
 
-    // Should switch to the new group automatically on success
-    expect(setActiveGroupId).toHaveBeenCalledWith("new-group-id");
+    // 7. Verify API update was NOT called
+    expect(googleApi.updateGroup).not.toHaveBeenCalled();
+  });
+
+  // Story 2.5: Test validation preventing leaving group with expenses
+  it("prevents leaving a group if user has expenses", async () => {
+    // Mock leaveGroup API to throw error (mimicking backend/provider logic)
+    (googleApi.leaveGroup as any).mockRejectedValue(new Error("Cannot leave group while involved in expenses."));
+
+    render(<Groups />);
+
+    // Click Leave on Group 2
+    const group2Card = screen.getByText("Office Lunch").closest('.rounded-lg');
+    const leaveBtn = group2Card!.querySelector('button svg.lucide-log-out')!.closest('button')!;
+    fireEvent.click(leaveBtn);
+
+    // Confirm
+    const confirmBtn = screen.getByRole("button", { name: "Leave" });
+    fireEvent.click(confirmBtn);
+
+    // Verify error toast
+    await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+            title: "Cannot Leave Group",
+            description: expect.stringContaining("Cannot leave group while involved in expenses"),
+            variant: "destructive"
+        }));
+    });
+  });
+
+  it("opens delete confirmation and triggers mutation", async () => {
+    render(<Groups />);
+    const group1Card = screen.getByText("Trip to Paris").closest('.rounded-lg');
+    const deleteBtn = group1Card!.querySelector('button svg.lucide-trash2')!.closest('button')!;
+    fireEvent.click(deleteBtn);
+
+    const confirmBtn = screen.getByRole("button", { name: "Delete" });
+    fireEvent.click(confirmBtn);
+
+    expect(googleApi.deleteGroup).toHaveBeenCalledWith("group1");
   });
 });

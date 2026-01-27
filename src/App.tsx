@@ -56,9 +56,9 @@ function AuthenticatedApp() {
 
   // Explicitly type the query data as Group[]
   const { data: groups, isLoading: groupsLoading } = useQuery<Group[]>({
-    queryKey: ["drive", "groups"],
-    queryFn: () => googleApi.listGroups(),
-    enabled: isAuthenticated,
+    queryKey: ["drive", "groups", user?.email],
+    queryFn: () => googleApi.listGroups(user?.email),
+    enabled: isAuthenticated && !!user?.email,
   });
 
   useEffect(() => {
