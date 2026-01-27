@@ -13,7 +13,7 @@ export interface Group {
   createdBy: string;
   participants: string[];
   createdAt: string;
-  isOwner: boolean; // Added
+  isOwner: boolean;
 }
 
 export interface User {
@@ -37,7 +37,11 @@ export interface Expense {
   paidBy: string;
   category: string;
   splits: any[];
-  meta: any;
+  meta: {
+    createdAt: string;
+    lastModified?: string;
+    [key: string]: any;
+  };
   _rowIndex?: number;
 }
 
@@ -117,9 +121,23 @@ export interface IStorageProvider {
   addExpense(spreadsheetId: string, expenseData: Partial<Expense>): Promise<void>;
 
   /**
-   * Delete an expense by row index
+   * Update an existing expense with conflict detection
+   * @param spreadsheetId Group ID
+   * @param rowIndex Row index in the sheet
+   * @param expenseData New data
+   * @param expectedLastModified Timestamp of the version the client has
    */
-  deleteExpense(spreadsheetId: string, rowIndex: number): Promise<void>;
+  updateExpense(
+    spreadsheetId: string, 
+    rowIndex: number, 
+    expenseData: Partial<Expense>, 
+    expectedLastModified?: string
+  ): Promise<void>;
+
+  /**
+   * Delete an expense by row index with existence check
+   */
+  deleteExpense(spreadsheetId: string, rowIndex: number, expenseId: string): Promise<void>;
 
   /**
    * Add a new settlement
@@ -127,7 +145,7 @@ export interface IStorageProvider {
   addSettlement(spreadsheetId: string, settlementData: Partial<Settlement>): Promise<void>;
 
   /**
-   * Update a row in any sheet
+   * Update a row in any sheet (Generic, use updateExpense for conflict checks)
    */
   updateRow(spreadsheetId: string, sheetName: SchemaType, rowIndex: number, data: any): Promise<void>;
 

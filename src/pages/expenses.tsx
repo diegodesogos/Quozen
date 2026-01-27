@@ -21,6 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ConflictError, NotFoundError } from "@/lib/errors";
 
 interface User {
   userId: string;
@@ -36,7 +37,7 @@ interface Expense {
   category: string;
   date: string;
   splits: { userId: string; amount: number }[];
-  _rowIndex: number; // Internal row index from Google Sheets
+  _rowIndex: number; 
 }
 
 export default function Expenses() {
@@ -45,10 +46,9 @@ export default function Expenses() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  // State to track which expense is being prompted for deletion
-  const [deleteRowIndex, setDeleteRowIndex] = useState<number | null>(null);
+  // State to track which expense is being prompted for deletion (stores whole object now)
+  const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
 
-  // Fetch group data
   const { data: groupData, isLoading } = useQuery({
     queryKey: ["drive", "group", activeGroupId],
     queryFn: () => googleApi.getGroupData(activeGroupId),
@@ -58,24 +58,33 @@ export default function Expenses() {
   const users = (groupData?.members || []) as User[];
   const expenses = (groupData?.expenses || []) as Expense[];
 
-  // Mutation to delete the expense row in Google Sheets
   const deleteMutation = useMutation({
-    mutationFn: (rowIndex: number) => googleApi.deleteExpense(activeGroupId, rowIndex),
+    mutationFn: (expense: Expense) => googleApi.deleteExpense(activeGroupId, expense._rowIndex, expense.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
       toast({ 
         title: "Expense deleted", 
         description: "The spreadsheet has been updated successfully." 
       });
+      setExpenseToDelete(null);
     },
-    onError: () => {
-      toast({ 
-        title: "Error", 
-        description: "Failed to delete expense. Please try again.", 
-        variant: "destructive" 
-      });
-    },
-    onSettled: () => setDeleteRowIndex(null)
+    onError: (error) => {
+      setExpenseToDelete(null);
+      if (error instanceof NotFoundError || error instanceof ConflictError) {
+         toast({ 
+            title: "Sync Error", 
+            description: "Expense list is out of date. Refreshing...", 
+            variant: "destructive" 
+         });
+         queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
+      } else {
+         toast({ 
+            title: "Error", 
+            description: "Failed to delete expense. Please try again.", 
+            variant: "destructive" 
+         });
+      }
+    }
   });
 
   const getUserById = (id: string) => users.find(u => u.userId === id);
@@ -184,7 +193,7 @@ export default function Expenses() {
                           variant="ghost"
                           size="sm"
                           className="text-destructive text-sm h-auto p-0"
-                          onClick={() => setDeleteRowIndex(expense._rowIndex)}
+                          onClick={() => setExpenseToDelete(expense)}
                           data-testid={`button-delete-expense-${expense.id}`}
                         >
                           <Trash2 className="w-3 h-3" />
@@ -199,8 +208,7 @@ export default function Expenses() {
         )}
       </div>
 
-      {/* Deletion Confirmation Dialog */}
-      <AlertDialog open={deleteRowIndex !== null} onOpenChange={(open) => !open && setDeleteRowIndex(null)}>
+      <AlertDialog open={!!expenseToDelete} onOpenChange={(open) => !open && setExpenseToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Expense?</AlertDialogTitle>
@@ -211,7 +219,7 @@ export default function Expenses() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction 
-              onClick={() => deleteRowIndex && deleteMutation.mutate(deleteRowIndex)}
+              onClick={() => expenseToDelete && deleteMutation.mutate(expenseToDelete)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteMutation.isPending ? "Deleting..." : "Delete"}

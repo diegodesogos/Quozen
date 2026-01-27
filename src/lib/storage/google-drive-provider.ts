@@ -1,5 +1,6 @@
-import { IStorageProvider, Group, User, GroupData, SCHEMAS, SchemaType, MemberInput, Member } from "./types";
+import { IStorageProvider, Group, User, GroupData, SCHEMAS, SchemaType, MemberInput, Member, Expense } from "./types";
 import { getAuthToken } from "../tokenStore";
+import { ConflictError, NotFoundError } from "../errors";
 
 const DRIVE_API_URL = "https://www.googleapis.com/drive/v3";
 const SHEETS_API_URL = "https://sheets.googleapis.com/v4/spreadsheets";
@@ -56,12 +57,7 @@ export class GoogleDriveProvider implements IStorageProvider {
     }
 
     async listGroups(userEmail?: string): Promise<Group[]> {
-        // Query: Name contains prefix, not trashed.
-        // Note: Google Drive API by default includes files shared with the user in the 'files.list' results.
-        // We don't need 'sharedWithMe = true' explicitly to see them, but we do need to ensure we don't filter them out.
         const query = `mimeType = 'application/vnd.google-apps.spreadsheet' and name contains '${QUOZEN_PREFIX}' and trashed = false`;
-        
-        // We need 'owners' to determine isOwner
         const fields = "files(id, name, createdTime, owners, capabilities)";
 
         const response = await this.fetchWithAuth(
@@ -70,32 +66,21 @@ export class GoogleDriveProvider implements IStorageProvider {
 
         const data = await response.json();
 
-        // Initial filter by name prefix
         const candidateFiles = (data.files || []).filter((file: any) =>
             file.name.startsWith(QUOZEN_PREFIX)
         );
 
         const validGroups: Group[] = [];
 
-        // Validate each file concurrently
         await Promise.all(candidateFiles.map(async (file: any) => {
             try {
-                // If userEmail is provided, validate membership
                 if (userEmail) {
                     const validation = await this.validateQuozenSpreadsheet(file.id, userEmail);
                     if (!validation.valid) {
-                        // Skip invalid or non-member groups
                         return; 
                     }
-                } else {
-                    // Fallback if no email provided (shouldn't happen in auth flow), verify structure only
-                    // For performance, we might skip full structure check if we trust the name, 
-                    // but let's do a lightweight check of sheets presence via validateQuozenSpreadsheet
-                    // (validateQuozenSpreadsheet handles missing email gracefully? No, it requires it for membership check)
-                    // We'll skip membership check if no email.
                 }
 
-                // Determine Ownership
                 const isOwner = file.owners?.some((owner: any) => owner.emailAddress === userEmail) || file.capabilities?.canDelete;
 
                 validGroups.push({
@@ -103,7 +88,7 @@ export class GoogleDriveProvider implements IStorageProvider {
                     name: file.name.slice(QUOZEN_PREFIX.length),
                     description: "Google Sheet Group",
                     createdBy: file.owners?.[0]?.displayName || "Unknown",
-                    participants: [], // Populated only when getting full details
+                    participants: [],
                     createdAt: file.createdTime,
                     isOwner: !!isOwner
                 });
@@ -112,7 +97,6 @@ export class GoogleDriveProvider implements IStorageProvider {
             }
         }));
 
-        // Sort by createdAt descending (newest first)
         return validGroups.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
 
@@ -137,20 +121,16 @@ export class GoogleDriveProvider implements IStorageProvider {
 
         // 2. Process Initial Members
         const initialMembersRows = [];
-
-        // Add current user (Admin)
         initialMembersRows.push([user.id, user.email, user.name, "admin", new Date().toISOString()]);
 
-        // Add additional members
         for (const member of members) {
             let memberName = member.username || member.email || "Unknown";
             let memberId = member.email || member.username || `user-${self.crypto.randomUUID()}`;
 
             if (member.email) {
-                // If valid email, try to share and get real name
                 const displayName = await this.shareFile(spreadsheetId, member.email);
                 if (displayName) memberName = displayName;
-                memberId = member.email; // Use email as ID for shared users
+                memberId = member.email;
             }
 
             initialMembersRows.push([memberId, member.email || "", memberName, "member", new Date().toISOString()]);
@@ -184,30 +164,24 @@ export class GoogleDriveProvider implements IStorageProvider {
     }
 
     async updateGroup(groupId: string, name: string, members: MemberInput[]): Promise<void> {
-        // 1. Rename file if needed
         const newTitle = `${QUOZEN_PREFIX}${name}`;
-        // We always update the name to ensure it matches, minimal overhead
         await this.fetchWithAuth(`${DRIVE_API_URL}/files/${groupId}`, {
             method: "PATCH",
             body: JSON.stringify({ name: newTitle })
         });
 
-        // 2. Fetch current members
         const groupData = await this.getGroupData(groupId);
         if (!groupData) throw new Error("Group not found");
         const currentMembers = groupData.members;
 
-        // 3. Diff members
         const processedIds = new Set<string>();
 
-        // Helper to normalize input
         const desiredMembers = members.map(m => ({
             id: m.email || m.username || "",
             ...m
         })).filter(m => m.id);
 
         for (const desired of desiredMembers) {
-            // Check if exists
             const existing = currentMembers.find(c =>
                 (desired.email && c.email === desired.email) ||
                 (desired.username && c.userId === desired.username)
@@ -216,7 +190,6 @@ export class GoogleDriveProvider implements IStorageProvider {
             if (existing) {
                 processedIds.add(existing.userId);
             } else {
-                // New Member
                 let memberName = desired.username || desired.email || "Unknown";
                 let memberId = desired.email || desired.username || `user-${self.crypto.randomUUID()}`;
 
@@ -226,7 +199,6 @@ export class GoogleDriveProvider implements IStorageProvider {
                     memberId = desired.email;
                 }
 
-                // Add to sheet
                 await this.addRow(groupId, "Members", {
                     userId: memberId,
                     email: desired.email || "",
@@ -238,9 +210,6 @@ export class GoogleDriveProvider implements IStorageProvider {
             }
         }
 
-        // 4. Remove members not in the processed list
-        // We iterate backwards to avoid index shift issues affecting subsequent deletions
-        // Filter out admins from deletion to prevent locking oneself out
         const membersToDelete = currentMembers
             .filter(m => !processedIds.has(m.userId) && m.role !== 'admin')
             .sort((a, b) => (b._rowIndex || 0) - (a._rowIndex || 0));
@@ -248,9 +217,6 @@ export class GoogleDriveProvider implements IStorageProvider {
         for (const member of membersToDelete) {
             if (member._rowIndex) {
                 await this.deleteRow(groupId, "Members", member._rowIndex);
-                // Attempt to revoke permission if email exists
-                // Note: This requires getting permissionId first. Skipping for MVP iteration 
-                // as it adds significant API complexity/latency. Removing from list denies app access.
             }
         }
     }
@@ -262,7 +228,6 @@ export class GoogleDriveProvider implements IStorageProvider {
     }
 
     async leaveGroup(groupId: string, userId: string): Promise<void> {
-        // 1. Get group data to find the row index of the member
         const data = await this.getGroupData(groupId);
         if (!data) throw new Error("Group not found");
 
@@ -273,13 +238,11 @@ export class GoogleDriveProvider implements IStorageProvider {
              throw new Error("Admins cannot leave group. Transfer ownership or delete group.");
         }
 
-        // 2. Check for expenses (Double check, though UI should handle it)
         const hasExpenses = await this.checkMemberHasExpenses(groupId, userId);
         if (hasExpenses) {
             throw new Error("Cannot leave group while involved in expenses. Please settle and remove expenses first.");
         }
 
-        // 3. Delete the row
         if (member._rowIndex) {
             await this.deleteRow(groupId, "Members", member._rowIndex);
         }
@@ -290,26 +253,17 @@ export class GoogleDriveProvider implements IStorageProvider {
         if (!data) return false;
 
         return data.expenses.some(e => {
-            // Did they pay?
             if (e.paidBy === userId) return true;
-            // Are they part of the split with > 0 amount?
             if (e.splits && e.splits.some((s: any) => s.userId === userId && s.amount > 0)) return true;
             return false;
         });
     }
 
-    /**
-     * Validates that a spreadsheet has the correct Quozen structure
-     * @param spreadsheetId The spreadsheet ID to validate
-     * @param userEmail The current user's email to check membership
-     * @returns Validation result with success status and error message if failed
-     */
     async validateQuozenSpreadsheet(
         spreadsheetId: string,
         userEmail: string
     ): Promise<{ valid: boolean; error?: string; name?: string }> {
         try {
-            // 1. Fetch spreadsheet metadata to check tabs and name
             const metadataRes = await this.fetchWithAuth(
                 `${SHEETS_API_URL}/${spreadsheetId}?fields=properties.title,sheets.properties.title`
             );
@@ -317,7 +271,6 @@ export class GoogleDriveProvider implements IStorageProvider {
             const sheetName = metadata.properties?.title || "";
             const sheetTitles = metadata.sheets?.map((s: any) => s.properties.title) || [];
 
-            // 2. Validate name starts with Quozen prefix
             if (!sheetName.startsWith(QUOZEN_PREFIX)) {
                 return {
                     valid: false,
@@ -325,7 +278,6 @@ export class GoogleDriveProvider implements IStorageProvider {
                 };
             }
 
-            // 3. Validate required sheets exist
             const missingSheets = REQUIRED_SHEETS.filter(
                 (required) => !sheetTitles.includes(required)
             );
@@ -336,14 +288,12 @@ export class GoogleDriveProvider implements IStorageProvider {
                 };
             }
 
-            // 4. Check if current user is a member
             const membersRes = await this.fetchWithAuth(
                 `${SHEETS_API_URL}/${spreadsheetId}/values/Members!A2:E`
             );
             const membersData = await membersRes.json();
             const members = membersData.values || [];
 
-            // Members schema: [userId, email, name, role, joinedAt]
             const userIsMember = members.some((row: string[]) => row[1] === userEmail);
 
             if (!userIsMember) {
@@ -359,21 +309,12 @@ export class GoogleDriveProvider implements IStorageProvider {
             };
         } catch (error: any) {
             if (error.message?.includes("403")) {
-                return {
-                    valid: false,
-                    error: "Access denied: you don't have permission to access this file"
-                };
+                return { valid: false, error: "Access denied: you don't have permission to access this file" };
             }
             if (error.message?.includes("404")) {
-                return {
-                    valid: false,
-                    error: "File not found"
-                };
+                return { valid: false, error: "File not found" };
             }
-            return {
-                valid: false,
-                error: `Validation failed: ${error.message || "Unknown error"}`
-            };
+            return { valid: false, error: `Validation failed: ${error.message || "Unknown error"}` };
         }
     }
 
@@ -395,7 +336,7 @@ export class GoogleDriveProvider implements IStorageProvider {
                     schema.forEach((key, index) => {
                         let value = row[index];
                         if (key === 'splits' || key === 'meta') {
-                            try { value = value ? JSON.parse(value) : []; } catch (e) { value = []; }
+                            try { value = value ? JSON.parse(value) : {}; } catch (e) { value = {}; }
                         }
                         if (['amount'].includes(key) && value) { value = parseFloat(value); }
                         obj[key] = value;
@@ -434,13 +375,39 @@ export class GoogleDriveProvider implements IStorageProvider {
             id: self.crypto.randomUUID(),
             ...expenseData,
             splits: expenseData.splits || [],
-            meta: { createdAt: new Date().toISOString() }
+            meta: { 
+                createdAt: new Date().toISOString(),
+                lastModified: new Date().toISOString()
+            }
         };
         return this.addRow(spreadsheetId, "Expenses", newExpense);
     }
 
-    async deleteExpense(spreadsheetId: string, rowIndex: number): Promise<void> {
-        return this.deleteRow(spreadsheetId, "Expenses", rowIndex);
+    async deleteExpense(spreadsheetId: string, rowIndex: number, expenseId: string): Promise<void> {
+        // Story 2.8: Existence Check
+        // We fetch the specific row to verify ID before deleting
+        const sheetName = "Expenses";
+        const url = `${SHEETS_API_URL}/${spreadsheetId}/values/${sheetName}!A${rowIndex}:Z${rowIndex}`;
+        
+        try {
+            const res = await this.fetchWithAuth(url);
+            const data = await res.json();
+            const rowValues = data.values?.[0];
+
+            if (!rowValues) {
+                throw new NotFoundError("Expense not found (row is empty). It may have been deleted.");
+            }
+
+            // ID is the first column in SCHEMAS.Expenses
+            const currentId = rowValues[0];
+            if (currentId !== expenseId) {
+                throw new ConflictError("Expense location changed. The sheet was modified by someone else.");
+            }
+
+            return this.deleteRow(spreadsheetId, "Expenses", rowIndex);
+        } catch (e) {
+            throw e;
+        }
     }
 
     async addSettlement(spreadsheetId: string, settlementData: any): Promise<void> {
@@ -450,6 +417,72 @@ export class GoogleDriveProvider implements IStorageProvider {
             date: settlementData.date || new Date().toISOString()
         };
         return this.addRow(spreadsheetId, "Settlements", newSettlement);
+    }
+
+    async updateExpense(
+        spreadsheetId: string, 
+        rowIndex: number, 
+        expenseData: Partial<Expense>, 
+        expectedLastModified?: string
+    ): Promise<void> {
+        const sheetName = "Expenses";
+        // 1. Fetch current row
+        const url = `${SHEETS_API_URL}/${spreadsheetId}/values/${sheetName}!A${rowIndex}:Z${rowIndex}`;
+        const res = await this.fetchWithAuth(url);
+        const data = await res.json();
+        const rowValues = data.values?.[0];
+
+        if (!rowValues) {
+            throw new NotFoundError("Expense row not found.");
+        }
+
+        // Parse row to check ID and Meta
+        // Schema: ["id", "date", "description", "amount", "paidBy", "category", "splits", "meta"]
+        // ID is index 0, Meta is index 7
+        const currentId = rowValues[0];
+        const rawMeta = rowValues[7];
+        
+        if (currentId !== expenseData.id) {
+            throw new ConflictError("Expense ID mismatch. Rows may have shifted.");
+        }
+
+        let currentMeta: any = {};
+        try {
+            currentMeta = rawMeta ? JSON.parse(rawMeta) : {};
+        } catch (e) {
+            // ignore parse error
+        }
+
+        // 2. Conflict Check
+        if (expectedLastModified && currentMeta.lastModified) {
+            const serverTime = new Date(currentMeta.lastModified).getTime();
+            const clientTime = new Date(expectedLastModified).getTime();
+            
+            // Allow a small epsilon for clock skew if needed, but strict > is safer
+            if (serverTime > clientTime) {
+                throw new ConflictError("This expense has been modified by someone else.");
+            }
+        }
+
+        // 3. Prepare Update
+        // Merge existing meta with new timestamp
+        const newMeta = {
+            ...currentMeta,
+            lastModified: new Date().toISOString()
+        };
+
+        // We need to construct the full row to update using updateRow logic, but we already have the Partial data.
+        // We need to merge with existing data to ensure we don't blank out missing fields?
+        // Actually `updateRow` expects `data` to map to schema keys.
+        // Let's reconstruct the object.
+        const updatedObject = {
+            ...expenseData,
+            splits: expenseData.splits || [], // Ensure splits array
+            meta: newMeta
+        };
+
+        // Reuse generic updateRow which handles JSON stringification
+        return this.updateRow(spreadsheetId, "Expenses", rowIndex, updatedObject);
     }
 
     async updateRow(spreadsheetId: string, sheetName: SchemaType, rowIndex: number, data: any): Promise<void> {
