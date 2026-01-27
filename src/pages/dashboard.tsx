@@ -1,34 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import SettlementModal from "@/components/settlement-modal";
 import { useState, useMemo } from "react";
 import { Utensils, Car, Bed, ShoppingBag, Gamepad2, MoreHorizontal } from "lucide-react";
 import { googleApi } from "@/lib/drive";
 import { useNavigate } from "react-router-dom";
-
-interface User {
-  userId: string; // Changed from id to userId to match Sheet schema
-  name: string;
-  email: string;
-}
-
-interface Expense {
-  id: string;
-  description: string;
-  amount: number; // Changed to number
-  paidBy: string;
-  category: string;
-  date: string;
-  splits: { userId: string; amount: number }[];
-}
-
-interface Settlement {
-  fromUserId: string;
-  toUserId: string;
-  amount: number;
-}
+import { calculateBalances, suggestSettlementStrategy } from "@/lib/finance";
+import { Expense, Settlement, Member } from "@/lib/storage/types";
 
 export default function Dashboard() {
   const { activeGroupId, currentUserId } = useAppContext();
@@ -51,7 +30,7 @@ export default function Dashboard() {
 
   const expenses = (groupData?.expenses || []) as Expense[];
   const settlements = (groupData?.settlements || []) as Settlement[];
-  const users = (groupData?.members || []) as User[];
+  const users = (groupData?.members || []) as Member[];
   
   // Derived state: Current User Object
   const currentUser = users.find(u => u.userId === currentUserId);
@@ -64,39 +43,7 @@ export default function Dashboard() {
 
   // Client-side Balance Calculation
   const balances = useMemo(() => {
-    const bal: Record<string, number> = {};
-    users.forEach(u => bal[u.userId] = 0);
-
-    // Process expenses
-    expenses.forEach(expense => {
-      const amount = typeof expense.amount === 'string' ? parseFloat(expense.amount) : expense.amount;
-      
-      // Credit payer
-      if (bal[expense.paidBy] !== undefined) {
-        bal[expense.paidBy] += amount;
-      }
-
-      // Debit splitters
-      expense.splits?.forEach(split => {
-        if (bal[split.userId] !== undefined) {
-          bal[split.userId] -= split.amount;
-        }
-      });
-    });
-
-    // Process settlements
-    settlements.forEach(settlement => {
-      const amount = typeof settlement.amount === 'string' ? parseFloat(settlement.amount) : settlement.amount;
-      
-      if (bal[settlement.fromUserId] !== undefined) {
-        bal[settlement.fromUserId] += amount;
-      }
-      if (bal[settlement.toUserId] !== undefined) {
-        bal[settlement.toUserId] -= amount;
-      }
-    });
-
-    return bal;
+    return calculateBalances(users, expenses, settlements);
   }, [expenses, settlements, users]);
 
   const userBalance = balances[currentUserId] || 0;
@@ -116,36 +63,20 @@ export default function Dashboard() {
   const handleSettleUp = () => {
     if (!currentUser) return;
     
-    // Calculate balances relative to current user
-    const participantBalances = users
-      .filter(u => u.userId !== currentUserId)
-      .map(u => ({
-        user: { id: u.userId, name: u.name },
-        balance: balances[u.userId] || 0
-      }));
+    const suggestion = suggestSettlementStrategy(currentUserId, balances, users);
+    if (!suggestion) return;
 
-    if (participantBalances.length === 0) return;
+    const fromUser = getUserById(suggestion.fromUserId);
+    const toUser = getUserById(suggestion.toUserId);
 
-    // Simple heuristic: 
-    // If I owe money (my balance < 0), I should pay the person who is owed the most (max balance).
-    // If I am owed money (my balance > 0), the person who owes the most (min balance) should pay me.
-    let target;
-    if (userBalance < 0) {
-        // Find who is owed the most (positive balance)
-        target = participantBalances.reduce((max, p) => p.balance > max.balance ? p : max, participantBalances[0]);
-    } else {
-        // Find who owes the most (negative balance)
-        target = participantBalances.reduce((min, p) => p.balance < min.balance ? p : min, participantBalances[0]);
+    if (fromUser && toUser) {
+        setSettlementModal({
+            isOpen: true,
+            fromUser,
+            toUser,
+            suggestedAmount: suggestion.amount
+        });
     }
-
-    const amount = Math.min(Math.abs(userBalance), Math.abs(target.balance));
-
-    setSettlementModal({
-      isOpen: true,
-      fromUser: userBalance < 0 ? { id: currentUser.userId, name: currentUser.name } : target.user,
-      toUser: userBalance < 0 ? target.user : { id: currentUser.userId, name: currentUser.name },
-      suggestedAmount: amount,
-    });
   };
 
   const handleSettleWith = (userId: string) => {
@@ -153,12 +84,9 @@ export default function Dashboard() {
     const otherUser = getUserById(userId);
     if (!otherUser) return;
 
-    // For direct settlement, we might just look at the relationship, 
-    // but for now let's just set up the modal direction based on overall balances
     const otherBalance = balances[userId] || 0;
     
-    // If I'm negative and they are positive, I pay them.
-    // If I'm positive and they are negative, they pay me.
+    // Heuristic: If I'm negative and they are positive, I pay them.
     const iPay = userBalance < 0 && otherBalance > 0;
     
     setSettlementModal({
@@ -169,16 +97,6 @@ export default function Dashboard() {
     });
   };
   
-  // Settlement mutation
-  const settlementMutation = useMutation({
-    mutationFn: async (data: any) => {
-       return await googleApi.addSettlement(activeGroupId, data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
-    }
-  });
-
   if (isLoading) {
     return <div className="p-4 text-center">Loading group data...</div>;
   }
@@ -328,11 +246,10 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* We pass a wrapper to onClose to handle the mutation if needed, but for now just close */}
       <SettlementModal
         isOpen={settlementModal.isOpen}
         onClose={() => setSettlementModal({ isOpen: false })}
-        fromUser={settlementModal.fromUser as any} // Cast to match component expectations if slight mismatch
+        fromUser={settlementModal.fromUser as any} 
         toUser={settlementModal.toUser as any}
         suggestedAmount={settlementModal.suggestedAmount}
       />

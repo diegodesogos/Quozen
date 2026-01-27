@@ -1,24 +1,20 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
-import { useAuth } from "@/context/auth-provider"; // Use auth provider for user info
+import { useAuth } from "@/context/auth-provider";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { googleApi } from "@/lib/drive"; // Import googleApi
+import { googleApi } from "@/lib/drive";
 import { Users, Plus, Pencil, Shield, User, Trash2, LogOut } from "lucide-react";
-import { MemberInput, GroupData, Group } from "@/lib/storage/types";
+import { MemberInput, Group } from "@/lib/storage/types";
 import { Badge } from "@/components/ui/badge";
-import { parseMembers } from "@/lib/utils";
+import GroupDialog from "@/components/group-dialog";
 
 export default function Groups() {
   const { activeGroupId, setActiveGroupId, currentUserId } = useAppContext();
-  const { user } = useAuth(); // Get user from auth context
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -38,31 +34,23 @@ export default function Groups() {
     group?: Group;
   }>({ open: false, type: "delete" });
 
-  const [groupName, setGroupName] = useState("");
-  const [membersInput, setMembersInput] = useState("");
-
   const { data: groups = [] } = useQuery({
     queryKey: ["drive", "groups", user?.email],
     queryFn: () => googleApi.listGroups(user?.email),
     enabled: !!user?.email
   });
 
-  // Helper to fetch group data for editing
   const handleEditClick = async (e: React.MouseEvent, group: Group) => {
-    e.stopPropagation(); // Prevent switching group
-
+    e.stopPropagation();
     try {
       const data = await googleApi.getGroupData(group.id);
       if (!data) throw new Error("Could not load group data");
 
-      // Format members string: email if available, else username/id
       const editableMembers = data.members
         .filter(m => m.role !== 'admin')
-        .map(m => m.email || m.userId) // Use email if available, else username
+        .map(m => m.email || m.userId)
         .join(", ");
 
-      setGroupName(group.name);
-      setMembersInput(editableMembers);
       setDialogState({
         open: true,
         mode: "edit",
@@ -86,9 +74,7 @@ export default function Groups() {
   };
 
   const openCreateDialog = () => {
-    setGroupName("");
-    setMembersInput("");
-    setDialogState({ open: true, mode: "create" });
+    setDialogState({ open: true, mode: "create", initialName: "", initialMembers: "" });
   }
 
   const createGroupMutation = useMutation({
@@ -103,13 +89,9 @@ export default function Groups() {
         description: "Your new group spreadsheet has been created in Google Drive.",
       });
       setDialogState(prev => ({ ...prev, open: false }));
-
-      if (newGroup?.id) {
-        setActiveGroupId(newGroup.id);
-      }
+      if (newGroup?.id) setActiveGroupId(newGroup.id);
     },
     onError: (error) => {
-      console.error(error);
       toast({
         title: "Error",
         description: "Failed to create group. Check your Drive permissions.",
@@ -120,13 +102,11 @@ export default function Groups() {
 
   const updateGroupMutation = useMutation({
     mutationFn: async (data: { groupId: string, name: string, members: MemberInput[] }) => {
-      // 1. Check for expenses for removed members
       const removedMembersCheck = async () => {
         const currentData = await googleApi.getGroupData(data.groupId);
         if (!currentData) return;
 
         const newMemberIds = new Set(data.members.map(m => m.email || m.username));
-
         const membersToRemove = currentData.members
           .filter(m => m.role !== 'admin')
           .filter(m => !newMemberIds.has(m.email) && !newMemberIds.has(m.userId));
@@ -167,13 +147,9 @@ export default function Groups() {
         queryClient.invalidateQueries({ queryKey: ["drive", "groups"] });
         toast({ title: "Group deleted" });
         setAlertState({ open: false, type: "delete" });
-        
-        // If we deleted the active group, clear it or switch
-        if (groupId === activeGroupId) {
-            setActiveGroupId("");
-        }
+        if (groupId === activeGroupId) setActiveGroupId("");
     },
-    onError: (error) => {
+    onError: () => {
         toast({ title: "Error", description: "Failed to delete group", variant: "destructive" });
     }
   });
@@ -187,10 +163,7 @@ export default function Groups() {
         queryClient.invalidateQueries({ queryKey: ["drive", "groups"] });
         toast({ title: "Left group successfully" });
         setAlertState({ open: false, type: "leave" });
-
-        if (groupId === activeGroupId) {
-            setActiveGroupId("");
-        }
+        if (groupId === activeGroupId) setActiveGroupId("");
     },
     onError: (error) => {
         toast({ 
@@ -202,23 +175,11 @@ export default function Groups() {
     }
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!groupName.trim()) return;
-
-    const members = parseMembers(membersInput);
-
+  const handleDialogSubmit = (data: { name: string, members: MemberInput[] }) => {
     if (dialogState.mode === 'create') {
-      createGroupMutation.mutate({
-        name: groupName.trim(),
-        members
-      });
+      createGroupMutation.mutate(data);
     } else if (dialogState.mode === 'edit' && dialogState.groupId) {
-      updateGroupMutation.mutate({
-        groupId: dialogState.groupId,
-        name: groupName.trim(),
-        members
-      });
+      updateGroupMutation.mutate({ groupId: dialogState.groupId, ...data });
     }
   };
 
@@ -237,62 +198,15 @@ export default function Groups() {
         </Button>
       </div>
 
-      <Dialog open={dialogState.open} onOpenChange={(open) => setDialogState(prev => ({ ...prev, open }))}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{dialogState.mode === 'create' ? "Create New Group" : "Edit Group"}</DialogTitle>
-            <DialogDescription>
-              {dialogState.mode === 'create'
-                ? "This will create a new Spreadsheet in your Google Drive."
-                : "Update group name or manage members."}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="groupName">Group Name *</Label>
-              <Input
-                id="groupName"
-                placeholder="e.g., Weekend Trip"
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="members">Members (Optional)</Label>
-              <Textarea
-                id="members"
-                placeholder="Enter emails or usernames, separated by commas (e.g., alice@gmail.com, bob123)"
-                value={membersInput}
-                onChange={(e) => setMembersInput(e.target.value)}
-                className="mt-1"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Emails will receive a Google Drive share invite. Usernames are for tracking only.
-              </p>
-            </div>
-
-            <div className="flex space-x-3 pt-2">
-              <Button
-                type="button"
-                variant="secondary"
-                className="flex-1"
-                onClick={() => setDialogState(prev => ({ ...prev, open: false }))}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                className="flex-1"
-                disabled={createGroupMutation.isPending || updateGroupMutation.isPending}
-              >
-                {createGroupMutation.isPending || updateGroupMutation.isPending ? "Saving..." : (dialogState.mode === 'create' ? "Create Group" : "Update Group")}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <GroupDialog
+        open={dialogState.open}
+        onOpenChange={(open) => setDialogState(prev => ({ ...prev, open }))}
+        mode={dialogState.mode}
+        initialName={dialogState.initialName}
+        initialMembers={dialogState.initialMembers}
+        isPending={createGroupMutation.isPending || updateGroupMutation.isPending}
+        onSubmit={handleDialogSubmit}
+      />
 
       <div className="space-y-4">
         {groups.length === 0 ? (
@@ -341,9 +255,7 @@ export default function Groups() {
                               Member
                             </Badge>
                           )}
-                          <p className="text-sm text-muted-foreground">
-                            Google Sheet
-                          </p>
+                          <p className="text-sm text-muted-foreground">Google Sheet</p>
                         </div>
                       </div>
                     </div>
