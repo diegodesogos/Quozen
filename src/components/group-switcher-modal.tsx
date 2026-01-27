@@ -19,8 +19,9 @@ export default function GroupSwitcherModal({ isOpen, onClose }: { isOpen: boolea
 
   // Fetch groups from Drive
   const { data: groups = [] } = useQuery<Group[]>({
-    queryKey: ["drive", "groups"],
-    queryFn: () => googleApi.listGroups(),
+    queryKey: ["drive", "groups", user?.email],
+    queryFn: () => googleApi.listGroups(user?.email),
+    enabled: !!user?.email
   });
 
   const handleSelectGroup = (groupId: string) => {

@@ -20,10 +20,12 @@ describe('InMemoryProvider', () => {
         expect(group).toBeDefined();
         expect(group.name).toBe("Test Group");
         expect(group.participants).toContain(mockUser.id);
+        expect(group.isOwner).toBe(true);
 
-        const groups = await provider.listGroups();
+        const groups = await provider.listGroups(mockUser.email);
         expect(groups).toHaveLength(1);
         expect(groups[0].id).toBe(group.id);
+        expect(groups[0].isOwner).toBe(true);
     });
 
     it('addExpense adds an expense to the group', async () => {
@@ -75,7 +77,7 @@ describe('InMemoryProvider', () => {
         expect(data!.expenses).toHaveLength(0);
     });
 
-    // --- New Tests for Story 2.2 ---
+    // --- Story 2.2 Tests ---
 
     it('checkMemberHasExpenses returns true if member paid', async () => {
         const group = await provider.createGroupSheet("Test Group", mockUser);
@@ -119,26 +121,50 @@ describe('InMemoryProvider', () => {
         const group = await provider.createGroupSheet("Original Name", mockUser, [{ username: "old-member" }]);
         let data = await provider.getGroupData(group.id);
 
-        // Should have Admin + 1 member
         expect(data!.members).toHaveLength(2);
 
-        // 2. Update: Rename and change members (remove old-member, add new-member)
-        // Note: The mock requires full replacement list or logic similar to backend?
-        // The implementation mimics the "desired state" logic.
+        // 2. Update
         await provider.updateGroup(group.id, "Updated Name", [{ username: "new-member" }]);
 
-        // 3. Verify Name via listGroups (metadata)
-        const groups = await provider.listGroups();
+        // 3. Verify
+        const groups = await provider.listGroups(mockUser.email);
         const updatedGroup = groups.find(g => g.id === group.id);
         expect(updatedGroup!.name).toBe("Updated Name");
 
-        // 4. Verify Members via getGroupData (sheet content)
         data = await provider.getGroupData(group.id);
-
-        // Should have Admin (preserved) + new-member. old-member should be gone.
         const memberNames = data!.members.map(m => m.name);
-        expect(memberNames).toContain("Test User"); // Admin
+        expect(memberNames).toContain("Test User");
         expect(memberNames).toContain("new-member");
         expect(memberNames).not.toContain("old-member");
+    });
+
+    // --- Story 2.3 Tests (New) ---
+
+    it('listGroups filters by user membership and sets isOwner correctly', async () => {
+        // User 1 creates Group A
+        const groupA = await provider.createGroupSheet("Group A", mockUser);
+        
+        // User 2 creates Group B, adds User 1 as member
+        const user2: User = { id: 'user2', name: 'User Two', email: 'user2@example.com', username: 'user2' };
+        const groupB = await provider.createGroupSheet("Group B", user2, [{ email: mockUser.email }]);
+
+        // User 3 creates Group C, User 1 is NOT a member
+        const user3: User = { id: 'user3', name: 'User Three', email: 'user3@example.com', username: 'user3' };
+        await provider.createGroupSheet("Group C", user3);
+
+        // Act: List groups for User 1
+        const groups = await provider.listGroups(mockUser.email);
+
+        // Assert: Should see Group A and Group B, but NOT Group C
+        expect(groups).toHaveLength(2);
+        
+        const foundA = groups.find(g => g.id === groupA.id);
+        const foundB = groups.find(g => g.id === groupB.id);
+
+        expect(foundA).toBeDefined();
+        expect(foundA!.isOwner).toBe(true); // Created by User 1
+
+        expect(foundB).toBeDefined();
+        expect(foundB!.isOwner).toBe(false); // Created by User 2, User 1 is member
     });
 });

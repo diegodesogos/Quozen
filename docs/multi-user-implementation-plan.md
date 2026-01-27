@@ -112,25 +112,27 @@ No validation warnings are needed. Both input types are valid. This allows track
 
 ### Story 2.3: Discover Shared Groups (Member)
 
+**Status**: ✅ **Completed**
+
 **Scope**: Show shared groups in the groups list with role badges
 
 **Tasks**:
 1. **Storage Layer** - `src/lib/storage/google-drive-provider.ts`:
-   - Modify `listGroups()` query to:
+   - ✅ Modify `listGroups()` query to:
      - Filter by `name contains 'Quozen - '`
      - Include `sharedWithMe = true or 'me' in owners`
-   - For each file:
+   - ✅ For each file:
      - Validate structure (Members, Expenses, Settlements tabs)
      - Check if current user exists in Members tab
      - Skip invalid/corrupted files with console warning
-   - Return enhanced Group object with `isOwner: boolean`
+   - ✅ Return enhanced Group object with `isOwner: boolean`
 
 2. **UI Changes** - `src/pages/groups.tsx`:
-   - Display "Owner" or "Member" badge on each group card
-   - Show "Active" badge for current group
+   - ✅ Display "Owner" or "Member" badge on each group card
+   - ✅ Show "Active" badge for current group
 
 3. **Interface Updates** - `src/lib/storage/types.ts`:
-   - Add `isOwner: boolean` to Group interface
+   - ✅ Add `isOwner: boolean` to Group interface
 
 ---
 

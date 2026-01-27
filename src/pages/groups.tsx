@@ -10,8 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { googleApi } from "@/lib/drive"; // Import googleApi
-import { Users, Plus, Pencil } from "lucide-react";
+import { Users, Plus, Pencil, Shield, User } from "lucide-react";
 import { MemberInput, GroupData, Group } from "@/lib/storage/types";
+import { Badge } from "@/components/ui/badge";
 
 export default function Groups() {
   const { activeGroupId, setActiveGroupId } = useAppContext();
@@ -31,8 +32,9 @@ export default function Groups() {
   const [membersInput, setMembersInput] = useState("");
 
   const { data: groups = [] } = useQuery({
-    queryKey: ["drive", "groups"],
-    queryFn: () => googleApi.listGroups(),
+    queryKey: ["drive", "groups", user?.email],
+    queryFn: () => googleApi.listGroups(user?.email),
+    enabled: !!user?.email
   });
 
   // Helper to fetch group data for editing
@@ -262,9 +264,9 @@ export default function Groups() {
             </CardContent>
           </Card>
         ) : (
-          groups.map((group: any) => {
+          groups.map((group: Group) => {
             const isActive = group.id === activeGroupId;
-            const isOwner = group.createdBy === 'me'; // Basic check, ideally role check from detailed data
+            const isOwner = group.isOwner;
 
             return (
               <Card key={group.id} className={isActive ? "ring-2 ring-primary" : ""}>
@@ -278,18 +280,30 @@ export default function Groups() {
                         <div className="flex items-center space-x-2">
                           <h3 className="font-semibold text-foreground">{group.name}</h3>
                           {isActive && (
-                            <span className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded-full">
+                            <Badge variant="default" className="text-xs">
                               Active
-                            </span>
+                            </Badge>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Google Sheet
-                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          {isOwner ? (
+                            <Badge variant="secondary" className="text-[10px] px-1 py-0 h-5">
+                              <Shield className="w-3 h-3 mr-1" />
+                              Owner
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px] px-1 py-0 h-5">
+                              <User className="w-3 h-3 mr-1" />
+                              Member
+                            </Badge>
+                          )}
+                          <p className="text-sm text-muted-foreground">
+                            Google Sheet
+                          </p>
+                        </div>
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-2">
-                      {/* Only show Edit for owner, assuming current listGroups returns "createdBy: me" for now */}
                       {isOwner && (
                         <Button
                           variant="outline"

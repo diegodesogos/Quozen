@@ -24,8 +24,31 @@ export class InMemoryProvider implements IStorageProvider {
 
     // --- Interface Implementation ---
 
-    async listGroups(): Promise<Group[]> {
-        return Array.from(this.groups.values());
+    async listGroups(userEmail?: string): Promise<Group[]> {
+        const allGroups = Array.from(this.groups.values());
+        
+        if (!userEmail) return allGroups;
+
+        // Filter groups where user is a member
+        const visibleGroups: Group[] = [];
+        
+        for (const group of allGroups) {
+            const sheet = this.sheets.get(group.id);
+            if (!sheet) continue;
+
+            const isMember = sheet.members.some(m => m.email === userEmail);
+            if (isMember) {
+                // Determine ownership (Admin role or createdBy 'me' logic check)
+                const isAdmin = sheet.members.some(m => m.email === userEmail && m.role === 'admin');
+                
+                visibleGroups.push({
+                    ...group,
+                    isOwner: isAdmin
+                });
+            }
+        }
+
+        return visibleGroups;
     }
 
     async createGroupSheet(name: string, user: User, members: MemberInput[] = []): Promise<Group> {
@@ -69,7 +92,8 @@ export class InMemoryProvider implements IStorageProvider {
             description: "Mock Sheet Group",
             createdBy: "me",
             participants: participantIds,
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            isOwner: true
         };
 
         this.groups.set(id, group);
@@ -148,6 +172,11 @@ export class InMemoryProvider implements IStorageProvider {
     ): Promise<{ valid: boolean; error?: string; name?: string }> {
         // Mock validation
         if (this.groups.has(spreadsheetId)) {
+            // Validate membership for mock
+            const sheet = this.sheets.get(spreadsheetId)!;
+            const isMember = sheet.members.some(m => m.email === userEmail);
+            if (!isMember) return { valid: false, error: "Not a member" };
+
             return { valid: true, name: this.groups.get(spreadsheetId)!.name };
         }
         return { valid: false, error: "Mock sheet not found" };

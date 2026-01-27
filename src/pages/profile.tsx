@@ -10,8 +10,9 @@ export default function Profile() {
 
   // Fetch groups from Drive to show count
   const { data: groups = [] } = useQuery({
-    queryKey: ["drive", "groups"],
-    queryFn: () => googleApi.listGroups(),
+    queryKey: ["drive", "groups", user?.email],
+    queryFn: () => googleApi.listGroups(user?.email),
+    enabled: !!user?.email
   });
 
   const handleLogout = () => {

@@ -13,6 +13,7 @@ export interface Group {
   createdBy: string;
   participants: string[];
   createdAt: string;
+  isOwner: boolean; // Added
 }
 
 export interface User {
@@ -70,7 +71,7 @@ export interface IStorageProvider {
   /**
    * List all available groups (spreadsheets)
    */
-  listGroups(): Promise<Group[]>;
+  listGroups(userEmail?: string): Promise<Group[]>;
 
   /**
    * Create a new group/spreadsheet with optional initial members

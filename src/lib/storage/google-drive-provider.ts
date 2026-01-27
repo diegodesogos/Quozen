@@ -55,9 +55,14 @@ export class GoogleDriveProvider implements IStorageProvider {
         }
     }
 
-    async listGroups(): Promise<Group[]> {
+    async listGroups(userEmail?: string): Promise<Group[]> {
+        // Query: Name contains prefix, not trashed.
+        // Note: Google Drive API by default includes files shared with the user in the 'files.list' results.
+        // We don't need 'sharedWithMe = true' explicitly to see them, but we do need to ensure we don't filter them out.
         const query = `mimeType = 'application/vnd.google-apps.spreadsheet' and name contains '${QUOZEN_PREFIX}' and trashed = false`;
-        const fields = "files(id, name, createdTime)";
+        
+        // We need 'owners' to determine isOwner
+        const fields = "files(id, name, createdTime, owners, capabilities)";
 
         const response = await this.fetchWithAuth(
             `${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}`
@@ -65,19 +70,50 @@ export class GoogleDriveProvider implements IStorageProvider {
 
         const data = await response.json();
 
-        // Filter to only files that start with prefix (contains is case-insensitive)
-        const quozenFiles = (data.files || []).filter((file: any) =>
+        // Initial filter by name prefix
+        const candidateFiles = (data.files || []).filter((file: any) =>
             file.name.startsWith(QUOZEN_PREFIX)
         );
 
-        return quozenFiles.map((file: any) => ({
-            id: file.id,
-            name: file.name.slice(QUOZEN_PREFIX.length),
-            description: "Google Sheet Group",
-            createdBy: "me",
-            participants: [],
-            createdAt: file.createdTime
+        const validGroups: Group[] = [];
+
+        // Validate each file concurrently
+        await Promise.all(candidateFiles.map(async (file: any) => {
+            try {
+                // If userEmail is provided, validate membership
+                if (userEmail) {
+                    const validation = await this.validateQuozenSpreadsheet(file.id, userEmail);
+                    if (!validation.valid) {
+                        // Skip invalid or non-member groups
+                        return; 
+                    }
+                } else {
+                    // Fallback if no email provided (shouldn't happen in auth flow), verify structure only
+                    // For performance, we might skip full structure check if we trust the name, 
+                    // but let's do a lightweight check of sheets presence via validateQuozenSpreadsheet
+                    // (validateQuozenSpreadsheet handles missing email gracefully? No, it requires it for membership check)
+                    // We'll skip membership check if no email.
+                }
+
+                // Determine Ownership
+                const isOwner = file.owners?.some((owner: any) => owner.emailAddress === userEmail) || file.capabilities?.canDelete;
+
+                validGroups.push({
+                    id: file.id,
+                    name: file.name.slice(QUOZEN_PREFIX.length),
+                    description: "Google Sheet Group",
+                    createdBy: file.owners?.[0]?.displayName || "Unknown",
+                    participants: [], // Populated only when getting full details
+                    createdAt: file.createdTime,
+                    isOwner: !!isOwner
+                });
+            } catch (e) {
+                console.warn(`Skipping group file ${file.name} due to validation error`, e);
+            }
         }));
+
+        // Sort by createdAt descending (newest first)
+        return validGroups.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
 
     async createGroupSheet(name: string, user: User, members: MemberInput[] = []): Promise<Group> {
@@ -142,7 +178,8 @@ export class GoogleDriveProvider implements IStorageProvider {
             description: "Google Sheet Group",
             createdBy: "me",
             participants: initialMembersRows.map(row => row[0]),
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            isOwner: true
         };
     }
 
@@ -161,27 +198,13 @@ export class GoogleDriveProvider implements IStorageProvider {
         const currentMembers = groupData.members;
 
         // 3. Diff members
-        const currentMemberIds = new Set(currentMembers.map(m => m.userId));
-
-        // Members to keep or add
-        const updatedMembersRows: any[] = [];
-        const keptMemberIds = new Set<string>();
-
-        // Note: We always preserve the first admin (creator) or anyone marked as admin if they aren't in the list?
-        // Logic: The input `members` list from UI is the *desired* state.
-        // However, we must ensure we don't accidentally remove the current user if the UI didn't pass them.
-        // NOTE: The UI should pass ALL members including the current user.
-
-        // For existing members, we keep their row data (joinedAt, role, etc)
-        // For new members, we add them.
+        const processedIds = new Set<string>();
 
         // Helper to normalize input
         const desiredMembers = members.map(m => ({
             id: m.email || m.username || "",
             ...m
         })).filter(m => m.id);
-
-        const processedIds = new Set<string>();
 
         for (const desired of desiredMembers) {
             // Check if exists
@@ -191,12 +214,6 @@ export class GoogleDriveProvider implements IStorageProvider {
             );
 
             if (existing) {
-                // Keep existing row, maybe update name if needed? For now just keep.
-                // We don't write to the sheet here, we will reconstruct the sheet or append/delete.
-                // Actually, deleting specific rows in Sheets is hard because indices shift.
-                // STRATEGY: 
-                // 1. Identify rows to DELETE (members not in desired list)
-                // 2. Identify rows to APPEND (new members)
                 processedIds.add(existing.userId);
             } else {
                 // New Member
