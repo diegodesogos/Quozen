@@ -255,6 +255,36 @@ export class GoogleDriveProvider implements IStorageProvider {
         }
     }
 
+    async deleteGroup(groupId: string): Promise<void> {
+        await this.fetchWithAuth(`${DRIVE_API_URL}/files/${groupId}`, {
+            method: "DELETE"
+        });
+    }
+
+    async leaveGroup(groupId: string, userId: string): Promise<void> {
+        // 1. Get group data to find the row index of the member
+        const data = await this.getGroupData(groupId);
+        if (!data) throw new Error("Group not found");
+
+        const member = data.members.find(m => m.userId === userId);
+        if (!member) throw new Error("Member not found in group");
+        
+        if (member.role === 'admin') {
+             throw new Error("Admins cannot leave group. Transfer ownership or delete group.");
+        }
+
+        // 2. Check for expenses (Double check, though UI should handle it)
+        const hasExpenses = await this.checkMemberHasExpenses(groupId, userId);
+        if (hasExpenses) {
+            throw new Error("Cannot leave group while involved in expenses. Please settle and remove expenses first.");
+        }
+
+        // 3. Delete the row
+        if (member._rowIndex) {
+            await this.deleteRow(groupId, "Members", member._rowIndex);
+        }
+    }
+
     async checkMemberHasExpenses(groupId: string, userId: string): Promise<boolean> {
         const data = await this.getGroupData(groupId);
         if (!data) return false;

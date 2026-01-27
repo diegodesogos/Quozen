@@ -84,6 +84,16 @@ export interface IStorageProvider {
   updateGroup(groupId: string, name: string, members: MemberInput[]): Promise<void>;
 
   /**
+   * Permanently delete a group (Owner only)
+   */
+  deleteGroup(groupId: string): Promise<void>;
+
+  /**
+   * Leave a group (Member only)
+   */
+  leaveGroup(groupId: string, userId: string): Promise<void>;
+
+  /**
    * Check if a member has any associated expenses (paidBy or in splits)
    */
   checkMemberHasExpenses(groupId: string, userId: string): Promise<boolean>;

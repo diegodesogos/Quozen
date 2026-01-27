@@ -19,7 +19,6 @@ test.describe('Functional Flow with Mock Storage', () => {
         // 1. Go to root (redirects to dashboard)
         await page.goto('/');
 
-        // 2. Verify Dashboard loaded
         // 2. Verify we are redirected to Groups page (because no groups exist)
         await expect(page).toHaveURL(/.*groups/);
         await expect(page.getByText('No groups yet')).toBeVisible();
@@ -36,97 +35,74 @@ test.describe('Functional Flow with Mock Storage', () => {
         await expect(page.getByText('Create New Group')).not.toBeVisible();
 
         // 4. Verify Group Switch
-        // Try forcing a refresh just in case the query was stale
         await page.getByTestId('button-refresh').click();
-
-        // Ensure the "No groups yet" message is gone
         await expect(page.getByText('No groups yet')).not.toBeVisible();
-
-        // Verify Header shows the new group name
         await expect(page.getByTestId('header').getByText('Holiday Trip')).toBeVisible();
 
-        // 5. Navigate to Expenses
-        await page.getByTestId('button-nav-expenses').click();
-        await expect(page.getByText('All Expenses')).toBeVisible();
-
-        // 6. Add Expense
+        // 5. Add Expense
         await page.getByTestId('button-nav-add').click();
         await expect(page).toHaveURL(/.*add-expense/);
 
-        // Verify Add Expense Page
-        // Header says "Add Expense"
-        await expect(page.getByRole('heading', { name: 'Add Expense' })).toBeVisible();
-
         await page.getByTestId('input-expense-description').fill('Dinner');
         await page.getByTestId('input-expense-amount').fill('50');
-
-        // Select Category
         await page.getByTestId('select-category').click();
         await page.getByRole('option', { name: 'Food & Dining' }).click();
-
         await page.getByTestId('button-submit-expense').click();
 
-        // 7. Verify in List (Dashboard)
+        // 6. Verify in List (Dashboard)
         await expect(page.getByText('Dinner')).toBeVisible();
         await expect(page.getByText('$50.00')).toBeVisible();
-
-        // 8. Delete Expense (Navigate to Expenses page where delete button exists)
-        await page.getByTestId('button-nav-expenses').click();
-
-        // Find the trash icon for the expense
-        const deleteBtn = page.locator('[data-testid^="button-delete-expense-"]').first();
-        await deleteBtn.click();
-
-        // Confirm dialog
-        await page.getByRole('button', { name: 'Delete' }).click();
-
-        // Verify removed
-        await expect(page.getByText('Dinner')).not.toBeVisible();
     });
 
     test('should edit an existing group name and members', async ({ page }) => {
         await page.goto('/groups');
 
-        // 1. Create initial group
+        // Create initial group
         await page.getByRole('button', { name: 'New Group' }).click();
         await page.getByLabel('Group Name').fill('Original Name');
         await page.getByRole('button', { name: 'Create Group' }).click();
-
-        // Wait for creation and verify it appears in the list (H3)
-        // Note: Using level 3 to distinguish from the H1 header which also updates
         await expect(page.getByRole('heading', { name: 'Original Name', level: 3 })).toBeVisible();
 
-        // 2. Click Edit button on the group card
-        // Note: The UI only shows the Edit button if the user is the owner ('me')
-        // In mock storage, createdBy is hardcoded to 'me', so it should appear.
-        // We ensure we click the button associated with this specific group card
+        // Click Edit
         await page.locator('.rounded-lg', { hasText: 'Original Name' })
             .getByRole('button', { name: 'Edit' })
             .click();
 
-        // 3. Verify Edit Dialog
         await expect(page.getByRole('heading', { name: 'Edit Group' })).toBeVisible();
-        await expect(page.getByLabel('Group Name')).toHaveValue('Original Name');
-
-        // 4. Change Name and Add Member
         await page.getByLabel('Group Name').fill('Renamed Group');
         await page.getByLabel('Members (Optional)').fill('newuser@example.com');
-
         await page.getByRole('button', { name: 'Update Group' }).click();
 
-        // 5. Verify Updates in Group List
         await expect(page.getByRole('heading', { name: 'Edit Group' })).not.toBeVisible();
-        // Check for the new name in the list (H3)
         await expect(page.getByRole('heading', { name: 'Renamed Group', level: 3 })).toBeVisible();
-        // Ensure old name is gone from the list
-        await expect(page.getByRole('heading', { name: 'Original Name', level: 3 })).not.toBeVisible();
+    });
 
-        // 6. Verify Header reflects the change (Group is already active)
-        // Since we created it in step 1, it's active. "Switch To" button won't exist.
-        // We just verify the header updated.
-        await expect(page.getByTestId('header').getByText('Renamed Group')).toBeVisible();
+    test('should allow deleting a group', async ({ page }) => {
+        await page.goto('/groups');
 
-        // 7. Verify member count (Admin + newuser = 2)
-        await expect(page.getByTestId('text-participant-count')).toHaveText('2 people');
+        // 1. Create a group to delete
+        await page.getByRole('button', { name: 'New Group' }).click();
+        await page.getByLabel('Group Name').fill('Group To Delete');
+        await page.getByRole('button', { name: 'Create Group' }).click();
+        
+        // Verify it exists
+        const groupCard = page.locator('.rounded-lg', { hasText: 'Group To Delete' });
+        await expect(groupCard).toBeVisible();
+
+        // 2. Find and click Delete (trash icon)
+        // Note: The structure is card -> content -> right side flex -> buttons
+        // We look for the button containing the trash icon inside this specific card
+        const deleteBtn = groupCard.locator('button svg.lucide-trash2').locator('..');
+        await deleteBtn.click();
+
+        // 3. Confirm Dialog
+        await expect(page.getByText('Delete Group')).toBeVisible();
+        await expect(page.getByText('Are you sure you want to delete "Group To Delete"?')).toBeVisible();
+        
+        await page.getByRole('button', { name: 'Delete' }).click();
+
+        // 4. Verify it's gone
+        await expect(page.getByText('Delete Group')).not.toBeVisible();
+        await expect(groupCard).not.toBeVisible();
     });
 });

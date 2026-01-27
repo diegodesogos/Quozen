@@ -8,18 +8,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { googleApi } from "@/lib/drive"; // Import googleApi
-import { Users, Plus, Pencil, Shield, User } from "lucide-react";
+import { Users, Plus, Pencil, Shield, User, Trash2, LogOut } from "lucide-react";
 import { MemberInput, GroupData, Group } from "@/lib/storage/types";
 import { Badge } from "@/components/ui/badge";
 
 export default function Groups() {
-  const { activeGroupId, setActiveGroupId } = useAppContext();
+  const { activeGroupId, setActiveGroupId, currentUserId } = useAppContext();
   const { user } = useAuth(); // Get user from auth context
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Create/Edit Dialog State
   const [dialogState, setDialogState] = useState<{
     open: boolean;
     mode: "create" | "edit";
@@ -27,6 +29,13 @@ export default function Groups() {
     initialName?: string;
     initialMembers?: string;
   }>({ open: false, mode: "create" });
+
+  // Alert Dialog State
+  const [alertState, setAlertState] = useState<{
+    open: boolean;
+    type: "delete" | "leave";
+    group?: Group;
+  }>({ open: false, type: "delete" });
 
   const [groupName, setGroupName] = useState("");
   const [membersInput, setMembersInput] = useState("");
@@ -63,6 +72,16 @@ export default function Groups() {
     } catch (err) {
       toast({ title: "Error", description: "Failed to load group details", variant: "destructive" });
     }
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, group: Group) => {
+    e.stopPropagation();
+    setAlertState({ open: true, type: "delete", group });
+  };
+
+  const handleLeaveClick = (e: React.MouseEvent, group: Group) => {
+    e.stopPropagation();
+    setAlertState({ open: true, type: "leave", group });
   };
 
   const openCreateDialog = () => {
@@ -136,6 +155,49 @@ export default function Groups() {
         description: error instanceof Error ? error.message : "An error occurred",
         variant: "destructive"
       });
+    }
+  });
+
+  const deleteGroupMutation = useMutation({
+    mutationFn: async (groupId: string) => {
+        return await googleApi.deleteGroup(groupId);
+    },
+    onSuccess: (_, groupId) => {
+        queryClient.invalidateQueries({ queryKey: ["drive", "groups"] });
+        toast({ title: "Group deleted" });
+        setAlertState({ open: false, type: "delete" });
+        
+        // If we deleted the active group, clear it or switch
+        if (groupId === activeGroupId) {
+            setActiveGroupId("");
+        }
+    },
+    onError: (error) => {
+        toast({ title: "Error", description: "Failed to delete group", variant: "destructive" });
+    }
+  });
+
+  const leaveGroupMutation = useMutation({
+    mutationFn: async (groupId: string) => {
+        if (!currentUserId) throw new Error("User not found");
+        return await googleApi.leaveGroup(groupId, currentUserId);
+    },
+    onSuccess: (_, groupId) => {
+        queryClient.invalidateQueries({ queryKey: ["drive", "groups"] });
+        toast({ title: "Left group successfully" });
+        setAlertState({ open: false, type: "leave" });
+
+        if (groupId === activeGroupId) {
+            setActiveGroupId("");
+        }
+    },
+    onError: (error) => {
+        toast({ 
+            title: "Cannot Leave Group", 
+            description: error instanceof Error ? error.message : "Error occurred", 
+            variant: "destructive" 
+        });
+        setAlertState({ open: false, type: "leave" });
     }
   });
 
@@ -304,17 +366,39 @@ export default function Groups() {
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-2">
-                      {isOwner && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8"
-                          onClick={(e) => handleEditClick(e, group)}
-                        >
-                          <Pencil className="w-3 h-3 mr-1" />
-                          Edit
-                        </Button>
-                      )}
+                      <div className="flex gap-2">
+                        {isOwner ? (
+                            <>
+                                <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8"
+                                onClick={(e) => handleEditClick(e, group)}
+                                >
+                                <Pencil className="w-3 h-3 mr-1" />
+                                Edit
+                                </Button>
+                                <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 text-destructive hover:text-destructive"
+                                onClick={(e) => handleDeleteClick(e, group)}
+                                >
+                                <Trash2 className="w-3 h-3" />
+                                </Button>
+                            </>
+                        ) : (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 text-destructive hover:text-destructive"
+                                onClick={(e) => handleLeaveClick(e, group)}
+                            >
+                                <LogOut className="w-3 h-3 mr-1" />
+                                Leave
+                            </Button>
+                        )}
+                      </div>
 
                       {!isActive && (
                         <Button
@@ -334,6 +418,37 @@ export default function Groups() {
           })
         )}
       </div>
+
+      <AlertDialog open={alertState.open} onOpenChange={(open) => !open && setAlertState(prev => ({...prev, open}))}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>
+                    {alertState.type === 'delete' ? 'Delete Group' : 'Leave Group'}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                    {alertState.type === 'delete' 
+                        ? `Are you sure you want to delete "${alertState.group?.name}"? This action cannot be undone and will move the file to trash in your Google Drive.`
+                        : `Are you sure you want to leave "${alertState.group?.name}"? You won't be able to access it unless added again.`}
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => {
+                        if (!alertState.group) return;
+                        if (alertState.type === 'delete') {
+                            deleteGroupMutation.mutate(alertState.group.id);
+                        } else {
+                            leaveGroupMutation.mutate(alertState.group.id);
+                        }
+                    }}
+                >
+                    {alertState.type === 'delete' ? 'Delete' : 'Leave'}
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

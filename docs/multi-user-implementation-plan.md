@@ -138,39 +138,43 @@ No validation warnings are needed. Both input types are valid. This allows track
 
 ### Story 2.4: Delete Group (Owner Only)
 
+**Status**: ✅ **Completed**
+
 **Scope**: Allow owners to delete their groups
 
 **Tasks**:
 1. **UI Changes** - `src/pages/groups.tsx`:
-   - Add "Delete" button (visible only if user is owner)
-   - Add confirmation dialog with warning about permanent deletion
-   - Handle active group deletion (switch to another or show empty state)
+   - ✅ Add "Delete" button (visible only if user is owner)
+   - ✅ Add confirmation dialog with warning about permanent deletion
+   - ✅ Handle active group deletion (switch to another or show empty state)
 
 2. **Storage Layer** - `src/lib/storage/google-drive-provider.ts`:
-   - Implement `deleteGroup(spreadsheetId)` using Drive files.delete API
+   - ✅ Implement `deleteGroup(spreadsheetId)` using Drive files.delete API
 
 3. **Interface Updates** - `src/lib/storage/types.ts`:
-   - Add `deleteGroup()` to interface
+   - ✅ Add `deleteGroup()` to interface
 
 ---
 
 ### Story 2.5: Leave Group (Member Only)
 
+**Status**: ✅ **Completed**
+
 **Scope**: Allow non-owner members to leave a group
 
 **Tasks**:
 1. **UI Changes** - `src/pages/groups.tsx`:
-   - Add "Leave Group" button (visible only if user is NOT owner)
-   - Check if member has expenses before showing confirmation
-   - Show confirmation dialog
+   - ✅ Add "Leave Group" button (visible only if user is NOT owner)
+   - ✅ Check if member has expenses before showing confirmation
+   - ✅ Show confirmation dialog
 
 2. **Storage Layer** - `src/lib/storage/google-drive-provider.ts`:
-   - Implement `leaveGroup(spreadsheetId, userId)`:
+   - ✅ Implement `leaveGroup(spreadsheetId, userId)`:
      - Remove user's row from Members tab
      - (Note: Can't revoke own permission, but removal from Members is sufficient)
 
 3. **Interface Updates** - `src/lib/storage/types.ts`:
-   - Add `leaveGroup()` to interface
+   - ✅ Add `leaveGroup()` to interface
 
 ---
 

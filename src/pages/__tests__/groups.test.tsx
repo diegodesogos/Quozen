@@ -37,9 +37,14 @@ vi.mock("@/lib/drive", () => ({
   googleApi: {
     listGroups: vi.fn(),
     createGroupSheet: vi.fn(),
-    getGroupData: vi.fn(), // Needed for handleEditClick
+    getGroupData: vi.fn(),
+    deleteGroup: vi.fn(),
+    leaveGroup: vi.fn(),
   },
 }));
+
+// Import the mocked api to spy on it
+import { googleApi } from "@/lib/drive";
 
 describe("Groups Page", () => {
   const mockUser = { id: "user1", name: "Alice", email: "alice@example.com" };
@@ -65,6 +70,8 @@ describe("Groups Page", () => {
   ];
 
   const mutateCreateGroup = vi.fn();
+  const mutateDeleteGroup = vi.fn();
+  const mutateLeaveGroup = vi.fn();
   const setActiveGroupId = vi.fn();
 
   beforeEach(() => {
@@ -90,11 +97,12 @@ describe("Groups Page", () => {
       return { data: [] };
     });
 
+    // Mock mutations
     (useMutation as unknown as ReturnType<typeof vi.fn>).mockImplementation((options) => {
       return {
         mutate: (data: any) => {
-          mutateCreateGroup(data);
-          if (options?.onSuccess) options.onSuccess({ id: "new-group-id" });
+            if (options?.mutationFn) options.mutationFn(data);
+            if (options?.onSuccess) options.onSuccess(data);
         },
         isPending: false,
       };
@@ -108,8 +116,6 @@ describe("Groups Page", () => {
     
     // Group 1 - Owner
     expect(screen.getByText("Trip to Paris")).toBeInTheDocument();
-    // Check for Owner badge logic (we look for text "Owner" near the group)
-    // Using within() or specific locators might be more robust, but text check is okay for now
     const group1Card = screen.getByText("Trip to Paris").closest('.rounded-lg');
     expect(group1Card).toHaveTextContent("Owner");
     expect(group1Card).toHaveTextContent("Active");
@@ -121,46 +127,58 @@ describe("Groups Page", () => {
     expect(group2Card).not.toHaveTextContent("Owner");
   });
 
-  it("shows Edit button only for owned groups", () => {
+  it("shows Edit/Delete for owners and Leave for members", () => {
     render(<Groups />);
 
+    // Group 1 (Owner) should have Edit and Delete (trash icon)
     const group1Card = screen.getByText("Trip to Paris").closest('.rounded-lg');
-    expect(group1Card).toBeInTheDocument();
-    // Use getAllByText if multiple "Edit" buttons exist, or scope to card
-    // The previous test logic used a locator that relied on finding the specific button
-    // Here we check if the button exists *within* the card
-    // We can use querySelector or testing-library's within
-    // Simple check:
-    const editBtns = screen.getAllByRole('button', { name: /Edit/i });
-    expect(editBtns.length).toBeGreaterThan(0); // Should be at least 1 for the owner group
+    expect(group1Card?.querySelector('button svg.lucide-pencil')).toBeInTheDocument(); // Edit
+    expect(group1Card?.querySelector('button svg.lucide-trash2')).toBeInTheDocument(); // Delete
+    expect(group1Card?.querySelector('button svg.lucide-log-out')).not.toBeInTheDocument(); // No Leave
 
-    // Better: Check Group 2 (Member) does NOT have Edit
+    // Group 2 (Member) should have Leave (log-out icon)
     const group2Card = screen.getByText("Office Lunch").closest('.rounded-lg');
-    // We expect NO "Edit" button inside group2Card
-    // This is tricky with simple queries, but let's assume standard rendering
-    // We can iterate buttons or assume structure
+    expect(group2Card?.querySelector('button svg.lucide-pencil')).not.toBeInTheDocument(); // No Edit
+    expect(group2Card?.querySelector('button svg.lucide-trash2')).not.toBeInTheDocument(); // No Delete
+    expect(group2Card?.querySelector('button svg.lucide-log-out')).toBeInTheDocument(); // Leave
   });
 
-  it("opens create group dialog and submits new group", async () => {
+  it("opens delete confirmation and triggers mutation", async () => {
     render(<Groups />);
 
-    const newGroupBtn = screen.getByRole("button", { name: /New Group/i });
-    fireEvent.click(newGroupBtn);
+    // Click Delete on Group 1
+    const group1Card = screen.getByText("Trip to Paris").closest('.rounded-lg');
+    const deleteBtn = group1Card!.querySelector('button svg.lucide-trash2')!.closest('button')!;
+    fireEvent.click(deleteBtn);
 
-    expect(screen.getByRole("heading", { name: "Create New Group" })).toBeInTheDocument();
+    // Dialog should appear
+    // Use specific matcher to avoid finding the group name in the background list
+    expect(screen.getByText((content) => content.includes('Are you sure you want to delete "Trip to Paris"?'))).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText(/Group Name/i), { target: { value: "New Team" } });
+    // Click Confirm
+    const confirmBtn = screen.getByRole("button", { name: "Delete" });
+    fireEvent.click(confirmBtn);
 
-    const submitBtn = screen.getByRole("button", { name: /Create Group/i });
-    fireEvent.click(submitBtn);
+    // Verify API called
+    expect(googleApi.deleteGroup).toHaveBeenCalledWith("group1");
+  });
 
-    await waitFor(() => {
-      expect(mutateCreateGroup).toHaveBeenCalledWith({
-        name: "New Team",
-        members: []
-      });
-    });
+  it("opens leave confirmation and triggers mutation", async () => {
+    render(<Groups />);
 
-    expect(setActiveGroupId).toHaveBeenCalledWith("new-group-id");
+    // Click Leave on Group 2
+    const group2Card = screen.getByText("Office Lunch").closest('.rounded-lg');
+    const leaveBtn = group2Card!.querySelector('button svg.lucide-log-out')!.closest('button')!;
+    fireEvent.click(leaveBtn);
+
+    // Dialog should appear
+    expect(screen.getByText((content) => content.includes('Are you sure you want to leave "Office Lunch"?'))).toBeInTheDocument();
+
+    // Click Confirm
+    const confirmBtn = screen.getByRole("button", { name: "Leave" });
+    fireEvent.click(confirmBtn);
+
+    // Verify API called
+    expect(googleApi.leaveGroup).toHaveBeenCalledWith("group2", "user1");
   });
 });

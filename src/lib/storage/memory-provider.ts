@@ -157,6 +157,25 @@ export class InMemoryProvider implements IStorageProvider {
         sheet.members = newMembersList.map((m, i) => ({ ...m, _rowIndex: i + 2 }));
     }
 
+    async deleteGroup(groupId: string): Promise<void> {
+        this.groups.delete(groupId);
+        this.sheets.delete(groupId);
+    }
+
+    async leaveGroup(groupId: string, userId: string): Promise<void> {
+        const sheet = this.getSheet(groupId);
+        const idx = sheet.members.findIndex(m => m.userId === userId);
+        
+        if (idx === -1) throw new Error("Member not found");
+        
+        // Expense check not strictly enforced here as it's a mock, but good to simulate logic if needed
+        const hasExpenses = await this.checkMemberHasExpenses(groupId, userId);
+        if (hasExpenses) throw new Error("Cannot leave group while involved in expenses. Please settle and remove expenses first.");
+
+        sheet.members.splice(idx, 1);
+        this.reindex(sheet.members, idx + 2); // approximate reindex
+    }
+
     async checkMemberHasExpenses(groupId: string, userId: string): Promise<boolean> {
         const sheet = this.getSheet(groupId);
         return sheet.expenses.some(e => {
