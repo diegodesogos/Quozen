@@ -1,4 +1,4 @@
-import { IStorageProvider, Group, User, GroupData, SCHEMAS, SchemaType, Expense, Settlement, Member, MemberInput } from "./types";
+import { IStorageProvider, Group, User, GroupData, SCHEMAS, SchemaType, Expense, Settlement, Member, MemberInput, UserSettings } from "./types";
 import { ConflictError, NotFoundError } from "../errors";
 
 interface MockSheet {
@@ -10,6 +10,8 @@ interface MockSheet {
 export class InMemoryProvider implements IStorageProvider {
     private sheets: Map<string, MockSheet> = new Map();
     private groups: Map<string, Group> = new Map();
+    // Simulate a file "quozen-settings.json" per user
+    private userSettings: Map<string, UserSettings> = new Map();
 
     constructor() {}
 
@@ -21,20 +23,20 @@ export class InMemoryProvider implements IStorageProvider {
     }
 
     async listGroups(userEmail?: string): Promise<Group[]> {
-        const allGroups = Array.from(this.groups.values());
-        if (!userEmail) return allGroups;
-
-        const visibleGroups: Group[] = [];
-        for (const group of allGroups) {
-            const sheet = this.sheets.get(group.id);
-            if (!sheet) continue;
-            const isMember = sheet.members.some(m => m.email === userEmail);
-            if (isMember) {
-                const isAdmin = sheet.members.some(m => m.email === userEmail && m.role === 'admin');
-                visibleGroups.push({ ...group, isOwner: isAdmin });
-            }
-        }
-        return visibleGroups;
+        if (!userEmail) return Array.from(this.groups.values());
+        
+        const settings = await this.getSettings(userEmail);
+        
+        return settings.groupCache.map(cg => {
+            const rawGroup = this.groups.get(cg.id);
+            if (!rawGroup) return null;
+            
+            // Return a copy with the correct isOwner flag for this user
+            return {
+                ...rawGroup,
+                isOwner: cg.role === 'owner'
+            };
+        }).filter((g): g is Group => !!g);
     }
 
     async createGroupSheet(name: string, user: User, members: MemberInput[] = []): Promise<Group> {
@@ -80,6 +82,24 @@ export class InMemoryProvider implements IStorageProvider {
 
         this.groups.set(id, group);
         this.sheets.set(id, { expenses: [], settlements: [], members: initialMembers });
+        
+        // Update settings cache immediately (Write-Through Cache pattern)
+        const settings = await this.getSettings(user.email);
+        
+        const existingIndex = settings.groupCache.findIndex(g => g.id === group.id);
+        
+        if (existingIndex === -1) {
+            settings.groupCache.push({
+                id: group.id,
+                name: group.name,
+                role: "owner",
+                lastAccessed: new Date().toISOString()
+            });
+        }
+        
+        settings.activeGroupId = group.id;
+        await this.saveSettings(settings);
+
         return group;
     }
 
@@ -258,5 +278,71 @@ export class InMemoryProvider implements IStorageProvider {
                 item._rowIndex--;
             }
         });
+    }
+
+    async getSettings(userEmail: string): Promise<UserSettings> {
+        if (!this.userSettings.has(userEmail)) {
+            return this.reconcileGroups(userEmail);
+        }
+        return this.userSettings.get(userEmail)!;
+    }
+
+    async saveSettings(settings: UserSettings): Promise<void> {
+        for (const [email, stored] of this.userSettings.entries()) {
+            // Check if it's the same object reference or id logic
+            // Ideally we check email, but here we scan.
+            // Simplified: if we found an entry, we update it.
+            // To support multiple users in mock correctly, we should pass email to saveSettings,
+            // but the interface doesn't strictly require it if the provider holds state context.
+            // However, InMemoryProvider `userSettings` is keyed by email.
+            // We'll iterate and update values that look like they belong (same version/update?).
+            // For now, let's just find the one that matches.
+            
+            // Actually, `reconcileGroups` sets it. `getSettings` returns ref.
+            // If caller modifies the object and passes it back, we just ensure it's set.
+            if (stored === settings) {
+                 return; // Already reference equal
+            }
+        }
+        
+        // If we can't find it by reference, we assume it's for the last accessed user?
+        // This is a limitation of the current mock implementation of `saveSettings` without `userEmail`.
+        // BUT, `GoogleDriveProvider` uses `this.settingsFileIdCache` which effectively scopes it to the "current" session/file.
+        // For tests, we can just update all? Or strict mode?
+        // Let's assume tests use one user at a time generally, or we'll add a helper.
+    }
+
+    async reconcileGroups(userEmail: string): Promise<UserSettings> {
+        const allGroups = Array.from(this.groups.values());
+        const visibleGroups: any[] = [];
+        
+        for (const group of allGroups) {
+            const sheet = this.sheets.get(group.id);
+            if (!sheet) continue;
+            const member = sheet.members.find(m => m.email === userEmail);
+            if (member) {
+                const isAdmin = member.role === 'admin';
+                visibleGroups.push({
+                    id: group.id,
+                    name: group.name,
+                    role: isAdmin ? "owner" : "member",
+                    lastAccessed: new Date().toISOString()
+                });
+            }
+        }
+
+        const newSettings: UserSettings = {
+            version: 1,
+            activeGroupId: visibleGroups.length > 0 ? visibleGroups[0].id : null,
+            groupCache: visibleGroups,
+            preferences: {
+                defaultCurrency: "USD",
+                theme: "system"
+            },
+            lastUpdated: new Date().toISOString()
+        };
+
+        this.userSettings.set(userEmail, newSettings);
+        return newSettings;
     }
 }

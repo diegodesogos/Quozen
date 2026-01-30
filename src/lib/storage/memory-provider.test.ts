@@ -147,6 +147,9 @@ describe('InMemoryProvider', () => {
         const user3: User = { id: 'user3', name: 'User Three', email: 'user3@example.com', username: 'user3' };
         await provider.createGroupSheet("Group C", user3);
 
+        // Force reconciliation for mockUser because Group B was added by someone else
+        await provider.reconcileGroups(mockUser.email);
+
         const groups = await provider.listGroups(mockUser.email);
 
         expect(groups).toHaveLength(2);
@@ -161,7 +164,7 @@ describe('InMemoryProvider', () => {
         expect(foundB!.isOwner).toBe(false); 
     });
 
-    // --- Story 2.7 & 2.8 Tests (New) ---
+    // --- Story 2.7 & 2.8 Tests ---
 
     it('updateExpense throws ConflictError if data was modified on server', async () => {
         const group = await provider.createGroupSheet("Conflict Group", mockUser);
@@ -227,5 +230,44 @@ describe('InMemoryProvider', () => {
 
         // Mismatch: Try to delete Exp 2 by using Exp 1's Row Index but passing Exp 2's ID
         await expect(provider.deleteExpense(group.id, exp1._rowIndex!, exp2.id)).rejects.toThrow(ConflictError);
+    });
+
+    // --- US-101: Settings Initialization & Self-Healing Tests ---
+
+    it('getSettings initializes settings if file is missing (reconcileGroups)', async () => {
+        // Create a group first
+        await provider.createGroupSheet("Group Initial", mockUser);
+        
+        const settings = await provider.getSettings(mockUser.email);
+        
+        expect(settings.version).toBe(1);
+        expect(settings.groupCache).toHaveLength(1);
+        expect(settings.groupCache[0].name).toBe("Group Initial");
+        expect(settings.preferences.defaultCurrency).toBe("USD");
+    });
+
+    it('saveSettings persists changes to settings', async () => {
+        let settings = await provider.getSettings(mockUser.email);
+        settings.preferences.defaultCurrency = "EUR";
+        settings.activeGroupId = "new-active-id";
+
+        await provider.saveSettings(settings);
+
+        const updatedSettings = await provider.getSettings(mockUser.email);
+        expect(updatedSettings.preferences.defaultCurrency).toBe("EUR");
+        expect(updatedSettings.activeGroupId).toBe("new-active-id");
+    });
+
+    it('reconcileGroups scans for groups and updates settings', async () => {
+        let settings = await provider.getSettings(mockUser.email);
+        // Initially 0 or just what we have.
+        
+        // Create a group
+        await provider.createGroupSheet("Group Reconcile", mockUser);
+        
+        // Call reconcile explicitly
+        const newSettings = await provider.reconcileGroups(mockUser.email);
+
+        expect(newSettings.groupCache.some(g => g.name === "Group Reconcile")).toBe(true);
     });
 });

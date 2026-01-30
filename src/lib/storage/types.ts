@@ -71,9 +71,30 @@ export interface GroupData {
   members: Member[];
 }
 
+// --- User Settings Types ---
+
+export interface CachedGroup {
+  id: string;
+  name: string;
+  role: "owner" | "member";
+  lastAccessed?: string;
+}
+
+export interface UserSettings {
+  version: number;
+  activeGroupId: string | null;
+  groupCache: CachedGroup[];
+  preferences: {
+    defaultCurrency: string;
+    theme?: "light" | "dark" | "system";
+  };
+  lastUpdated: string;
+}
+
 export interface IStorageProvider {
   /**
-   * List all available groups (spreadsheets)
+   * List all available groups (spreadsheets).
+   * Refactored to read from settings cache by default.
    */
   listGroups(userEmail?: string): Promise<Group[]>;
 
@@ -122,10 +143,6 @@ export interface IStorageProvider {
 
   /**
    * Update an existing expense with conflict detection
-   * @param spreadsheetId Group ID
-   * @param rowIndex Row index in the sheet
-   * @param expenseData New data
-   * @param expectedLastModified Timestamp of the version the client has
    */
   updateExpense(
     spreadsheetId: string, 
@@ -153,4 +170,21 @@ export interface IStorageProvider {
    * Delete a row in any sheet
    */
   deleteRow(spreadsheetId: string, sheetName: SchemaType, rowIndex: number): Promise<void>;
+
+  // --- Settings Management ---
+
+  /**
+   * Retrieves the configuration file or initializes it if missing.
+   */
+  getSettings(userEmail: string): Promise<UserSettings>;
+
+  /**
+   * Persists changes to settings.
+   */
+  saveSettings(settings: UserSettings): Promise<void>;
+
+  /**
+   * Performs a full scan of sources to rebuild the cache and saves it.
+   */
+  reconcileGroups(userEmail: string): Promise<UserSettings>;
 }

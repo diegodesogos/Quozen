@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import Profile from "../profile";
 import { useAuth } from "@/context/auth-provider";
 import { useQuery } from "@tanstack/react-query";
+import { useSettings } from "@/hooks/use-settings";
 
 // Mock hooks
 vi.mock("@/context/app-context", () => ({
@@ -13,18 +14,38 @@ vi.mock("@/context/auth-provider", () => ({
   useAuth: vi.fn(),
 }));
 
+vi.mock("@/hooks/use-settings", () => ({
+  useSettings: vi.fn(),
+}));
+
 vi.mock("@tanstack/react-query", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@tanstack/react-query")>();
   return {
     ...actual,
     useQuery: vi.fn(),
+    useMutation: vi.fn(() => ({ 
+      mutate: vi.fn(), 
+      isPending: false 
+    })),
+    useQueryClient: vi.fn(() => ({
+      invalidateQueries: vi.fn(),
+      setQueryData: vi.fn(),
+    })),
   };
 });
+
+const mockToast = vi.fn();
+vi.mock("@/hooks/use-toast", () => ({
+  useToast: () => ({
+    toast: mockToast,
+  }),
+}));
 
 // Mock googleApi
 vi.mock("@/lib/drive", () => ({
   googleApi: {
     listGroups: vi.fn(),
+    reconcileGroups: vi.fn(),
   },
 }));
 
@@ -44,6 +65,7 @@ describe("Profile Page", () => {
   ];
 
   const mockLogout = vi.fn();
+  const mockUpdateSettings = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -52,6 +74,15 @@ describe("Profile Page", () => {
     (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       user: mockUser,
       logout: mockLogout,
+    });
+
+    // Mock Settings
+    (useSettings as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      settings: { 
+        preferences: { defaultCurrency: "USD" },
+        groupCache: [] 
+      },
+      updateSettings: mockUpdateSettings,
     });
 
     // Mock Drive Query
@@ -68,7 +99,6 @@ describe("Profile Page", () => {
     
     expect(screen.getByTestId("text-user-name")).toHaveTextContent("Alice Smith");
     expect(screen.getByTestId("text-user-email")).toHaveTextContent("alice@example.com");
-    // Note: username display was removed in favor of cleaner UI or merged with email in the new component
   });
 
   it("displays correct statistics", () => {
@@ -86,5 +116,24 @@ describe("Profile Page", () => {
     fireEvent.click(signOutBtn);
 
     expect(mockLogout).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows forcing re-login (troubleshooting)", () => {
+    // Mock window.location.reload
+    const originalLocation = window.location;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...originalLocation, reload: vi.fn() },
+    });
+
+    render(<Profile />);
+    
+    const forceLoginBtn = screen.getByText("Force Re-login");
+    fireEvent.click(forceLoginBtn);
+
+    expect(window.location.reload).toHaveBeenCalled();
+    
+    // Cleanup
+    Object.defineProperty(window, "location", { configurable: true, value: originalLocation });
   });
 });

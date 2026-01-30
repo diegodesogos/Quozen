@@ -9,6 +9,7 @@ import { useGooglePicker } from "@/hooks/use-google-picker";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-provider";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useSettings } from "@/hooks/use-settings";
 
 export default function GroupSwitcherModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { activeGroupId, setActiveGroupId } = useAppContext();
@@ -16,6 +17,7 @@ export default function GroupSwitcherModal({ isOpen, onClose }: { isOpen: boolea
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { settings, updateSettings } = useSettings();
 
   // Fetch groups from Drive
   const { data: groups = [] } = useQuery<Group[]>({
@@ -49,7 +51,27 @@ export default function GroupSwitcherModal({ isOpen, onClose }: { isOpen: boolea
       const result = await googleApi.validateQuozenSpreadsheet(doc.id, user.email);
 
       if (result.valid) {
-        // 3. If valid, invalidate queries so it shows up in the list (Picker grants permission)
+        // 3. Update Settings Cache
+        if (settings) {
+          // Check if already in cache
+          if (!settings.groupCache.some(g => g.id === doc.id)) {
+            const newCache = [...settings.groupCache];
+            newCache.unshift({
+              id: doc.id,
+              name: result.name || doc.name,
+              role: "member", // Assume member for imported sheets unless validated otherwise
+              lastAccessed: new Date().toISOString()
+            });
+            
+            updateSettings({
+              ...settings,
+              groupCache: newCache,
+              activeGroupId: doc.id
+            });
+          }
+        }
+
+        // 4. Invalidate queries
         await queryClient.invalidateQueries({ queryKey: ["drive", "groups"] });
 
         setActiveGroupId(doc.id);

@@ -17,6 +17,7 @@ import Header from "@/components/header";
 import { AppContext } from "@/context/app-context";
 import { AuthProvider, useAuth } from "@/context/auth-provider";
 import { googleApi, Group } from "@/lib/drive";
+import { useSettings } from "@/hooks/use-settings";
 
 // ProtectedRoute definition...
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -48,11 +49,15 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-function AuthenticatedApp() {
-  const [activeGroupId, setActiveGroupId] = useState("");
+// Exported for testing purposes
+export function AuthenticatedApp() {
+  const [activeGroupId, setActiveGroupIdState] = useState("");
   const { user, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Load Settings
+  const { settings, isLoading: settingsLoading, updateSettings } = useSettings();
 
   // Explicitly type the query data as Group[]
   const { data: groups, isLoading: groupsLoading } = useQuery<Group[]>({
@@ -61,26 +66,72 @@ function AuthenticatedApp() {
     enabled: isAuthenticated && !!user?.email,
   });
 
+  // Persistent Setter for Active Group
+  const handleSetActiveGroupId = (groupId: string) => {
+    // 1. Immediate UI update
+    setActiveGroupIdState(groupId);
+
+    // 2. Persist to Drive (Fire and Forget)
+    if (settings) {
+      updateSettings({
+        ...settings,
+        activeGroupId: groupId
+      });
+    }
+  };
+
   useEffect(() => {
-    if (isLoading || groupsLoading) return;
+    // Wait for all data sources to load
+    if (isLoading || groupsLoading || settingsLoading) return;
 
     if (isAuthenticated && user) {
-      if (groups && groups.length > 0) {
-        // 'g' is now correctly inferred as Group
-        const currentGroupIsValid = groups.some(g => g.id === activeGroupId);
-        if (!activeGroupId || !currentGroupIsValid) {
-          setActiveGroupId(groups[0].id);
+      // Logic to determine active group:
+      // 1. If we already have one selected in local state, keep it (unless invalid).
+      // 2. If not, try the one from Settings.
+      // 3. If settings one is invalid/missing, fallback to first in list.
+      
+      let targetId = activeGroupId;
+
+      // If no local selection, try settings
+      if (!targetId && settings?.activeGroupId) {
+        targetId = settings.activeGroupId;
+      }
+
+      // Verify validity of targetId against the loaded groups list
+      const isValidGroup = groups && groups.some(g => g.id === targetId);
+
+      if (isValidGroup) {
+        if (activeGroupId !== targetId) {
+          setActiveGroupIdState(targetId);
         }
-      } else if (groups && groups.length === 0) {
-        if (location.pathname !== '/groups') {
-          navigate('/groups', { replace: true });
+      } else {
+        // Fallback if target is invalid or not set
+        if (groups && groups.length > 0) {
+          // Default to first group
+          setActiveGroupIdState(groups[0].id);
+        } else if (groups && groups.length === 0) {
+          // No groups at all -> redirect to create group
+          if (location.pathname !== '/groups') {
+            navigate('/groups', { replace: true });
+          }
         }
       }
     }
-  }, [user, isAuthenticated, isLoading, groups, groupsLoading, activeGroupId, navigate, location.pathname]);
+  }, [
+    user, 
+    isAuthenticated, 
+    isLoading, 
+    groups, 
+    groupsLoading, 
+    settings, 
+    settingsLoading, 
+    activeGroupId, 
+    navigate, 
+    location.pathname
+  ]);
 
   return (
-    <AppContext.Provider value={{ activeGroupId, setActiveGroupId, currentUserId: user?.id || "" }}>
+    <AppContext.Provider value={{ activeGroupId, setActiveGroupId: handleSetActiveGroupId, currentUserId: user?.id || "" }}>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route

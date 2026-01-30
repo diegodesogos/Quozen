@@ -1,4 +1,4 @@
-import { IStorageProvider, Group, User, GroupData, SCHEMAS, SchemaType, MemberInput, Member, Expense } from "./types";
+import { IStorageProvider, Group, User, GroupData, SCHEMAS, SchemaType, MemberInput, Member, Expense, UserSettings, CachedGroup } from "./types";
 import { getAuthToken } from "../tokenStore";
 import { ConflictError, NotFoundError } from "../errors";
 
@@ -7,11 +7,14 @@ const SHEETS_API_URL = "https://sheets.googleapis.com/v4/spreadsheets";
 
 /** Naming convention for Quozen spreadsheets */
 export const QUOZEN_PREFIX = "Quozen - ";
+export const SETTINGS_FILE_NAME = "quozen-settings.json";
 
 /** Required sheet tabs for a valid Quozen spreadsheet */
 export const REQUIRED_SHEETS = ["Expenses", "Settlements", "Members"] as const;
 
 export class GoogleDriveProvider implements IStorageProvider {
+    private settingsFileIdCache: string | null = null;
+
     private async fetchWithAuth(url: string, options: RequestInit = {}) {
         const token = getAuthToken();
         if (!token) throw new Error("No access token found. Please sign in.");
@@ -56,48 +59,153 @@ export class GoogleDriveProvider implements IStorageProvider {
         }
     }
 
-    async listGroups(userEmail?: string): Promise<Group[]> {
+    // --- Settings Management Implementation ---
+
+    async getSettings(userEmail: string): Promise<UserSettings> {
+        try {
+            // 1. Try to find the settings file
+            const query = `name = '${SETTINGS_FILE_NAME}' and trashed = false`;
+            const fields = "files(id, name, createdTime)";
+            const listUrl = `${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}`;
+            
+            const listRes = await this.fetchWithAuth(listUrl);
+            const listData = await listRes.json();
+
+            if (listData.files && listData.files.length > 0) {
+                const file = listData.files[0];
+                this.settingsFileIdCache = file.id;
+
+                // 2. Download content
+                const downloadUrl = `${DRIVE_API_URL}/files/${file.id}?alt=media`;
+                const contentRes = await this.fetchWithAuth(downloadUrl);
+                const settings = await contentRes.json();
+
+                // Basic validation/migration could go here
+                if (!settings.version) {
+                    return this.reconcileGroups(userEmail); 
+                }
+                
+                return settings as UserSettings;
+            } else {
+                // 3. Not found -> Reconcile (First Run)
+                return this.reconcileGroups(userEmail);
+            }
+        } catch (e) {
+            console.error("Error fetching settings, falling back to reconcile", e);
+            return this.reconcileGroups(userEmail);
+        }
+    }
+
+    async saveSettings(settings: UserSettings): Promise<void> {
+        settings.lastUpdated = new Date().toISOString();
+        const content = JSON.stringify(settings, null, 2);
+
+        try {
+            let fileId = this.settingsFileIdCache;
+
+            // If we don't have a cached ID, try to find it first (safety check)
+            if (!fileId) {
+                const query = `name = '${SETTINGS_FILE_NAME}' and trashed = false`;
+                const listRes = await this.fetchWithAuth(`${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}`);
+                const listData = await listRes.json();
+                if (listData.files && listData.files.length > 0) {
+                    fileId = listData.files[0].id;
+                    this.settingsFileIdCache = fileId;
+                }
+            }
+
+            if (fileId) {
+                // Update existing file
+                await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}?uploadType=media`, {
+                    method: "PATCH",
+                    body: content
+                });
+            } else {
+                // Create new file
+                const createRes = await this.fetchWithAuth(`${DRIVE_API_URL}/files`, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        name: SETTINGS_FILE_NAME,
+                        mimeType: "application/json"
+                    })
+                });
+                const fileData = await createRes.json();
+                this.settingsFileIdCache = fileData.id;
+
+                // Upload content to the new file
+                await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileData.id}?uploadType=media`, {
+                    method: "PATCH",
+                    body: content
+                });
+            }
+        } catch (e) {
+            console.error("Failed to save settings", e);
+            throw e;
+        }
+    }
+
+    async reconcileGroups(userEmail: string): Promise<UserSettings> {
+        // 1. Scan for all spreadsheets
         const query = `mimeType = 'application/vnd.google-apps.spreadsheet' and name contains '${QUOZEN_PREFIX}' and trashed = false`;
         const fields = "files(id, name, createdTime, owners, capabilities)";
-
         const response = await this.fetchWithAuth(
             `${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}`
         );
-
         const data = await response.json();
-
         const candidateFiles = (data.files || []).filter((file: any) =>
             file.name.startsWith(QUOZEN_PREFIX)
         );
 
-        const validGroups: Group[] = [];
+        const visibleGroups: CachedGroup[] = [];
 
-        await Promise.all(candidateFiles.map(async (file: any) => {
-            try {
-                if (userEmail) {
-                    const validation = await this.validateQuozenSpreadsheet(file.id, userEmail);
-                    if (!validation.valid) {
-                        return; 
-                    }
-                }
+        for (const file of candidateFiles) {
+            const isOwner = file.owners?.some((owner: any) => owner.emailAddress === userEmail) || file.capabilities?.canDelete;
+            
+            visibleGroups.push({
+                id: file.id,
+                name: file.name.slice(QUOZEN_PREFIX.length),
+                role: isOwner ? "owner" : "member",
+                lastAccessed: file.createdTime 
+            });
+        }
 
-                const isOwner = file.owners?.some((owner: any) => owner.emailAddress === userEmail) || file.capabilities?.canDelete;
+        // Sort by most recent
+        visibleGroups.sort((a, b) => new Date(b.lastAccessed || 0).getTime() - new Date(a.lastAccessed || 0).getTime());
 
-                validGroups.push({
-                    id: file.id,
-                    name: file.name.slice(QUOZEN_PREFIX.length),
-                    description: "Google Sheet Group",
-                    createdBy: file.owners?.[0]?.displayName || "Unknown",
-                    participants: [],
-                    createdAt: file.createdTime,
-                    isOwner: !!isOwner
-                });
-            } catch (e) {
-                console.warn(`Skipping group file ${file.name} due to validation error`, e);
-            }
+        // 3. Create Settings Object
+        const settings: UserSettings = {
+            version: 1,
+            activeGroupId: visibleGroups.length > 0 ? visibleGroups[0].id : null,
+            groupCache: visibleGroups,
+            preferences: {
+                defaultCurrency: "USD",
+                theme: "system"
+            },
+            lastUpdated: new Date().toISOString()
+        };
+
+        // 4. Save to Drive
+        await this.saveSettings(settings);
+        
+        return settings;
+    }
+
+    // --- Modified IStorageProvider Implementation ---
+
+    async listGroups(userEmail?: string): Promise<Group[]> {
+        if (!userEmail) return [];
+
+        const settings = await this.getSettings(userEmail);
+        
+        return settings.groupCache.map(cg => ({
+            id: cg.id,
+            name: cg.name,
+            description: "Google Sheet Group",
+            createdBy: "Unknown", 
+            participants: [], 
+            createdAt: cg.lastAccessed || new Date().toISOString(),
+            isOwner: cg.role === 'owner'
         }));
-
-        return validGroups.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
 
     async createGroupSheet(name: string, user: User, members: MemberInput[] = []): Promise<Group> {
@@ -151,6 +259,27 @@ export class GoogleDriveProvider implements IStorageProvider {
             method: "POST",
             body: JSON.stringify(valuesBody)
         });
+
+        // 4. Update Settings Cache
+        try {
+            if (user.email) {
+                const settings = await this.getSettings(user.email);
+                
+                // Add to cache if not exists
+                if (!settings.groupCache.some(g => g.id === spreadsheetId)) {
+                    settings.groupCache.unshift({
+                        id: spreadsheetId,
+                        name: name,
+                        role: "owner",
+                        lastAccessed: new Date().toISOString()
+                    });
+                }
+                settings.activeGroupId = spreadsheetId;
+                await this.saveSettings(settings);
+            }
+        } catch (e) {
+            console.error("Failed to update settings cache after creation", e);
+        }
 
         return {
             id: spreadsheetId,
@@ -384,8 +513,6 @@ export class GoogleDriveProvider implements IStorageProvider {
     }
 
     async deleteExpense(spreadsheetId: string, rowIndex: number, expenseId: string): Promise<void> {
-        // Story 2.8: Existence Check
-        // We fetch the specific row to verify ID before deleting
         const sheetName = "Expenses";
         const url = `${SHEETS_API_URL}/${spreadsheetId}/values/${sheetName}!A${rowIndex}:Z${rowIndex}`;
         
@@ -395,10 +522,9 @@ export class GoogleDriveProvider implements IStorageProvider {
             const rowValues = data.values?.[0];
 
             if (!rowValues) {
-                throw new NotFoundError("Expense not found (row is empty). It may have been deleted.");
+                throw new NotFoundError("Expense not found (row is empty).It may have been deleted.");
             }
 
-            // ID is the first column in SCHEMAS.Expenses
             const currentId = rowValues[0];
             if (currentId !== expenseId) {
                 throw new ConflictError("Expense location changed. The sheet was modified by someone else.");
@@ -426,7 +552,6 @@ export class GoogleDriveProvider implements IStorageProvider {
         expectedLastModified?: string
     ): Promise<void> {
         const sheetName = "Expenses";
-        // 1. Fetch current row
         const url = `${SHEETS_API_URL}/${spreadsheetId}/values/${sheetName}!A${rowIndex}:Z${rowIndex}`;
         const res = await this.fetchWithAuth(url);
         const data = await res.json();
@@ -436,9 +561,6 @@ export class GoogleDriveProvider implements IStorageProvider {
             throw new NotFoundError("Expense row not found.");
         }
 
-        // Parse row to check ID and Meta
-        // Schema: ["id", "date", "description", "amount", "paidBy", "category", "splits", "meta"]
-        // ID is index 0, Meta is index 7
         const currentId = rowValues[0];
         const rawMeta = rowValues[7];
         
@@ -453,35 +575,26 @@ export class GoogleDriveProvider implements IStorageProvider {
             // ignore parse error
         }
 
-        // 2. Conflict Check
         if (expectedLastModified && currentMeta.lastModified) {
             const serverTime = new Date(currentMeta.lastModified).getTime();
             const clientTime = new Date(expectedLastModified).getTime();
             
-            // Allow a small epsilon for clock skew if needed, but strict > is safer
             if (serverTime > clientTime) {
                 throw new ConflictError("This expense has been modified by someone else.");
             }
         }
 
-        // 3. Prepare Update
-        // Merge existing meta with new timestamp
         const newMeta = {
             ...currentMeta,
             lastModified: new Date().toISOString()
         };
 
-        // We need to construct the full row to update using updateRow logic, but we already have the Partial data.
-        // We need to merge with existing data to ensure we don't blank out missing fields?
-        // Actually `updateRow` expects `data` to map to schema keys.
-        // Let's reconstruct the object.
         const updatedObject = {
             ...expenseData,
-            splits: expenseData.splits || [], // Ensure splits array
+            splits: expenseData.splits || [], 
             meta: newMeta
         };
 
-        // Reuse generic updateRow which handles JSON stringification
         return this.updateRow(spreadsheetId, "Expenses", rowIndex, updatedObject);
     }
 

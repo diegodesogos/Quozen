@@ -6,12 +6,14 @@ import GroupSwitcherModal from "./group-switcher-modal";
 import { useState } from "react";
 import { googleApi, Group } from "@/lib/drive";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Header() {
   const { activeGroupId } = useAppContext();
   const { user } = useAuth();
   const [showGroupSwitcher, setShowGroupSwitcher] = useState(false);
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   // 1. Fetch group list (metadata)
   const { data: groups = [], isFetching: isGroupsFetching } = useQuery<Group[]>({
@@ -30,12 +32,16 @@ export default function Header() {
   const activeGroup = groups.find((g) => g.id === activeGroupId);
   const memberCount = groupData?.members?.length || 0;
 
-  // The button will spin if any drive-related query is currently fetching
   const isSyncing = isGroupsFetching || isDataFetching;
 
   const handleRefresh = async () => {
-    // Invalidate all queries starting with 'drive' to force a fresh pull from Google
-    await queryClient.invalidateQueries({ queryKey: ["drive"] });
+    if (!activeGroupId) return;
+    
+    // US-106: Only invalidate the active group data, NOT the file list.
+    // This saves Drive API quota by avoiding 'files.list'.
+    await queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
+    
+    toast({ description: "Synced latest changes." });
   };
 
   return (
@@ -66,12 +72,12 @@ export default function Header() {
           </div>
 
           <div className="flex items-center space-x-2">
-            {/* New Sync/Refresh Button */}
+            {/* Sync/Refresh Button */}
             <button
               className="w-8 h-8 rounded-full bg-muted flex items-center justify-center hover:bg-accent transition-colors disabled:opacity-50"
               onClick={handleRefresh}
               disabled={isSyncing}
-              title="Sync with Google Drive"
+              title="Sync current group"
               data-testid="button-refresh"
             >
               <RefreshCw className={cn(

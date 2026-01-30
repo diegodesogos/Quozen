@@ -11,12 +11,16 @@ import { Users, Plus, Pencil, Shield, User, Trash2, LogOut } from "lucide-react"
 import { MemberInput, Group } from "@/lib/storage/types";
 import { Badge } from "@/components/ui/badge";
 import GroupDialog from "@/components/group-dialog";
+import { useSettings } from "@/hooks/use-settings";
 
 export default function Groups() {
   const { activeGroupId, setActiveGroupId, currentUserId } = useAppContext();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Use Settings Hook
+  const { settings, updateSettings } = useSettings();
 
   // Create/Edit Dialog State
   const [dialogState, setDialogState] = useState<{
@@ -83,6 +87,23 @@ export default function Groups() {
       return await googleApi.createGroupSheet(data.name, user, data.members);
     },
     onSuccess: (newGroup) => {
+      // Update Settings Cache
+      if (settings && newGroup) {
+        const newCache = [...settings.groupCache];
+        newCache.unshift({
+          id: newGroup.id,
+          name: newGroup.name,
+          role: "owner",
+          lastAccessed: new Date().toISOString()
+        });
+        
+        updateSettings({
+          ...settings,
+          groupCache: newCache,
+          activeGroupId: newGroup.id
+        });
+      }
+
       queryClient.invalidateQueries({ queryKey: ["drive", "groups"] });
       toast({
         title: "Group created",
@@ -122,7 +143,15 @@ export default function Groups() {
       await removedMembersCheck();
       return await googleApi.updateGroup(data.groupId, data.name, data.members);
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      // Update Settings Cache (Name change)
+      if (settings) {
+        const newCache = settings.groupCache.map(g => 
+          g.id === variables.groupId ? { ...g, name: variables.name } : g
+        );
+        updateSettings({ ...settings, groupCache: newCache });
+      }
+
       queryClient.invalidateQueries({ queryKey: ["drive", "groups"] });
       if (dialogState.groupId) {
         queryClient.invalidateQueries({ queryKey: ["drive", "group", dialogState.groupId] });
@@ -144,6 +173,19 @@ export default function Groups() {
         return await googleApi.deleteGroup(groupId);
     },
     onSuccess: (_, groupId) => {
+        // Update Settings Cache
+        if (settings) {
+          const newCache = settings.groupCache.filter(g => g.id !== groupId);
+          // If active group was deleted, unset it (or handle in App.tsx effects)
+          const newActive = settings.activeGroupId === groupId ? null : settings.activeGroupId;
+          
+          updateSettings({ 
+            ...settings, 
+            groupCache: newCache,
+            activeGroupId: newActive 
+          });
+        }
+
         queryClient.invalidateQueries({ queryKey: ["drive", "groups"] });
         toast({ title: "Group deleted" });
         setAlertState({ open: false, type: "delete" });
@@ -160,6 +202,18 @@ export default function Groups() {
         return await googleApi.leaveGroup(groupId, currentUserId);
     },
     onSuccess: (_, groupId) => {
+        // Update Settings Cache
+        if (settings) {
+          const newCache = settings.groupCache.filter(g => g.id !== groupId);
+          const newActive = settings.activeGroupId === groupId ? null : settings.activeGroupId;
+          
+          updateSettings({ 
+            ...settings, 
+            groupCache: newCache,
+            activeGroupId: newActive
+          });
+        }
+
         queryClient.invalidateQueries({ queryKey: ["drive", "groups"] });
         toast({ title: "Left group successfully" });
         setAlertState({ open: false, type: "leave" });
