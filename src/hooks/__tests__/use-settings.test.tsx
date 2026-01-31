@@ -10,6 +10,7 @@ vi.mock("@/lib/drive", () => ({
   googleApi: {
     getSettings: vi.fn(),
     saveSettings: vi.fn(),
+    updateActiveGroup: vi.fn(),
   },
 }));
 
@@ -49,7 +50,6 @@ describe("useSettings Hook", () => {
     (googleApi.getSettings as any).mockResolvedValue(mockSettings);
     (googleApi.saveSettings as any).mockResolvedValue(undefined);
 
-    // Spy on queryClient.invalidateQueries
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
     const { result } = renderHook(() => useSettings(), { wrapper });
@@ -62,8 +62,19 @@ describe("useSettings Hook", () => {
     await waitFor(() => {
       expect(googleApi.saveSettings).toHaveBeenCalledWith(newSettings);
     });
-    
-    // Verify invalidation happened
+
     expect(invalidateSpy).toHaveBeenCalled();
+  });
+
+  it("updateActiveGroup calls the provider atomic method", async () => {
+    (googleApi.updateActiveGroup as any).mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useSettings(), { wrapper });
+
+    result.current.updateActiveGroup("new-group-id");
+
+    await waitFor(() => {
+      expect(googleApi.updateActiveGroup).toHaveBeenCalledWith("test@example.com", "new-group-id");
+    });
   });
 });

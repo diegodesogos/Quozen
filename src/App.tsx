@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
@@ -54,7 +54,8 @@ export function AuthenticatedApp() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { settings, updateSettings, isLoading: settingsLoading, error: settingsError } = useSettings();
+  // Use the new atomic updater
+  const { settings, updateActiveGroup, isLoading: settingsLoading, error: settingsError } = useSettings();
   const { groups } = useGroups();
 
   const appLoading = authLoading || (isAuthenticated && settingsLoading);
@@ -73,11 +74,9 @@ export function AuthenticatedApp() {
 
   const handleSetActiveGroupId = (groupId: string) => {
     setActiveGroupIdState(groupId);
-    if (settings) {
-      updateSettings({
-        ...settings,
-        activeGroupId: groupId
-      });
+    // Use atomic update to prevent overwriting settings with stale data
+    if (isAuthenticated) {
+      updateActiveGroup(groupId);
     }
   };
 

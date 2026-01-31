@@ -188,6 +188,11 @@ export interface IStorageProvider {
   saveSettings(settings: UserSettings): Promise<void>;
 
   /**
+   * Atomically updates the activeGroupId in settings.
+   */
+  updateActiveGroup(userEmail: string, groupId: string): Promise<void>;
+
+  /**
    * Performs a full scan of sources to rebuild the cache and saves it.
    */
   reconcileGroups(userEmail: string): Promise<UserSettings>;

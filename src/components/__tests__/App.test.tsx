@@ -57,7 +57,7 @@ vi.mock("@/pages/dashboard", async () => {
 });
 
 describe("AuthenticatedApp Integration", () => {
-  const mockUpdateSettings = vi.fn();
+  const mockUpdateActiveGroup = vi.fn();
   const mockUser = { id: "u1", email: "test@example.com" };
   const mockGroups = [
     { id: "group-1", name: "Group 1" },
@@ -81,7 +81,7 @@ describe("AuthenticatedApp Integration", () => {
     (useSettings as any).mockReturnValue({
       settings: mockSettings,
       isLoading: false,
-      updateSettings: mockUpdateSettings
+      updateActiveGroup: mockUpdateActiveGroup // Mock the new atomic function
     });
 
     (useGroups as any).mockReturnValue({
@@ -117,13 +117,10 @@ describe("AuthenticatedApp Integration", () => {
     const btn = await screen.findByText("Switch to Group 2");
     btn.click();
 
-    // 1. Verify local state update (via the dashboard re-render)
+    // 1. Verify local state update
     await waitFor(() => expect(screen.getByTestId("active-group-id")).toHaveTextContent("Active: group-2"));
 
-    // 2. Verify persistence call
-    expect(mockUpdateSettings).toHaveBeenCalledWith({
-      ...mockSettings,
-      activeGroupId: "group-2"
-    });
+    // 2. Verify persistence call - NOW SHOULD CALL updateActiveGroup, NOT updateSettings
+    expect(mockUpdateActiveGroup).toHaveBeenCalledWith("group-2");
   });
 });

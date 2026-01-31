@@ -200,6 +200,22 @@ export class GoogleDriveProvider implements IStorageProvider {
         return this._runExclusive(() => this._saveSettingsImpl(settings));
     }
 
+    async updateActiveGroup(userEmail: string, groupId: string): Promise<void> {
+        return this._runExclusive(async () => {
+            const settings = await this._getSettingsImpl(userEmail);
+            // Optimization: If already active, don't write
+            if (settings.activeGroupId === groupId) return;
+
+            settings.activeGroupId = groupId;
+            // Also update lastAccessed in cache for this group
+            const cached = settings.groupCache.find(g => g.id === groupId);
+            if (cached) {
+                cached.lastAccessed = new Date().toISOString();
+            }
+            await this._saveSettingsImpl(settings);
+        });
+    }
+
     async reconcileGroups(userEmail: string): Promise<UserSettings> {
         return this._runExclusive(() => this._reconcileGroupsImpl(userEmail));
     }

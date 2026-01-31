@@ -192,6 +192,14 @@ export class InMemoryProvider implements IStorageProvider {
         }
     }
 
+    async updateActiveGroup(userEmail: string, groupId: string): Promise<void> {
+        const settings = await this.getSettings(userEmail);
+        settings.activeGroupId = groupId;
+        const cached = settings.groupCache.find(g => g.id === groupId);
+        if (cached) cached.lastAccessed = new Date().toISOString();
+        await this.saveSettings(settings);
+    }
+
     async reconcileGroups(userEmail: string): Promise<UserSettings> {
         const settings: UserSettings = {
             version: 1,

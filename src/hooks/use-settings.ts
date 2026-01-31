@@ -13,7 +13,6 @@ export function useSettings() {
       if (!user?.email) throw new Error("User email not found");
       return googleApi.getSettings(user.email);
     },
-    // CRITICAL FIX: Only fetch if user AND authenticated (valid token present)
     enabled: !!user?.email && isAuthenticated,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
@@ -22,9 +21,23 @@ export function useSettings() {
     mutationFn: (newSettings: UserSettings) => googleApi.saveSettings(newSettings),
     onSuccess: (data, variables) => {
       queryClient.setQueryData(queryKey, variables);
-      // Also invalidate groups list as it is derived from settings
       queryClient.invalidateQueries({ queryKey: ["drive", "groups", user?.email] });
     },
+  });
+
+  const activeGroupMutation = useMutation({
+    mutationFn: (groupId: string) => {
+      if (!user?.email) throw new Error("User email required");
+      return googleApi.updateActiveGroup(user.email, groupId);
+    },
+    onSuccess: (_, groupId) => {
+      // Optimistic update of local cache for smoother UI
+      queryClient.setQueryData(queryKey, (old: UserSettings | undefined) => {
+        if (!old) return old;
+        return { ...old, activeGroupId: groupId };
+      });
+      queryClient.invalidateQueries({ queryKey: queryKey });
+    }
   });
 
   return {
@@ -33,6 +46,8 @@ export function useSettings() {
     error: query.error,
     updateSettings: mutation.mutate,
     updateSettingsAsync: mutation.mutateAsync,
-    isUpdating: mutation.isPending
+    isUpdating: mutation.isPending,
+    // New atomic updater
+    updateActiveGroup: activeGroupMutation.mutate,
   };
 }
