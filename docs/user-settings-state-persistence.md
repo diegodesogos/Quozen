@@ -2,7 +2,7 @@
 
 **Epic:** User Settings & State Persistence (Serverless Profile) 
 
-**Status:** In Progress
+**Status:** Completed
 
 ---
 
@@ -202,6 +202,7 @@ Performs a full scan of Drive to rebuild the cache.
 **Goal:** Save user preference for currency.
 
 * **Task \[FE-05\]: Currency Preference UI**  
+* **Status: ✅ Completed**
   * **Description:**  
     * In `Profile.tsx` (Settings section), add a dropdown for Currency (USD, EUR, GBP, etc.).  
     * Bind value to `settings.preferences.defaultCurrency`.  
@@ -213,13 +214,14 @@ Performs a full scan of Drive to rebuild the cache.
 **Goal:** Optimize the refresh button to stop scanning the whole Drive.
 
 * **Task \[FE-06\]: Optimize Header Refresh Logic**  
+* **Status: ✅ Completed**
   * **Description:** Update `handleRefresh` in `Header.tsx`.  
     * **Old Behavior:** `invalidateQueries(['drive'])` (Refreshed settings, group list, and active group data).  
     * **New Behavior:** `invalidateQueries(['drive', 'group', activeGroupId])`. This only re-fetches the *contents* (expenses/members) of the currently open spreadsheet.  
   * **DoD:** Clicking refresh updates expenses but does not trigger a network request for `quozen-settings.json` or `files.list`.
 
 ### **Migrations / Cleanup**
-
+* **Status: ✅ Completed**
 * **Task \[MG-01\]: Legacy Code Removal**  
   * **Description:** Modify `GoogleDriveProvider.listGroups`. It should now strictly return `settings.groupCache` (via `getSettings`). The "scan on load" logic inside `listGroups` should be removed (it now lives in `reconcileGroups`).  
   * **DoD:** `listGroups` is O(1) (reading from memory/JSON), not O(N) (scanning Drive).
