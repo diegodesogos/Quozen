@@ -214,7 +214,7 @@ Performs a full scan of Drive to rebuild the cache.
 **Goal:** Optimize the refresh button to stop scanning the whole Drive.
 
 * **Task \[FE-06\]: Optimize Header Refresh Logic**  
-* **Status: ✅ Completed**
+  * **Status: ✅ Completed**
   * **Description:** Update `handleRefresh` in `Header.tsx`.  
     * **Old Behavior:** `invalidateQueries(['drive'])` (Refreshed settings, group list, and active group data).  
     * **New Behavior:** `invalidateQueries(['drive', 'group', activeGroupId])`. This only re-fetches the *contents* (expenses/members) of the currently open spreadsheet.  
