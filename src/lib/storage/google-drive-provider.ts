@@ -3,6 +3,7 @@ import { getAuthToken } from "../tokenStore";
 import { ConflictError, NotFoundError } from "../errors";
 
 const DRIVE_API_URL = "https://www.googleapis.com/drive/v3";
+const DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3";
 const SHEETS_API_URL = "https://sheets.googleapis.com/v4/spreadsheets";
 
 /** Naming convention for Quozen spreadsheets */
@@ -14,6 +15,38 @@ export const REQUIRED_SHEETS = ["Expenses", "Settlements", "Members"] as const;
 
 export class GoogleDriveProvider implements IStorageProvider {
     private settingsFileIdCache: string | null = null;
+    private _mutex: Promise<void> = Promise.resolve();
+
+    constructor() {
+        console.log("[Drive] GoogleDriveProvider initialized with fix logic + Mutex.");
+    }
+
+    /**
+     * Executes a task exclusively, queuing subsequent tasks until the previous one completes.
+     * Use this to prevent race conditions between getSettings and saveSettings within the same client.
+     */
+    private async _runExclusive<T>(task: () => Promise<T>): Promise<T> {
+        let release: () => void;
+        const currentLock = this._mutex;
+
+        // Create a new lock promise that we can resolve later
+        const newLock = new Promise<void>(resolve => {
+            release = resolve;
+        });
+
+        // Chain the new lock to the end of the queue
+        this._mutex = currentLock.then(() => newLock);
+
+        // Wait for the previous lock to resolve before starting our task
+        await currentLock;
+
+        try {
+            return await task();
+        } finally {
+            // Always release the lock so the queue can continue
+            release!();
+        }
+    }
 
     private async fetchWithAuth(url: string, options: RequestInit = {}) {
         const token = getAuthToken();
@@ -32,7 +65,8 @@ export class GoogleDriveProvider implements IStorageProvider {
                 throw new Error("Session expired (401). Please reload to sign in again.");
             }
             if (response.status === 403) {
-                throw new Error("Permission denied (403). You may not have access to this file.");
+                const errorBody = await response.text();
+                throw new Error(`Permission denied (403). detail: ${errorBody}`);
             }
             const errorBody = await response.text();
             throw new Error(`Google API Error: ${response.status} - ${errorBody}`);
@@ -62,41 +96,73 @@ export class GoogleDriveProvider implements IStorageProvider {
     // --- Settings Management Implementation ---
 
     async getSettings(userEmail: string): Promise<UserSettings> {
-        try {
-            // 1. Try to find the settings file
-            const query = `name = '${SETTINGS_FILE_NAME}' and trashed = false`;
-            const fields = "files(id, name, createdTime)";
-            const listUrl = `${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}`;
-            
-            const listRes = await this.fetchWithAuth(listUrl);
-            const listData = await listRes.json();
+        return this._runExclusive(async () => {
+            try {
+                // 1. Try to find the settings file
+                const query = `name = '${SETTINGS_FILE_NAME}' and trashed = false`;
+                const fields = "files(id, name, createdTime)";
+                const listUrl = `${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}`;
 
-            if (listData.files && listData.files.length > 0) {
-                const file = listData.files[0];
-                this.settingsFileIdCache = file.id;
+                const listRes = await this.fetchWithAuth(listUrl);
+                const listData = await listRes.json();
 
-                // 2. Download content
-                const downloadUrl = `${DRIVE_API_URL}/files/${file.id}?alt=media`;
-                const contentRes = await this.fetchWithAuth(downloadUrl);
-                const settings = await contentRes.json();
+                if (listData.files && listData.files.length > 0) {
+                    // Deduplication Logic
+                    let fileToUse = listData.files[0];
 
-                // Basic validation/migration could go here
-                if (!settings.version) {
-                    return this.reconcileGroups(userEmail); 
+                    if (listData.files.length > 1) {
+                        console.warn(`Found ${listData.files.length} settings files. Cleaning up duplicates...`);
+                        // Sort by createdTime ASCENDING (Oldest first = Winner)
+                        // Tie-break with ID
+                        const sortedFiles = listData.files.sort((a: any, b: any) => {
+                            const timeA = new Date(a.createdTime || 0).getTime();
+                            const timeB = new Date(b.createdTime || 0).getTime();
+                            if (timeA !== timeB) return timeA - timeB;
+                            return (a.id || "").localeCompare(b.id || "");
+                        });
+
+                        fileToUse = sortedFiles[0];
+                        const duplicates = sortedFiles.slice(1);
+
+                        // Delete duplicates in background
+                        for (const dup of duplicates) {
+                            this.fetchWithAuth(`${DRIVE_API_URL}/files/${dup.id}`, { method: "DELETE" })
+                                .catch(e => console.error("Failed to delete duplicate settings file", e));
+                        }
+                    }
+
+                    this.settingsFileIdCache = fileToUse.id;
+
+                    // 2. Download content
+                    const downloadUrl = `${DRIVE_API_URL}/files/${fileToUse.id}?alt=media`;
+                    const contentRes = await this.fetchWithAuth(downloadUrl);
+                    const settings = await contentRes.json();
+
+                    // Basic validation/migration could go here
+                    if (!settings.version) {
+                        return this._reconcileGroupsImpl(userEmail);
+                    }
+
+                    return settings as UserSettings;
+                } else {
+                    // 3. Not found -> Reconcile (First Run)
+                    return this._reconcileGroupsImpl(userEmail);
                 }
-                
-                return settings as UserSettings;
-            } else {
-                // 3. Not found -> Reconcile (First Run)
-                return this.reconcileGroups(userEmail);
+            } catch (e) {
+                console.error("Error fetching settings, falling back to reconcile", e);
+                return this._reconcileGroupsImpl(userEmail);
             }
-        } catch (e) {
-            console.error("Error fetching settings, falling back to reconcile", e);
-            return this.reconcileGroups(userEmail);
-        }
+        });
     }
 
     async saveSettings(settings: UserSettings): Promise<void> {
+        return this._runExclusive(async () => {
+            return this._saveSettingsImpl(settings);
+        });
+    }
+
+    // Internal implementations without locking to allow internal calls (e.g. reconcile -> save)
+    private async _saveSettingsImpl(settings: UserSettings): Promise<void> {
         settings.lastUpdated = new Date().toISOString();
         const content = JSON.stringify(settings, null, 2);
 
@@ -109,34 +175,78 @@ export class GoogleDriveProvider implements IStorageProvider {
                 const listRes = await this.fetchWithAuth(`${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}`);
                 const listData = await listRes.json();
                 if (listData.files && listData.files.length > 0) {
-                    fileId = listData.files[0].id;
+                    // Sort by createdTime ASCENDING (Oldest first = Winner)
+                    const sortedFiles = listData.files.sort((a: any, b: any) => {
+                        const timeA = new Date(a.createdTime || 0).getTime();
+                        const timeB = new Date(b.createdTime || 0).getTime();
+                        if (timeA !== timeB) return timeA - timeB;
+                        return (a.id || "").localeCompare(b.id || "");
+                    });
+                    fileId = sortedFiles[0].id;
                     this.settingsFileIdCache = fileId;
                 }
             }
 
             if (fileId) {
-                // Update existing file
-                await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}?uploadType=media`, {
+                // Update existing file - Use Upload URL
+                await this.fetchWithAuth(`${DRIVE_UPLOAD_URL}/files/${fileId}?uploadType=media`, {
                     method: "PATCH",
                     body: content
                 });
             } else {
+                console.log(`[Drive] No cached ID. Attempting to create new settings file...`);
                 // Create new file
-                const createRes = await this.fetchWithAuth(`${DRIVE_API_URL}/files`, {
-                    method: "POST",
-                    body: JSON.stringify({
-                        name: SETTINGS_FILE_NAME,
-                        mimeType: "application/json"
-                    })
-                });
-                const fileData = await createRes.json();
-                this.settingsFileIdCache = fileData.id;
+                try {
+                    const createRes = await this.fetchWithAuth(`${DRIVE_API_URL}/files`, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            name: SETTINGS_FILE_NAME,
+                            mimeType: "application/json"
+                        })
+                    });
+                    const fileData = await createRes.json();
+                    console.log(`[Drive] Created candidate file: ${fileData.id}`);
+                } catch (e) {
+                    console.error("[Drive] Creation failed.", e);
+                }
 
-                // Upload content to the new file
-                await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileData.id}?uploadType=media`, {
-                    method: "PATCH",
-                    body: content
-                });
+                // ARBITRATION: Check for duplicates immediately
+                const query = `name = '${SETTINGS_FILE_NAME}' and trashed = false`;
+                const listRes = await this.fetchWithAuth(`${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=files(id,createdTime)`);
+                const listData = await listRes.json();
+
+                if (listData.files && listData.files.length > 0) {
+                    // Sort by createdTime ASCENDING (Oldest first = Winner)
+                    const sortedFiles = listData.files.sort((a: any, b: any) => {
+                        const timeA = new Date(a.createdTime || 0).getTime();
+                        const timeB = new Date(b.createdTime || 0).getTime();
+                        if (timeA !== timeB) return timeA - timeB;
+                        return (a.id || "").localeCompare(b.id || "");
+                    });
+
+                    const winner = sortedFiles[0];
+                    console.log(`[Drive] Arbitration: Winner is ${winner.id} (created: ${winner.createdTime})`);
+
+                    // Cleanup losers found during arbitration
+                    if (listData.files.length > 1) {
+                        const losers = sortedFiles.slice(1);
+                        for (const loser of losers) {
+                            console.log(`[Drive] Deleting duplicate/loser file: ${loser.id}`);
+                            this.fetchWithAuth(`${DRIVE_API_URL}/files/${loser.id}`, { method: "DELETE" }).catch(e => console.error(e));
+                        }
+                    }
+
+                    this.settingsFileIdCache = winner.id;
+                    fileId = winner.id;
+
+                    // Ensure the winner has our content - Use Upload URL
+                    await this.fetchWithAuth(`${DRIVE_UPLOAD_URL}/files/${winner.id}?uploadType=media`, {
+                        method: "PATCH",
+                        body: content
+                    });
+                } else {
+                    throw new Error("Failed to create settings file (Arbitration found 0 files).");
+                }
             }
         } catch (e) {
             console.error("Failed to save settings", e);
@@ -144,7 +254,7 @@ export class GoogleDriveProvider implements IStorageProvider {
         }
     }
 
-    async reconcileGroups(userEmail: string): Promise<UserSettings> {
+    private async _reconcileGroupsImpl(userEmail: string): Promise<UserSettings> {
         // 1. Scan for all spreadsheets
         const query = `mimeType = 'application/vnd.google-apps.spreadsheet' and name contains '${QUOZEN_PREFIX}' and trashed = false`;
         const fields = "files(id, name, createdTime, owners, capabilities)";
@@ -160,12 +270,12 @@ export class GoogleDriveProvider implements IStorageProvider {
 
         for (const file of candidateFiles) {
             const isOwner = file.owners?.some((owner: any) => owner.emailAddress === userEmail) || file.capabilities?.canDelete;
-            
+
             visibleGroups.push({
                 id: file.id,
                 name: file.name.slice(QUOZEN_PREFIX.length),
                 role: isOwner ? "owner" : "member",
-                lastAccessed: file.createdTime 
+                lastAccessed: file.createdTime
             });
         }
 
@@ -184,10 +294,16 @@ export class GoogleDriveProvider implements IStorageProvider {
             lastUpdated: new Date().toISOString()
         };
 
-        // 4. Save to Drive
-        await this.saveSettings(settings);
-        
+        // 4. Save to Drive (Internal call, bypass lock since we hold it)
+        await this._saveSettingsImpl(settings);
+
         return settings;
+    }
+
+    async reconcileGroups(userEmail: string): Promise<UserSettings> {
+        return this._runExclusive(async () => {
+            return this._reconcileGroupsImpl(userEmail);
+        });
     }
 
     // --- Modified IStorageProvider Implementation ---
@@ -195,14 +311,14 @@ export class GoogleDriveProvider implements IStorageProvider {
     async listGroups(userEmail?: string): Promise<Group[]> {
         if (!userEmail) return [];
 
-        const settings = await this.getSettings(userEmail);
-        
+        const settings = await this.getSettings(userEmail); // calling public getSettings which locks
+
         return settings.groupCache.map(cg => ({
             id: cg.id,
             name: cg.name,
             description: "Google Sheet Group",
-            createdBy: "Unknown", 
-            participants: [], 
+            createdBy: "Unknown",
+            participants: [],
             createdAt: cg.lastAccessed || new Date().toISOString(),
             isOwner: cg.role === 'owner'
         }));
@@ -263,8 +379,10 @@ export class GoogleDriveProvider implements IStorageProvider {
         // 4. Update Settings Cache
         try {
             if (user.email) {
+                // LOCK-SAFE SEQUENCE:
+                // getSettings is locked internally.
                 const settings = await this.getSettings(user.email);
-                
+
                 // Add to cache if not exists
                 if (!settings.groupCache.some(g => g.id === spreadsheetId)) {
                     settings.groupCache.unshift({
@@ -275,6 +393,7 @@ export class GoogleDriveProvider implements IStorageProvider {
                     });
                 }
                 settings.activeGroupId = spreadsheetId;
+                // saveSettings is locked internally.
                 await this.saveSettings(settings);
             }
         } catch (e) {
@@ -362,9 +481,9 @@ export class GoogleDriveProvider implements IStorageProvider {
 
         const member = data.members.find(m => m.userId === userId);
         if (!member) throw new Error("Member not found in group");
-        
+
         if (member.role === 'admin') {
-             throw new Error("Admins cannot leave group. Transfer ownership or delete group.");
+            throw new Error("Admins cannot leave group. Transfer ownership or delete group.");
         }
 
         const hasExpenses = await this.checkMemberHasExpenses(groupId, userId);
@@ -504,7 +623,7 @@ export class GoogleDriveProvider implements IStorageProvider {
             id: self.crypto.randomUUID(),
             ...expenseData,
             splits: expenseData.splits || [],
-            meta: { 
+            meta: {
                 createdAt: new Date().toISOString(),
                 lastModified: new Date().toISOString()
             }
@@ -515,7 +634,7 @@ export class GoogleDriveProvider implements IStorageProvider {
     async deleteExpense(spreadsheetId: string, rowIndex: number, expenseId: string): Promise<void> {
         const sheetName = "Expenses";
         const url = `${SHEETS_API_URL}/${spreadsheetId}/values/${sheetName}!A${rowIndex}:Z${rowIndex}`;
-        
+
         try {
             const res = await this.fetchWithAuth(url);
             const data = await res.json();
@@ -546,9 +665,9 @@ export class GoogleDriveProvider implements IStorageProvider {
     }
 
     async updateExpense(
-        spreadsheetId: string, 
-        rowIndex: number, 
-        expenseData: Partial<Expense>, 
+        spreadsheetId: string,
+        rowIndex: number,
+        expenseData: Partial<Expense>,
         expectedLastModified?: string
     ): Promise<void> {
         const sheetName = "Expenses";
@@ -563,7 +682,7 @@ export class GoogleDriveProvider implements IStorageProvider {
 
         const currentId = rowValues[0];
         const rawMeta = rowValues[7];
-        
+
         if (currentId !== expenseData.id) {
             throw new ConflictError("Expense ID mismatch. Rows may have shifted.");
         }
@@ -578,7 +697,7 @@ export class GoogleDriveProvider implements IStorageProvider {
         if (expectedLastModified && currentMeta.lastModified) {
             const serverTime = new Date(currentMeta.lastModified).getTime();
             const clientTime = new Date(expectedLastModified).getTime();
-            
+
             if (serverTime > clientTime) {
                 throw new ConflictError("This expense has been modified by someone else.");
             }
@@ -591,7 +710,7 @@ export class GoogleDriveProvider implements IStorageProvider {
 
         const updatedObject = {
             ...expenseData,
-            splits: expenseData.splits || [], 
+            splits: expenseData.splits || [],
             meta: newMeta
         };
 
