@@ -80,6 +80,53 @@ export class GoogleDriveProvider implements IStorageProvider {
         }
     }
 
+    // --- ID Migration Logic ---
+
+    private async _migrateMemberId(spreadsheetId: string, oldId: string, newId: string, groupData: GroupData): Promise<void> {
+        console.log(`[Migration] Migrating member ID from ${oldId} to ${newId} in group ${spreadsheetId}`);
+
+        // 1. Update Members Sheet
+        const member = groupData.members.find(m => m.userId === oldId);
+        if (member && member._rowIndex) {
+            await this.updateRow(spreadsheetId, "Members", member._rowIndex, { ...member, userId: newId });
+        }
+
+        // 2. Update Expenses Sheet (PaidBy and Splits)
+        const expensesToUpdate = groupData.expenses.filter(e =>
+            e.paidBy === oldId || e.splits.some((s: any) => s.userId === oldId)
+        );
+
+        for (const exp of expensesToUpdate) {
+            if (!exp._rowIndex) continue;
+
+            const updates: Partial<Expense> = {};
+            if (exp.paidBy === oldId) updates.paidBy = newId;
+
+            if (exp.splits.some((s: any) => s.userId === oldId)) {
+                updates.splits = exp.splits.map((s: any) =>
+                    s.userId === oldId ? { ...s, userId: newId } : s
+                );
+            }
+
+            // Direct update without conflict check for migration
+            await this.updateRow(spreadsheetId, "Expenses", exp._rowIndex, { ...exp, ...updates });
+        }
+
+        // 3. Update Settlements Sheet
+        const settlementsToUpdate = groupData.settlements.filter(s =>
+            s.fromUserId === oldId || s.toUserId === oldId
+        );
+
+        for (const set of settlementsToUpdate) {
+            if (!set._rowIndex) continue;
+            const updates: Partial<Settlement> = {};
+            if (set.fromUserId === oldId) updates.fromUserId = newId;
+            if (set.toUserId === oldId) updates.toUserId = newId;
+
+            await this.updateRow(spreadsheetId, "Settlements", set._rowIndex, { ...set, ...updates });
+        }
+    }
+
     // --- Internal Settings Implementation ---
 
     private async _getSettingsImpl(userEmail: string): Promise<UserSettings> {
@@ -113,10 +160,9 @@ export class GoogleDriveProvider implements IStorageProvider {
                 return this._reconcileGroupsImpl(userEmail);
             }
         } catch (e: any) {
-            // ROBUST 401 CHECK: Check message string explicitly
             const errMsg = String(e?.message || e);
             if (errMsg.includes("401") || errMsg.includes("Session expired")) {
-                throw e; // Stop here, do NOT reconcile
+                throw e;
             }
             console.error("Error getting settings, reconciling...", e);
             return this._reconcileGroupsImpl(userEmail);
@@ -203,11 +249,9 @@ export class GoogleDriveProvider implements IStorageProvider {
     async updateActiveGroup(userEmail: string, groupId: string): Promise<void> {
         return this._runExclusive(async () => {
             const settings = await this._getSettingsImpl(userEmail);
-            // Optimization: If already active, don't write
             if (settings.activeGroupId === groupId) return;
 
             settings.activeGroupId = groupId;
-            // Also update lastAccessed in cache for this group
             const cached = settings.groupCache.find(g => g.id === groupId);
             if (cached) {
                 cached.lastAccessed = new Date().toISOString();
@@ -233,14 +277,15 @@ export class GoogleDriveProvider implements IStorageProvider {
             const sheetFile = await createRes.json();
             const spreadsheetId = sheetFile.spreadsheetId;
 
-            const initialMembersRows = [[user.id, user.email, user.name, "admin", new Date().toISOString()]];
+            // Updated: Use 'owner' consistently
+            const initialMembersRows = [[user.id, user.email, user.name, "owner", new Date().toISOString()]];
             for (const member of members) {
                 let memberName = member.username || member.email || "Unknown";
                 let memberId = member.email || member.username || `user-${self.crypto.randomUUID()}`;
                 if (member.email) {
                     const displayName = await this.shareFile(spreadsheetId, member.email);
                     if (displayName) memberName = displayName;
-                    memberId = member.email;
+                    memberId = member.email; // Initial ID is email
                 }
                 initialMembersRows.push([memberId, member.email || "", memberName, "member", new Date().toISOString()]);
             }
@@ -288,10 +333,27 @@ export class GoogleDriveProvider implements IStorageProvider {
     }
 
     async importGroup(spreadsheetId: string, userEmail: string): Promise<Group> {
+        // Validation now also returns the GroupData for ID migration check
         const validation = await this.validateQuozenSpreadsheet(spreadsheetId, userEmail);
         if (!validation.valid) throw new Error(validation.error || "Invalid group file");
 
         return this._runExclusive(async () => {
+            try {
+                const aboutRes = await this.fetchWithAuth(`${DRIVE_API_URL}/about?fields=user`);
+                const aboutData = await aboutRes.json();
+                const currentGoogleId = aboutData.user?.permissionId; // This is the unique ID
+
+                if (currentGoogleId && validation.data) {
+                    const memberRecord = validation.data.members.find(m => m.email === userEmail);
+                    // If ID is email, or differs from Google ID
+                    if (memberRecord && memberRecord.userId !== currentGoogleId) {
+                        await this._migrateMemberId(spreadsheetId, memberRecord.userId, currentGoogleId, validation.data);
+                    }
+                }
+            } catch (e) {
+                console.error("Migration check failed", e);
+            }
+
             const settings = await this._getSettingsImpl(userEmail);
             if (!settings.groupCache.some(g => g.id === spreadsheetId)) {
                 settings.groupCache.unshift({
@@ -339,13 +401,14 @@ export class GoogleDriveProvider implements IStorageProvider {
                     if (desired.email) {
                         const displayName = await this.shareFile(groupId, desired.email);
                         if (displayName) memberName = displayName;
-                        memberId = desired.email;
+                        memberId = desired.email; // Initial ID is email
                     }
                     await this.addRow(groupId, "Members", { userId: memberId, email: desired.email || "", name: memberName, role: "member", joinedAt: new Date().toISOString() });
                     processedIds.add(memberId);
                 }
             }
-            const membersToDelete = currentMembers.filter(m => !processedIds.has(m.userId) && m.role !== 'admin');
+            // Updated: Protect 'owner' instead of 'admin'
+            const membersToDelete = currentMembers.filter(m => !processedIds.has(m.userId) && m.role !== 'owner');
             membersToDelete.sort((a, b) => (b._rowIndex || 0) - (a._rowIndex || 0));
             for (const m of membersToDelete) {
                 if (m._rowIndex) await this.deleteRow(groupId, "Members", m._rowIndex);
@@ -382,11 +445,16 @@ export class GoogleDriveProvider implements IStorageProvider {
     async leaveGroup(groupId: string, userId: string, userEmail: string): Promise<void> {
         const data = await this.getGroupData(groupId);
         if (!data) throw new Error("Group not found");
-        const member = data.members.find(m => m.userId === userId);
-        if (!member) throw new Error("Member not found");
-        if (member.role === 'admin') throw new Error("Admins cannot leave.");
 
-        const hasExpenses = await this.checkMemberHasExpenses(groupId, userId);
+        // Updated search logic: Find by userId OR email
+        const member = data.members.find(m => m.userId === userId || (userEmail && m.email === userEmail));
+        if (!member) throw new Error("Member not found");
+
+        // Updated check: 'owner' role
+        if (member.role === 'owner') throw new Error("Owners cannot leave.");
+
+        // Check using the found member's ACTUAL ID in the sheet
+        const hasExpenses = await this.checkMemberHasExpenses(groupId, member.userId);
         if (hasExpenses) throw new Error("Cannot leave with expenses.");
 
         if (member._rowIndex) await this.deleteRow(groupId, "Members", member._rowIndex);
@@ -413,7 +481,7 @@ export class GoogleDriveProvider implements IStorageProvider {
         return data.expenses.some(e => e.paidBy === userId || (e.splits && e.splits.some((s: any) => s.userId === userId && s.amount > 0)));
     }
 
-    async validateQuozenSpreadsheet(spreadsheetId: string, userEmail: string): Promise<{ valid: boolean; error?: string; name?: string }> {
+    async validateQuozenSpreadsheet(spreadsheetId: string, userEmail: string): Promise<{ valid: boolean; error?: string; name?: string; data?: GroupData }> {
         try {
             const metaRes = await this.fetchWithAuth(`${SHEETS_API_URL}/${spreadsheetId}?fields=properties.title,sheets.properties.title`);
             const meta = await metaRes.json();
@@ -422,12 +490,13 @@ export class GoogleDriveProvider implements IStorageProvider {
             const titles = meta.sheets?.map((s: any) => s.properties.title) || [];
             if (!REQUIRED_SHEETS.every(t => titles.includes(t))) return { valid: false, error: "Missing tabs" };
 
-            const memRes = await this.fetchWithAuth(`${SHEETS_API_URL}/${spreadsheetId}/values/Members!A2:E`);
-            const memData = await memRes.json();
-            const isMember = memData.values?.some((row: string[]) => row[1] === userEmail);
+            const data = await this.getGroupData(spreadsheetId);
+            if (!data) return { valid: false, error: "Could not read data" };
+
+            const isMember = data.members.some(m => m.email === userEmail);
             if (!isMember) return { valid: false, error: "Not a member" };
 
-            return { valid: true, name: meta.properties.title.slice(QUOZEN_PREFIX.length) };
+            return { valid: true, name: meta.properties.title.slice(QUOZEN_PREFIX.length), data };
         } catch (e: any) {
             return { valid: false, error: e.message };
         }

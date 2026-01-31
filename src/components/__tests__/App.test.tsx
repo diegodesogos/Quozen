@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react"; // Added fireEvent
 import { MemoryRouter } from "react-router-dom";
 import { AuthenticatedApp } from "../../App";
 import { useAuth } from "@/context/auth-provider";
@@ -115,7 +115,9 @@ describe("AuthenticatedApp Integration", () => {
 
     // Click button to switch to group-2
     const btn = await screen.findByText("Switch to Group 2");
-    btn.click();
+
+    // Fix ACT warning: Use fireEvent to wrap the update
+    fireEvent.click(btn);
 
     // 1. Verify local state update
     await waitFor(() => expect(screen.getByTestId("active-group-id")).toHaveTextContent("Active: group-2"));

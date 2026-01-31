@@ -39,7 +39,8 @@ export default function Groups() {
     try {
       const data = await googleApi.getGroupData(group.id);
       if (!data) throw new Error("Could not load group data");
-      const editableMembers = data.members.filter(m => m.role !== 'admin').map(m => m.email || m.userId).join(", ");
+      // Updated to filter 'owner'
+      const editableMembers = data.members.filter(m => m.role !== 'owner').map(m => m.email || m.userId).join(", ");
       setDialogState({ open: true, mode: "edit", groupId: group.id, initialName: group.name, initialMembers: editableMembers });
     } catch (err) {
       toast({ title: "Error", description: "Failed to load group details", variant: "destructive" });
@@ -80,7 +81,8 @@ export default function Groups() {
       const currentData = await googleApi.getGroupData(data.groupId);
       if (currentData) {
         const newMemberIds = new Set(data.members.map(m => m.email || m.username));
-        const membersToRemove = currentData.members.filter(m => m.role !== 'admin' && !newMemberIds.has(m.email) && !newMemberIds.has(m.userId));
+        // Updated to filter 'owner'
+        const membersToRemove = currentData.members.filter(m => m.role !== 'owner' && !newMemberIds.has(m.email) && !newMemberIds.has(m.userId));
         for (const m of membersToRemove) {
           if (await googleApi.checkMemberHasExpenses(data.groupId, m.userId)) throw new Error(`Cannot remove ${m.name} because they have expenses.`);
         }

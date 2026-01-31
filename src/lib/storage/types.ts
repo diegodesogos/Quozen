@@ -133,7 +133,7 @@ export interface IStorageProvider {
   validateQuozenSpreadsheet(
     spreadsheetId: string,
     userEmail: string
-  ): Promise<{ valid: boolean; error?: string; name?: string }>;
+  ): Promise<{ valid: boolean; error?: string; name?: string; data?: GroupData }>;
 
   /**
    * Get all data for a specific group

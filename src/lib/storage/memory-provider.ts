@@ -27,7 +27,7 @@ export class InMemoryProvider implements IStorageProvider {
             userId: user.id,
             email: user.email,
             name: user.name,
-            role: "admin",
+            role: "owner", // Changed from admin to owner
             joinedAt: new Date().toISOString(),
             _rowIndex: 2
         });
@@ -73,6 +73,7 @@ export class InMemoryProvider implements IStorageProvider {
 
         const group = this.groups.get(spreadsheetId)!;
         const settings = await this.getSettings(userEmail);
+        const sheet = this.getSheet(spreadsheetId);
 
         if (!settings.groupCache.some(g => g.id === spreadsheetId)) {
             settings.groupCache.unshift({ id: spreadsheetId, name: group.name, role: "member", lastAccessed: new Date().toISOString() });
@@ -110,8 +111,17 @@ export class InMemoryProvider implements IStorageProvider {
 
     async leaveGroup(groupId: string, userId: string, userEmail: string): Promise<void> {
         const sheet = this.getSheet(groupId);
-        const idx = sheet.members.findIndex(m => m.userId === userId);
+
+        // Find by ID OR Email
+        const idx = sheet.members.findIndex(m => m.userId === userId || (userEmail && m.email === userEmail));
         if (idx === -1) throw new Error("Member not found");
+
+        const member = sheet.members[idx];
+        // Updated check: 'owner' role
+        if (member.role === 'owner') throw new Error("Owners cannot leave.");
+
+        // Check using the FOUND member's ID
+        if (await this.checkMemberHasExpenses(groupId, member.userId)) throw new Error("Cannot leave with expenses.");
 
         sheet.members.splice(idx, 1);
 
@@ -128,9 +138,10 @@ export class InMemoryProvider implements IStorageProvider {
         return sheet.expenses.some(e => e.paidBy === userId || e.splits.some((s: any) => s.userId === userId && s.amount > 0));
     }
 
-    async validateQuozenSpreadsheet(spreadsheetId: string, userEmail: string): Promise<{ valid: boolean; error?: string; name?: string }> {
+    async validateQuozenSpreadsheet(spreadsheetId: string, userEmail: string): Promise<{ valid: boolean; error?: string; name?: string; data?: GroupData }> {
         if (this.groups.has(spreadsheetId)) {
-            return { valid: true, name: this.groups.get(spreadsheetId)!.name };
+            const data = await this.getGroupData(spreadsheetId);
+            return { valid: true, name: this.groups.get(spreadsheetId)!.name, data: data! };
         }
         return { valid: false, error: "Not found" };
     }
@@ -169,6 +180,11 @@ export class InMemoryProvider implements IStorageProvider {
 
     async updateRow(spreadsheetId: string, sheetName: SchemaType, rowIndex: number, data: any): Promise<void> {
         // Generic mock update
+        const sheet = this.getSheet(spreadsheetId);
+        if (sheetName === 'Members') {
+            const idx = sheet.members.findIndex(m => m._rowIndex === rowIndex);
+            if (idx !== -1) sheet.members[idx] = { ...sheet.members[idx], ...data };
+        }
     }
 
     async deleteRow(spreadsheetId: string, sheetName: SchemaType, rowIndex: number): Promise<void> {

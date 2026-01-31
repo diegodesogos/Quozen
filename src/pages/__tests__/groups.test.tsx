@@ -82,7 +82,7 @@ describe("Groups Page", () => {
 
   const mockGroup1Data = {
     members: [
-      { userId: "user1", role: "admin", name: "Alice", email: "alice@example.com" },
+      { userId: "user1", role: "owner", name: "Alice", email: "alice@example.com" }, // Changed to owner
       { userId: "user2", role: "member", name: "Bob", email: "bob@example.com" }
     ]
   };
@@ -226,5 +226,8 @@ describe("Groups Page", () => {
 
     // UPDATED: Now expects email as the second argument
     expect(googleApi.deleteGroup).toHaveBeenCalledWith("group1", "alice@example.com");
+
+    // Fix ACT warning: Wait for the dialog to disappear (state update)
+    await waitFor(() => expect(screen.queryByText("Delete Group")).not.toBeInTheDocument());
   });
 });
