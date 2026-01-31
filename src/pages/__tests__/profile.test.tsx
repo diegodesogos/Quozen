@@ -3,6 +3,8 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import Profile from "../profile";
 import { useAuth } from "@/context/auth-provider";
 import { useQuery } from "@tanstack/react-query";
+import { useSettings } from "@/hooks/use-settings";
+import { useGroups } from "@/hooks/use-groups";
 
 // Mock hooks
 vi.mock("@/context/app-context", () => ({
@@ -13,18 +15,42 @@ vi.mock("@/context/auth-provider", () => ({
   useAuth: vi.fn(),
 }));
 
+vi.mock("@/hooks/use-settings", () => ({
+  useSettings: vi.fn(),
+}));
+
+vi.mock("@/hooks/use-groups", () => ({
+  useGroups: vi.fn(),
+}));
+
 vi.mock("@tanstack/react-query", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@tanstack/react-query")>();
   return {
     ...actual,
     useQuery: vi.fn(),
+    useMutation: vi.fn(() => ({
+      mutate: vi.fn(),
+      isPending: false
+    })),
+    useQueryClient: vi.fn(() => ({
+      invalidateQueries: vi.fn(),
+      setQueryData: vi.fn(),
+    })),
   };
 });
+
+const mockToast = vi.fn();
+vi.mock("@/hooks/use-toast", () => ({
+  useToast: () => ({
+    toast: mockToast,
+  }),
+}));
 
 // Mock googleApi
 vi.mock("@/lib/drive", () => ({
   googleApi: {
     listGroups: vi.fn(),
+    reconcileGroups: vi.fn(),
   },
 }));
 
@@ -44,6 +70,7 @@ describe("Profile Page", () => {
   ];
 
   const mockLogout = vi.fn();
+  const mockUpdateSettings = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -54,37 +81,69 @@ describe("Profile Page", () => {
       logout: mockLogout,
     });
 
-    // Mock Drive Query
-    (useQuery as unknown as ReturnType<typeof vi.fn>).mockImplementation(({ queryKey }) => {
-      if (Array.isArray(queryKey) && queryKey[0] === "drive" && queryKey[1] === "groups") {
-        return { data: mockGroups };
-      }
-      return { data: undefined };
+    // Mock Settings
+    (useSettings as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      settings: {
+        preferences: { defaultCurrency: "USD" },
+        // Need to provide groupCache if logic depends on it, though we rely on useGroups mostly
+        groupCache: mockGroups.map(g => ({ id: g.id, name: g.name, role: 'owner' }))
+      },
+      updateSettings: mockUpdateSettings,
     });
+
+    // Mock Groups
+    (useGroups as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      groups: mockGroups,
+      isLoading: false
+    });
+
+    // Mock Drive Query - Profile still calls listGroups directly for the count? 
+    // Checking source: Profile uses useGroups() now (in my refactor plan), 
+    // or did I only refactor Header? 
+    // I refactored Profile.tsx in the previous step to use `useGroups`.
+    // So we don't need to rely on the useQuery mock for groups anymore.
   });
 
   it("renders user profile information", () => {
     render(<Profile />);
-    
+
     expect(screen.getByTestId("text-user-name")).toHaveTextContent("Alice Smith");
     expect(screen.getByTestId("text-user-email")).toHaveTextContent("alice@example.com");
-    // Note: username display was removed in favor of cleaner UI or merged with email in the new component
   });
 
   it("displays correct statistics", () => {
     render(<Profile />);
-    
-    // We mocked 3 groups
+
+    // We mocked 3 groups via useGroups
     expect(screen.getByTestId("text-group-count")).toHaveTextContent("3");
     expect(screen.getByText("Active Groups")).toBeInTheDocument();
   });
 
   it("triggers logout when Sign Out is clicked", () => {
     render(<Profile />);
-    
+
     const signOutBtn = screen.getByTestId("button-sign-out");
     fireEvent.click(signOutBtn);
 
     expect(mockLogout).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows forcing re-login (troubleshooting)", () => {
+    // Mock window.location.reload
+    const originalLocation = window.location;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...originalLocation, reload: vi.fn() },
+    });
+
+    render(<Profile />);
+
+    const forceLoginBtn = screen.getByText("Force Re-login");
+    fireEvent.click(forceLoginBtn);
+
+    expect(window.location.reload).toHaveBeenCalled();
+
+    // Cleanup
+    Object.defineProperty(window, "location", { configurable: true, value: originalLocation });
   });
 });

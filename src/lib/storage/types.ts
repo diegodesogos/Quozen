@@ -71,31 +71,56 @@ export interface GroupData {
   members: Member[];
 }
 
+// --- User Settings Types ---
+
+export interface CachedGroup {
+  id: string;
+  name: string;
+  role: "owner" | "member";
+  lastAccessed?: string;
+}
+
+export interface UserSettings {
+  version: number;
+  activeGroupId: string | null;
+  groupCache: CachedGroup[];
+  preferences: {
+    defaultCurrency: string;
+    theme?: "light" | "dark" | "system";
+  };
+  lastUpdated: string;
+}
+
 export interface IStorageProvider {
   /**
-   * List all available groups (spreadsheets)
-   */
-  listGroups(userEmail?: string): Promise<Group[]>;
-
-  /**
-   * Create a new group/spreadsheet with optional initial members
+   * Create a new group/spreadsheet with optional initial members.
+   * Updates settings file atomically.
    */
   createGroupSheet(name: string, user: User, members?: MemberInput[]): Promise<Group>;
 
   /**
-   * Update an existing group (rename and/or update members)
+   * Import an existing spreadsheet into the user's settings.
+   * Validates structure and adds to settings file.
    */
-  updateGroup(groupId: string, name: string, members: MemberInput[]): Promise<void>;
+  importGroup(spreadsheetId: string, userEmail: string): Promise<Group>;
 
   /**
-   * Permanently delete a group (Owner only)
+   * Update an existing group (rename and/or update members).
+   * Updates settings file if name changes.
    */
-  deleteGroup(groupId: string): Promise<void>;
+  updateGroup(groupId: string, name: string, members: MemberInput[], userEmail: string): Promise<void>;
 
   /**
-   * Leave a group (Member only)
+   * Permanently delete a group (Owner only).
+   * Updates settings file.
    */
-  leaveGroup(groupId: string, userId: string): Promise<void>;
+  deleteGroup(groupId: string, userEmail: string): Promise<void>;
+
+  /**
+   * Leave a group (Member only).
+   * Updates settings file.
+   */
+  leaveGroup(groupId: string, userId: string, userEmail: string): Promise<void>;
 
   /**
    * Check if a member has any associated expenses (paidBy or in splits)
@@ -108,7 +133,7 @@ export interface IStorageProvider {
   validateQuozenSpreadsheet(
     spreadsheetId: string,
     userEmail: string
-  ): Promise<{ valid: boolean; error?: string; name?: string }>;
+  ): Promise<{ valid: boolean; error?: string; name?: string; data?: GroupData }>;
 
   /**
    * Get all data for a specific group
@@ -122,15 +147,11 @@ export interface IStorageProvider {
 
   /**
    * Update an existing expense with conflict detection
-   * @param spreadsheetId Group ID
-   * @param rowIndex Row index in the sheet
-   * @param expenseData New data
-   * @param expectedLastModified Timestamp of the version the client has
    */
   updateExpense(
-    spreadsheetId: string, 
-    rowIndex: number, 
-    expenseData: Partial<Expense>, 
+    spreadsheetId: string,
+    rowIndex: number,
+    expenseData: Partial<Expense>,
     expectedLastModified?: string
   ): Promise<void>;
 
@@ -153,4 +174,26 @@ export interface IStorageProvider {
    * Delete a row in any sheet
    */
   deleteRow(spreadsheetId: string, sheetName: SchemaType, rowIndex: number): Promise<void>;
+
+  // --- Settings Management ---
+
+  /**
+   * Retrieves the configuration file or initializes it if missing.
+   */
+  getSettings(userEmail: string): Promise<UserSettings>;
+
+  /**
+   * Persists changes to settings.
+   */
+  saveSettings(settings: UserSettings): Promise<void>;
+
+  /**
+   * Atomically updates the activeGroupId in settings.
+   */
+  updateActiveGroup(userEmail: string, groupId: string): Promise<void>;
+
+  /**
+   * Performs a full scan of sources to rebuild the cache and saves it.
+   */
+  reconcileGroups(userEmail: string): Promise<UserSettings>;
 }

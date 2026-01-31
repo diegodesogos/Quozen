@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
@@ -16,9 +16,9 @@ import BottomNavigation from "@/components/bottom-navigation";
 import Header from "@/components/header";
 import { AppContext } from "@/context/app-context";
 import { AuthProvider, useAuth } from "@/context/auth-provider";
-import { googleApi, Group } from "@/lib/drive";
+import { useSettings } from "@/hooks/use-settings";
+import { useGroups } from "@/hooks/use-groups";
 
-// ProtectedRoute definition...
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
@@ -48,39 +48,86 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-function AuthenticatedApp() {
-  const [activeGroupId, setActiveGroupId] = useState("");
-  const { user, isAuthenticated, isLoading } = useAuth();
+export function AuthenticatedApp() {
+  const [activeGroupId, setActiveGroupIdState] = useState("");
+  const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Explicitly type the query data as Group[]
-  const { data: groups, isLoading: groupsLoading } = useQuery<Group[]>({
-    queryKey: ["drive", "groups", user?.email],
-    queryFn: () => googleApi.listGroups(user?.email),
-    enabled: isAuthenticated && !!user?.email,
-  });
+  // Use the new atomic updater
+  const { settings, updateActiveGroup, isLoading: settingsLoading, error: settingsError } = useSettings();
+  const { groups } = useGroups();
+
+  const appLoading = authLoading || (isAuthenticated && settingsLoading);
+
+  // Safety Break: Handle 401 loop by forcing logout
+  useEffect(() => {
+    if (settingsError) {
+      const errMsg = String(settingsError?.message || settingsError);
+      if (errMsg.includes("401") || errMsg.includes("Session expired")) {
+        console.warn("Session expired detected in App. Logging out.");
+        logout();
+        navigate("/login");
+      }
+    }
+  }, [settingsError, logout, navigate]);
+
+  const handleSetActiveGroupId = (groupId: string) => {
+    setActiveGroupIdState(groupId);
+    // Use atomic update to prevent overwriting settings with stale data
+    if (isAuthenticated) {
+      updateActiveGroup(groupId);
+    }
+  };
 
   useEffect(() => {
-    if (isLoading || groupsLoading) return;
+    if (appLoading) return;
 
     if (isAuthenticated && user) {
-      if (groups && groups.length > 0) {
-        // 'g' is now correctly inferred as Group
-        const currentGroupIsValid = groups.some(g => g.id === activeGroupId);
-        if (!activeGroupId || !currentGroupIsValid) {
-          setActiveGroupId(groups[0].id);
+      let targetId = activeGroupId;
+      if (!targetId && settings?.activeGroupId) {
+        targetId = settings.activeGroupId;
+      }
+      const isValidGroup = groups.some(g => g.id === targetId);
+
+      if (isValidGroup) {
+        if (activeGroupId !== targetId) {
+          setActiveGroupIdState(targetId);
         }
-      } else if (groups && groups.length === 0) {
-        if (location.pathname !== '/groups') {
-          navigate('/groups', { replace: true });
+      } else {
+        if (groups.length > 0) {
+          setActiveGroupIdState(groups[0].id);
+        } else if (groups.length === 0) {
+          if (location.pathname !== '/groups') {
+            navigate('/groups', { replace: true });
+          }
         }
       }
     }
-  }, [user, isAuthenticated, isLoading, groups, groupsLoading, activeGroupId, navigate, location.pathname]);
+  }, [
+    user,
+    isAuthenticated,
+    appLoading,
+    groups,
+    settings,
+    activeGroupId,
+    navigate,
+    location.pathname
+  ]);
+
+  if (isAuthenticated && appLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="text-muted-foreground">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <AppContext.Provider value={{ activeGroupId, setActiveGroupId, currentUserId: user?.id || "" }}>
+    <AppContext.Provider value={{ activeGroupId, setActiveGroupId: handleSetActiveGroupId, currentUserId: user?.id || "" }}>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route
@@ -110,7 +157,7 @@ function AuthenticatedApp() {
         <Route
           path="/"
           element={
-            isLoading ? <div>Loading...</div> :
+            authLoading ? <div>Loading...</div> :
               isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
           }
         />

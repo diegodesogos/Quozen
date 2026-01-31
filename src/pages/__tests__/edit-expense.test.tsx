@@ -76,10 +76,12 @@ describe("Edit Expense Page", () => {
     expenses: [mockExpense]
   };
 
-  const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  let consoleErrorSpy: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
+
     (useAppContext as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       activeGroupId: "group1",
       currentUserId: "user1",
@@ -94,14 +96,14 @@ describe("Edit Expense Page", () => {
     (useMutation as unknown as ReturnType<typeof vi.fn>).mockImplementation((options) => ({
       mutate: async (data: any) => {
         try {
-            if (options?.mutationFn) {
-                await options.mutationFn(data);
-            }
-            if (options.onSuccess) options.onSuccess();
+          if (options?.mutationFn) {
+            await options.mutationFn(data);
+          }
+          if (options.onSuccess) options.onSuccess();
         } catch (e: any) {
-            if (options.onError) {
-                options.onError(e);
-            }
+          if (options.onError) {
+            options.onError(e);
+          }
         }
       },
       isPending: false,
@@ -127,7 +129,7 @@ describe("Edit Expense Page", () => {
 
   it("shows Not Found dialog if expense does not exist", () => {
     (useQuery as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      data: { members: [], expenses: [] }, 
+      data: { members: [], expenses: [] },
       isLoading: false,
     });
 
@@ -156,16 +158,16 @@ describe("Edit Expense Page", () => {
     );
 
     const saveBtn = screen.getByText("Save Expense");
-    
+
     await act(async () => {
-        fireEvent.click(saveBtn);
+      fireEvent.click(saveBtn);
     });
 
     const conflictDialog = await screen.findByTestId("alert-dialog");
     expect(conflictDialog).toBeInTheDocument();
     expect(screen.getByText("Data Conflict")).toBeInTheDocument();
     expect(screen.getByText(/Modified by someone else/)).toBeInTheDocument();
-    
+
     expect(mockToast).not.toHaveBeenCalled();
   });
 });
