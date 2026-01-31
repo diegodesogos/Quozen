@@ -4,6 +4,7 @@ import Profile from "../profile";
 import { useAuth } from "@/context/auth-provider";
 import { useQuery } from "@tanstack/react-query";
 import { useSettings } from "@/hooks/use-settings";
+import { useGroups } from "@/hooks/use-groups";
 
 // Mock hooks
 vi.mock("@/context/app-context", () => ({
@@ -18,14 +19,18 @@ vi.mock("@/hooks/use-settings", () => ({
   useSettings: vi.fn(),
 }));
 
+vi.mock("@/hooks/use-groups", () => ({
+  useGroups: vi.fn(),
+}));
+
 vi.mock("@tanstack/react-query", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@tanstack/react-query")>();
   return {
     ...actual,
     useQuery: vi.fn(),
-    useMutation: vi.fn(() => ({ 
-      mutate: vi.fn(), 
-      isPending: false 
+    useMutation: vi.fn(() => ({
+      mutate: vi.fn(),
+      isPending: false
     })),
     useQueryClient: vi.fn(() => ({
       invalidateQueries: vi.fn(),
@@ -78,40 +83,45 @@ describe("Profile Page", () => {
 
     // Mock Settings
     (useSettings as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      settings: { 
+      settings: {
         preferences: { defaultCurrency: "USD" },
-        groupCache: [] 
+        // Need to provide groupCache if logic depends on it, though we rely on useGroups mostly
+        groupCache: mockGroups.map(g => ({ id: g.id, name: g.name, role: 'owner' }))
       },
       updateSettings: mockUpdateSettings,
     });
 
-    // Mock Drive Query
-    (useQuery as unknown as ReturnType<typeof vi.fn>).mockImplementation(({ queryKey }) => {
-      if (Array.isArray(queryKey) && queryKey[0] === "drive" && queryKey[1] === "groups") {
-        return { data: mockGroups };
-      }
-      return { data: undefined };
+    // Mock Groups
+    (useGroups as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      groups: mockGroups,
+      isLoading: false
     });
+
+    // Mock Drive Query - Profile still calls listGroups directly for the count? 
+    // Checking source: Profile uses useGroups() now (in my refactor plan), 
+    // or did I only refactor Header? 
+    // I refactored Profile.tsx in the previous step to use `useGroups`.
+    // So we don't need to rely on the useQuery mock for groups anymore.
   });
 
   it("renders user profile information", () => {
     render(<Profile />);
-    
+
     expect(screen.getByTestId("text-user-name")).toHaveTextContent("Alice Smith");
     expect(screen.getByTestId("text-user-email")).toHaveTextContent("alice@example.com");
   });
 
   it("displays correct statistics", () => {
     render(<Profile />);
-    
-    // We mocked 3 groups
+
+    // We mocked 3 groups via useGroups
     expect(screen.getByTestId("text-group-count")).toHaveTextContent("3");
     expect(screen.getByText("Active Groups")).toBeInTheDocument();
   });
 
   it("triggers logout when Sign Out is clicked", () => {
     render(<Profile />);
-    
+
     const signOutBtn = screen.getByTestId("button-sign-out");
     fireEvent.click(signOutBtn);
 
@@ -127,12 +137,12 @@ describe("Profile Page", () => {
     });
 
     render(<Profile />);
-    
+
     const forceLoginBtn = screen.getByText("Force Re-login");
     fireEvent.click(forceLoginBtn);
 
     expect(window.location.reload).toHaveBeenCalled();
-    
+
     // Cleanup
     Object.defineProperty(window, "location", { configurable: true, value: originalLocation });
   });

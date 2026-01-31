@@ -3,7 +3,7 @@ import { googleApi, UserSettings } from "@/lib/drive";
 import { useAuth } from "@/context/auth-provider";
 
 export function useSettings() {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
   const queryKey = ["drive", "settings", user?.email];
 
@@ -13,7 +13,8 @@ export function useSettings() {
       if (!user?.email) throw new Error("User email not found");
       return googleApi.getSettings(user.email);
     },
-    enabled: !!user?.email,
+    // CRITICAL FIX: Only fetch if user AND authenticated (valid token present)
+    enabled: !!user?.email && isAuthenticated,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 

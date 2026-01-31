@@ -93,30 +93,34 @@ export interface UserSettings {
 
 export interface IStorageProvider {
   /**
-   * List all available groups (spreadsheets).
-   * Refactored to read from settings cache by default.
-   */
-  listGroups(userEmail?: string): Promise<Group[]>;
-
-  /**
-   * Create a new group/spreadsheet with optional initial members
+   * Create a new group/spreadsheet with optional initial members.
+   * Updates settings file atomically.
    */
   createGroupSheet(name: string, user: User, members?: MemberInput[]): Promise<Group>;
 
   /**
-   * Update an existing group (rename and/or update members)
+   * Import an existing spreadsheet into the user's settings.
+   * Validates structure and adds to settings file.
    */
-  updateGroup(groupId: string, name: string, members: MemberInput[]): Promise<void>;
+  importGroup(spreadsheetId: string, userEmail: string): Promise<Group>;
 
   /**
-   * Permanently delete a group (Owner only)
+   * Update an existing group (rename and/or update members).
+   * Updates settings file if name changes.
    */
-  deleteGroup(groupId: string): Promise<void>;
+  updateGroup(groupId: string, name: string, members: MemberInput[], userEmail: string): Promise<void>;
 
   /**
-   * Leave a group (Member only)
+   * Permanently delete a group (Owner only).
+   * Updates settings file.
    */
-  leaveGroup(groupId: string, userId: string): Promise<void>;
+  deleteGroup(groupId: string, userEmail: string): Promise<void>;
+
+  /**
+   * Leave a group (Member only).
+   * Updates settings file.
+   */
+  leaveGroup(groupId: string, userId: string, userEmail: string): Promise<void>;
 
   /**
    * Check if a member has any associated expenses (paidBy or in splits)
@@ -145,9 +149,9 @@ export interface IStorageProvider {
    * Update an existing expense with conflict detection
    */
   updateExpense(
-    spreadsheetId: string, 
-    rowIndex: number, 
-    expenseData: Partial<Expense>, 
+    spreadsheetId: string,
+    rowIndex: number,
+    expenseData: Partial<Expense>,
     expectedLastModified?: string
   ): Promise<void>;
 

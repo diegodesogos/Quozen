@@ -6,20 +6,24 @@ import { useAppContext } from "@/context/app-context";
 import { useAuth } from "@/context/auth-provider";
 import { useQuery } from "@tanstack/react-query";
 import { useSettings } from "@/hooks/use-settings";
+import { useGroups } from "@/hooks/use-groups"; // Import the hook
 
-// Mock the useAppContext hook
+// Mock hooks
 vi.mock("@/context/app-context", () => ({
   useAppContext: vi.fn(),
 }));
 
-// Mock the useAuth hook
 vi.mock("@/context/auth-provider", () => ({
   useAuth: vi.fn(),
 }));
 
-// Mock useSettings to avoid internal query logic firing
 vi.mock("@/hooks/use-settings", () => ({
   useSettings: vi.fn(),
+}));
+
+// Mock useGroups
+vi.mock("@/hooks/use-groups", () => ({
+  useGroups: vi.fn(),
 }));
 
 // Mock the TanStack Query hooks
@@ -69,37 +73,31 @@ describe("Header Component", () => {
       isAuthenticated: true
     });
 
-    // Provide default mock for settings
+    // Mock useSettings
     (useSettings as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      settings: { groupCache: [], activeGroupId: "group-1" },
+      settings: {
+        groupCache: [
+          { id: "group-1", name: "Test Group", role: "owner" },
+          { id: "group-2", name: "Another Group", role: "member" }
+        ],
+        activeGroupId: "group-1"
+      },
       updateSettings: vi.fn(),
     });
-  });
 
-  it("calls listGroups with user email", () => {
-    (useAppContext as unknown as ReturnType<typeof vi.fn>).mockReturnValue({ activeGroupId: "group-1" });
-    (useQuery as unknown as ReturnType<typeof vi.fn>).mockReturnValue({ data: mockGroups });
-
-    render(
-      <MemoryRouter>
-        <Header />
-      </MemoryRouter>
-    );
-
-    const useQueryMock = useQuery as unknown as ReturnType<typeof vi.fn>;
-    expect(useQueryMock).toHaveBeenCalledWith(expect.objectContaining({
-        queryKey: ["drive", "groups", "test@example.com"]
-    }));
+    // Mock useGroups
+    (useGroups as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      groups: mockGroups,
+      isLoading: false
+    });
   });
 
   it("renders the header with group data", () => {
     (useAppContext as unknown as ReturnType<typeof vi.fn>).mockReturnValue({ activeGroupId: "group-1" });
 
     (useQuery as unknown as ReturnType<typeof vi.fn>).mockImplementation(({ queryKey }) => {
-      if (queryKey[0] === "drive" && queryKey[1] === "groups") {
-        return { data: mockGroups };
-      }
-      if (queryKey[0] === "drive" && queryKey[1] === "group") {
+      // Header now only queries specifically for the active group
+      if (queryKey[0] === "drive" && queryKey[1] === "group" && queryKey[2] === "group-1") {
         return { data: mockGroupData };
       }
       return { data: undefined };

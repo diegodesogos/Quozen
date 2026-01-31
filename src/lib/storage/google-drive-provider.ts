@@ -1,4 +1,4 @@
-import { IStorageProvider, Group, User, GroupData, SCHEMAS, SchemaType, MemberInput, Member, Expense, UserSettings, CachedGroup } from "./types";
+import { IStorageProvider, Group, User, GroupData, SCHEMAS, SchemaType, MemberInput, Member, Expense, UserSettings, CachedGroup, Settlement } from "./types";
 import { getAuthToken } from "../tokenStore";
 import { ConflictError, NotFoundError } from "../errors";
 
@@ -6,44 +6,35 @@ const DRIVE_API_URL = "https://www.googleapis.com/drive/v3";
 const DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3";
 const SHEETS_API_URL = "https://sheets.googleapis.com/v4/spreadsheets";
 
-/** Naming convention for Quozen spreadsheets */
 export const QUOZEN_PREFIX = "Quozen - ";
 export const SETTINGS_FILE_NAME = "quozen-settings.json";
-
-/** Required sheet tabs for a valid Quozen spreadsheet */
 export const REQUIRED_SHEETS = ["Expenses", "Settlements", "Members"] as const;
 
 export class GoogleDriveProvider implements IStorageProvider {
     private settingsFileIdCache: string | null = null;
     private _mutex: Promise<void> = Promise.resolve();
+    private sheetIdCache = new Map<string, number>();
 
     constructor() {
-        console.log("[Drive] GoogleDriveProvider initialized with fix logic + Mutex.");
+        console.log("[Drive] GoogleDriveProvider initialized.");
     }
 
-    /**
-     * Executes a task exclusively, queuing subsequent tasks until the previous one completes.
-     * Use this to prevent race conditions between getSettings and saveSettings within the same client.
-     */
     private async _runExclusive<T>(task: () => Promise<T>): Promise<T> {
+        const previousTask = this._mutex;
+
         let release: () => void;
-        const currentLock = this._mutex;
+        const currentTaskSignal = new Promise<void>(resolve => { release = resolve; });
+        this._mutex = previousTask.then(() => currentTaskSignal).catch(() => currentTaskSignal);
 
-        // Create a new lock promise that we can resolve later
-        const newLock = new Promise<void>(resolve => {
-            release = resolve;
-        });
-
-        // Chain the new lock to the end of the queue
-        this._mutex = currentLock.then(() => newLock);
-
-        // Wait for the previous lock to resolve before starting our task
-        await currentLock;
+        try {
+            await previousTask;
+        } catch (e) {
+            // Proceed even if previous task failed
+        }
 
         try {
             return await task();
         } finally {
-            // Always release the lock so the queue can continue
             release!();
         }
     }
@@ -64,12 +55,8 @@ export class GoogleDriveProvider implements IStorageProvider {
             if (response.status === 401) {
                 throw new Error("Session expired (401). Please reload to sign in again.");
             }
-            if (response.status === 403) {
-                const errorBody = await response.text();
-                throw new Error(`Permission denied (403). detail: ${errorBody}`);
-            }
             const errorBody = await response.text();
-            throw new Error(`Google API Error: ${response.status} - ${errorBody}`);
+            throw new Error(`Google API Error ${response.status}: ${errorBody}`);
         }
 
         return response;
@@ -89,164 +76,85 @@ export class GoogleDriveProvider implements IStorageProvider {
             return data.displayName || email;
         } catch (e) {
             console.error(`Failed to share with ${email}`, e);
-            return email; // Fallback to email if sharing fails or name unavailable
+            return email;
         }
     }
 
-    // --- Settings Management Implementation ---
+    // --- Internal Settings Implementation ---
 
-    async getSettings(userEmail: string): Promise<UserSettings> {
-        return this._runExclusive(async () => {
-            try {
-                // 1. Try to find the settings file
-                const query = `name = '${SETTINGS_FILE_NAME}' and trashed = false`;
-                const fields = "files(id, name, createdTime)";
-                const listUrl = `${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}`;
+    private async _getSettingsImpl(userEmail: string): Promise<UserSettings> {
+        try {
+            const query = `name = '${SETTINGS_FILE_NAME}' and trashed = false`;
+            const fields = "files(id, name, createdTime)";
+            const listRes = await this.fetchWithAuth(`${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}`);
+            const listData = await listRes.json();
 
-                const listRes = await this.fetchWithAuth(listUrl);
-                const listData = await listRes.json();
-
-                if (listData.files && listData.files.length > 0) {
-                    // Deduplication Logic
-                    let fileToUse = listData.files[0];
-
-                    if (listData.files.length > 1) {
-                        console.warn(`Found ${listData.files.length} settings files. Cleaning up duplicates...`);
-                        // Sort by createdTime ASCENDING (Oldest first = Winner)
-                        // Tie-break with ID
-                        const sortedFiles = listData.files.sort((a: any, b: any) => {
-                            const timeA = new Date(a.createdTime || 0).getTime();
-                            const timeB = new Date(b.createdTime || 0).getTime();
-                            if (timeA !== timeB) return timeA - timeB;
-                            return (a.id || "").localeCompare(b.id || "");
-                        });
-
-                        fileToUse = sortedFiles[0];
-                        const duplicates = sortedFiles.slice(1);
-
-                        // Delete duplicates in background
-                        for (const dup of duplicates) {
-                            this.fetchWithAuth(`${DRIVE_API_URL}/files/${dup.id}`, { method: "DELETE" })
-                                .catch(e => console.error("Failed to delete duplicate settings file", e));
-                        }
+            if (listData.files && listData.files.length > 0) {
+                let fileToUse = listData.files[0];
+                if (listData.files.length > 1) {
+                    const sortedFiles = listData.files.sort((a: any, b: any) => {
+                        const timeA = new Date(a.createdTime || 0).getTime();
+                        const timeB = new Date(b.createdTime || 0).getTime();
+                        return (timeA - timeB) || (a.id || "").localeCompare(b.id || "");
+                    });
+                    fileToUse = sortedFiles[0];
+                    for (const dup of sortedFiles.slice(1)) {
+                        this.fetchWithAuth(`${DRIVE_API_URL}/files/${dup.id}`, { method: "DELETE" }).catch(() => { });
                     }
-
-                    this.settingsFileIdCache = fileToUse.id;
-
-                    // 2. Download content
-                    const downloadUrl = `${DRIVE_API_URL}/files/${fileToUse.id}?alt=media`;
-                    const contentRes = await this.fetchWithAuth(downloadUrl);
-                    const settings = await contentRes.json();
-
-                    // Basic validation/migration could go here
-                    if (!settings.version) {
-                        return this._reconcileGroupsImpl(userEmail);
-                    }
-
-                    return settings as UserSettings;
-                } else {
-                    // 3. Not found -> Reconcile (First Run)
-                    return this._reconcileGroupsImpl(userEmail);
                 }
-            } catch (e) {
-                console.error("Error fetching settings, falling back to reconcile", e);
+
+                this.settingsFileIdCache = fileToUse.id;
+                const contentRes = await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileToUse.id}?alt=media`);
+                const settings = await contentRes.json();
+
+                if (!settings.version) return this._reconcileGroupsImpl(userEmail);
+                return settings as UserSettings;
+            } else {
                 return this._reconcileGroupsImpl(userEmail);
             }
-        });
+        } catch (e: any) {
+            // ROBUST 401 CHECK: Check message string explicitly
+            const errMsg = String(e?.message || e);
+            if (errMsg.includes("401") || errMsg.includes("Session expired")) {
+                throw e; // Stop here, do NOT reconcile
+            }
+            console.error("Error getting settings, reconciling...", e);
+            return this._reconcileGroupsImpl(userEmail);
+        }
     }
 
-    async saveSettings(settings: UserSettings): Promise<void> {
-        return this._runExclusive(async () => {
-            return this._saveSettingsImpl(settings);
-        });
-    }
-
-    // Internal implementations without locking to allow internal calls (e.g. reconcile -> save)
     private async _saveSettingsImpl(settings: UserSettings): Promise<void> {
         settings.lastUpdated = new Date().toISOString();
         const content = JSON.stringify(settings, null, 2);
 
         try {
             let fileId = this.settingsFileIdCache;
-
-            // If we don't have a cached ID, try to find it first (safety check)
             if (!fileId) {
                 const query = `name = '${SETTINGS_FILE_NAME}' and trashed = false`;
                 const listRes = await this.fetchWithAuth(`${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}`);
                 const listData = await listRes.json();
-                if (listData.files && listData.files.length > 0) {
-                    // Sort by createdTime ASCENDING (Oldest first = Winner)
-                    const sortedFiles = listData.files.sort((a: any, b: any) => {
-                        const timeA = new Date(a.createdTime || 0).getTime();
-                        const timeB = new Date(b.createdTime || 0).getTime();
-                        if (timeA !== timeB) return timeA - timeB;
-                        return (a.id || "").localeCompare(b.id || "");
-                    });
-                    fileId = sortedFiles[0].id;
+                if (listData.files?.[0]) {
+                    fileId = listData.files[0].id;
                     this.settingsFileIdCache = fileId;
                 }
             }
 
             if (fileId) {
-                // Update existing file - Use Upload URL
                 await this.fetchWithAuth(`${DRIVE_UPLOAD_URL}/files/${fileId}?uploadType=media`, {
                     method: "PATCH",
                     body: content
                 });
             } else {
-                console.log(`[Drive] No cached ID. Attempting to create new settings file...`);
-                // Create new file
-                try {
-                    const createRes = await this.fetchWithAuth(`${DRIVE_API_URL}/files`, {
-                        method: "POST",
-                        body: JSON.stringify({
-                            name: SETTINGS_FILE_NAME,
-                            mimeType: "application/json"
-                        })
-                    });
-                    const fileData = await createRes.json();
-                    console.log(`[Drive] Created candidate file: ${fileData.id}`);
-                } catch (e) {
-                    console.error("[Drive] Creation failed.", e);
-                }
-
-                // ARBITRATION: Check for duplicates immediately
-                const query = `name = '${SETTINGS_FILE_NAME}' and trashed = false`;
-                const listRes = await this.fetchWithAuth(`${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=files(id,createdTime)`);
-                const listData = await listRes.json();
-
-                if (listData.files && listData.files.length > 0) {
-                    // Sort by createdTime ASCENDING (Oldest first = Winner)
-                    const sortedFiles = listData.files.sort((a: any, b: any) => {
-                        const timeA = new Date(a.createdTime || 0).getTime();
-                        const timeB = new Date(b.createdTime || 0).getTime();
-                        if (timeA !== timeB) return timeA - timeB;
-                        return (a.id || "").localeCompare(b.id || "");
-                    });
-
-                    const winner = sortedFiles[0];
-                    console.log(`[Drive] Arbitration: Winner is ${winner.id} (created: ${winner.createdTime})`);
-
-                    // Cleanup losers found during arbitration
-                    if (listData.files.length > 1) {
-                        const losers = sortedFiles.slice(1);
-                        for (const loser of losers) {
-                            console.log(`[Drive] Deleting duplicate/loser file: ${loser.id}`);
-                            this.fetchWithAuth(`${DRIVE_API_URL}/files/${loser.id}`, { method: "DELETE" }).catch(e => console.error(e));
-                        }
-                    }
-
-                    this.settingsFileIdCache = winner.id;
-                    fileId = winner.id;
-
-                    // Ensure the winner has our content - Use Upload URL
-                    await this.fetchWithAuth(`${DRIVE_UPLOAD_URL}/files/${winner.id}?uploadType=media`, {
-                        method: "PATCH",
-                        body: content
-                    });
-                } else {
-                    throw new Error("Failed to create settings file (Arbitration found 0 files).");
-                }
+                const createRes = await this.fetchWithAuth(`${DRIVE_API_URL}/files`, {
+                    method: "POST",
+                    body: JSON.stringify({ name: SETTINGS_FILE_NAME, mimeType: "application/json" })
+                });
+                const fileData = await createRes.json();
+                this.settingsFileIdCache = fileData.id;
+                await this.fetchWithAuth(`${DRIVE_UPLOAD_URL}/files/${fileData.id}?uploadType=media`, {
+                    method: "PATCH",
+                    body: content
+                });
             }
         } catch (e) {
             console.error("Failed to save settings", e);
@@ -255,163 +163,144 @@ export class GoogleDriveProvider implements IStorageProvider {
     }
 
     private async _reconcileGroupsImpl(userEmail: string): Promise<UserSettings> {
-        // 1. Scan for all spreadsheets
         const query = `mimeType = 'application/vnd.google-apps.spreadsheet' and name contains '${QUOZEN_PREFIX}' and trashed = false`;
         const fields = "files(id, name, createdTime, owners, capabilities)";
-        const response = await this.fetchWithAuth(
-            `${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}`
-        );
+        const response = await this.fetchWithAuth(`${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}`);
         const data = await response.json();
-        const candidateFiles = (data.files || []).filter((file: any) =>
-            file.name.startsWith(QUOZEN_PREFIX)
-        );
 
-        const visibleGroups: CachedGroup[] = [];
-
-        for (const file of candidateFiles) {
-            const isOwner = file.owners?.some((owner: any) => owner.emailAddress === userEmail) || file.capabilities?.canDelete;
-
-            visibleGroups.push({
+        const visibleGroups: CachedGroup[] = (data.files || [])
+            .filter((file: any) => file.name.startsWith(QUOZEN_PREFIX))
+            .map((file: any) => ({
                 id: file.id,
                 name: file.name.slice(QUOZEN_PREFIX.length),
-                role: isOwner ? "owner" : "member",
+                role: (file.owners?.some((o: any) => o.emailAddress === userEmail) || file.capabilities?.canDelete) ? "owner" : "member",
                 lastAccessed: file.createdTime
-            });
-        }
+            }))
+            .sort((a: any, b: any) => new Date(b.lastAccessed).getTime() - new Date(a.lastAccessed).getTime());
 
-        // Sort by most recent
-        visibleGroups.sort((a, b) => new Date(b.lastAccessed || 0).getTime() - new Date(a.lastAccessed || 0).getTime());
-
-        // 3. Create Settings Object
         const settings: UserSettings = {
             version: 1,
-            activeGroupId: visibleGroups.length > 0 ? visibleGroups[0].id : null,
+            activeGroupId: visibleGroups[0]?.id || null,
             groupCache: visibleGroups,
-            preferences: {
-                defaultCurrency: "USD",
-                theme: "system"
-            },
+            preferences: { defaultCurrency: "USD", theme: "system" },
             lastUpdated: new Date().toISOString()
         };
 
-        // 4. Save to Drive (Internal call, bypass lock since we hold it)
         await this._saveSettingsImpl(settings);
-
         return settings;
     }
 
-    async reconcileGroups(userEmail: string): Promise<UserSettings> {
-        return this._runExclusive(async () => {
-            return this._reconcileGroupsImpl(userEmail);
-        });
+    // --- Public Methods (Guarded) ---
+
+    async getSettings(userEmail: string): Promise<UserSettings> {
+        return this._runExclusive(() => this._getSettingsImpl(userEmail));
     }
 
-    // --- Modified IStorageProvider Implementation ---
+    async saveSettings(settings: UserSettings): Promise<void> {
+        return this._runExclusive(() => this._saveSettingsImpl(settings));
+    }
 
-    async listGroups(userEmail?: string): Promise<Group[]> {
-        if (!userEmail) return [];
-
-        const settings = await this.getSettings(userEmail); // calling public getSettings which locks
-
-        return settings.groupCache.map(cg => ({
-            id: cg.id,
-            name: cg.name,
-            description: "Google Sheet Group",
-            createdBy: "Unknown",
-            participants: [],
-            createdAt: cg.lastAccessed || new Date().toISOString(),
-            isOwner: cg.role === 'owner'
-        }));
+    async reconcileGroups(userEmail: string): Promise<UserSettings> {
+        return this._runExclusive(() => this._reconcileGroupsImpl(userEmail));
     }
 
     async createGroupSheet(name: string, user: User, members: MemberInput[] = []): Promise<Group> {
-        const title = `${QUOZEN_PREFIX}${name}`;
+        return this._runExclusive(async () => {
+            const title = `${QUOZEN_PREFIX}${name}`;
+            const createRes = await this.fetchWithAuth(SHEETS_API_URL, {
+                method: "POST",
+                body: JSON.stringify({
+                    properties: { title },
+                    sheets: REQUIRED_SHEETS.map(t => ({ properties: { title: t, gridProperties: { frozenRowCount: 1 } } }))
+                })
+            });
+            const sheetFile = await createRes.json();
+            const spreadsheetId = sheetFile.spreadsheetId;
 
-        // 1. Create Spreadsheet
-        const createRes = await this.fetchWithAuth(SHEETS_API_URL, {
-            method: "POST",
-            body: JSON.stringify({
-                properties: { title },
-                sheets: [
-                    { properties: { title: "Expenses", gridProperties: { frozenRowCount: 1 } } },
-                    { properties: { title: "Settlements", gridProperties: { frozenRowCount: 1 } } },
-                    { properties: { title: "Members", gridProperties: { frozenRowCount: 1 } } }
-                ]
-            })
-        });
-
-        const sheetFile = await createRes.json();
-        const spreadsheetId = sheetFile.spreadsheetId;
-
-        // 2. Process Initial Members
-        const initialMembersRows = [];
-        initialMembersRows.push([user.id, user.email, user.name, "admin", new Date().toISOString()]);
-
-        for (const member of members) {
-            let memberName = member.username || member.email || "Unknown";
-            let memberId = member.email || member.username || `user-${self.crypto.randomUUID()}`;
-
-            if (member.email) {
-                const displayName = await this.shareFile(spreadsheetId, member.email);
-                if (displayName) memberName = displayName;
-                memberId = member.email;
-            }
-
-            initialMembersRows.push([memberId, member.email || "", memberName, "member", new Date().toISOString()]);
-        }
-
-        // 3. Write Headers and Data
-        const valuesBody = {
-            valueInputOption: "USER_ENTERED",
-            data: [
-                { range: "Expenses!A1", values: [SCHEMAS.Expenses] },
-                { range: "Settlements!A1", values: [SCHEMAS.Settlements] },
-                { range: "Members!A1", values: [SCHEMAS.Members] },
-                { range: "Members!A2", values: initialMembersRows }
-            ]
-        };
-
-        await this.fetchWithAuth(`${SHEETS_API_URL}/${spreadsheetId}/values:batchUpdate`, {
-            method: "POST",
-            body: JSON.stringify(valuesBody)
-        });
-
-        // 4. Update Settings Cache
-        try {
-            if (user.email) {
-                // LOCK-SAFE SEQUENCE:
-                // getSettings is locked internally.
-                const settings = await this.getSettings(user.email);
-
-                // Add to cache if not exists
-                if (!settings.groupCache.some(g => g.id === spreadsheetId)) {
-                    settings.groupCache.unshift({
-                        id: spreadsheetId,
-                        name: name,
-                        role: "owner",
-                        lastAccessed: new Date().toISOString()
-                    });
+            const initialMembersRows = [[user.id, user.email, user.name, "admin", new Date().toISOString()]];
+            for (const member of members) {
+                let memberName = member.username || member.email || "Unknown";
+                let memberId = member.email || member.username || `user-${self.crypto.randomUUID()}`;
+                if (member.email) {
+                    const displayName = await this.shareFile(spreadsheetId, member.email);
+                    if (displayName) memberName = displayName;
+                    memberId = member.email;
                 }
-                settings.activeGroupId = spreadsheetId;
-                // saveSettings is locked internally.
-                await this.saveSettings(settings);
+                initialMembersRows.push([memberId, member.email || "", memberName, "member", new Date().toISOString()]);
             }
-        } catch (e) {
-            console.error("Failed to update settings cache after creation", e);
-        }
 
-        return {
-            id: spreadsheetId,
-            name: name,
-            description: "Google Sheet Group",
-            createdBy: "me",
-            participants: initialMembersRows.map(row => row[0]),
-            createdAt: new Date().toISOString(),
-            isOwner: true
-        };
+            const valuesBody = {
+                valueInputOption: "USER_ENTERED",
+                data: [
+                    { range: "Expenses!A1", values: [SCHEMAS.Expenses] },
+                    { range: "Settlements!A1", values: [SCHEMAS.Settlements] },
+                    { range: "Members!A1", values: [SCHEMAS.Members] },
+                    { range: "Members!A2", values: initialMembersRows }
+                ]
+            };
+            await this.fetchWithAuth(`${SHEETS_API_URL}/${spreadsheetId}/values:batchUpdate`, {
+                method: "POST",
+                body: JSON.stringify(valuesBody)
+            });
+
+            if (user.email) {
+                try {
+                    const settings = await this._getSettingsImpl(user.email);
+                    if (!settings.groupCache.some(g => g.id === spreadsheetId)) {
+                        settings.groupCache.unshift({
+                            id: spreadsheetId,
+                            name: name,
+                            role: "owner",
+                            lastAccessed: new Date().toISOString()
+                        });
+                    }
+                    settings.activeGroupId = spreadsheetId;
+                    await this._saveSettingsImpl(settings);
+                } catch (e) { console.error("Settings update failed during create", e); }
+            }
+
+            return {
+                id: spreadsheetId,
+                name,
+                description: "Google Sheet Group",
+                createdBy: "me",
+                participants: initialMembersRows.map(r => r[0]),
+                createdAt: new Date().toISOString(),
+                isOwner: true
+            };
+        });
     }
 
-    async updateGroup(groupId: string, name: string, members: MemberInput[]): Promise<void> {
+    async importGroup(spreadsheetId: string, userEmail: string): Promise<Group> {
+        const validation = await this.validateQuozenSpreadsheet(spreadsheetId, userEmail);
+        if (!validation.valid) throw new Error(validation.error || "Invalid group file");
+
+        return this._runExclusive(async () => {
+            const settings = await this._getSettingsImpl(userEmail);
+            if (!settings.groupCache.some(g => g.id === spreadsheetId)) {
+                settings.groupCache.unshift({
+                    id: spreadsheetId,
+                    name: validation.name || "Imported Group",
+                    role: "member",
+                    lastAccessed: new Date().toISOString()
+                });
+                settings.activeGroupId = spreadsheetId;
+                await this._saveSettingsImpl(settings);
+            }
+
+            return {
+                id: spreadsheetId,
+                name: validation.name || "Imported Group",
+                description: "Imported",
+                createdBy: "Unknown",
+                participants: [],
+                createdAt: new Date().toISOString(),
+                isOwner: false
+            };
+        });
+    }
+
+    async updateGroup(groupId: string, name: string, members: MemberInput[], userEmail: string): Promise<void> {
         const newTitle = `${QUOZEN_PREFIX}${name}`;
         await this.fetchWithAuth(`${DRIVE_API_URL}/files/${groupId}`, {
             method: "PATCH",
@@ -419,354 +308,221 @@ export class GoogleDriveProvider implements IStorageProvider {
         });
 
         const groupData = await this.getGroupData(groupId);
-        if (!groupData) throw new Error("Group not found");
-        const currentMembers = groupData.members;
+        if (groupData) {
+            const currentMembers = groupData.members;
+            const processedIds = new Set<string>();
+            const desiredMembers = members.map(m => ({ id: m.email || m.username || "", ...m })).filter(m => m.id);
 
-        const processedIds = new Set<string>();
-
-        const desiredMembers = members.map(m => ({
-            id: m.email || m.username || "",
-            ...m
-        })).filter(m => m.id);
-
-        for (const desired of desiredMembers) {
-            const existing = currentMembers.find(c =>
-                (desired.email && c.email === desired.email) ||
-                (desired.username && c.userId === desired.username)
-            );
-
-            if (existing) {
-                processedIds.add(existing.userId);
-            } else {
-                let memberName = desired.username || desired.email || "Unknown";
-                let memberId = desired.email || desired.username || `user-${self.crypto.randomUUID()}`;
-
-                if (desired.email) {
-                    const displayName = await this.shareFile(groupId, desired.email);
-                    if (displayName) memberName = displayName;
-                    memberId = desired.email;
+            for (const desired of desiredMembers) {
+                const existing = currentMembers.find(c => (desired.email && c.email === desired.email) || (desired.username && c.userId === desired.username));
+                if (existing) {
+                    processedIds.add(existing.userId);
+                } else {
+                    let memberName = desired.username || desired.email || "Unknown";
+                    let memberId = desired.email || desired.username || `user-${self.crypto.randomUUID()}`;
+                    if (desired.email) {
+                        const displayName = await this.shareFile(groupId, desired.email);
+                        if (displayName) memberName = displayName;
+                        memberId = desired.email;
+                    }
+                    await this.addRow(groupId, "Members", { userId: memberId, email: desired.email || "", name: memberName, role: "member", joinedAt: new Date().toISOString() });
+                    processedIds.add(memberId);
                 }
-
-                await this.addRow(groupId, "Members", {
-                    userId: memberId,
-                    email: desired.email || "",
-                    name: memberName,
-                    role: "member",
-                    joinedAt: new Date().toISOString()
-                });
-                processedIds.add(memberId);
+            }
+            const membersToDelete = currentMembers.filter(m => !processedIds.has(m.userId) && m.role !== 'admin');
+            membersToDelete.sort((a, b) => (b._rowIndex || 0) - (a._rowIndex || 0));
+            for (const m of membersToDelete) {
+                if (m._rowIndex) await this.deleteRow(groupId, "Members", m._rowIndex);
             }
         }
 
-        const membersToDelete = currentMembers
-            .filter(m => !processedIds.has(m.userId) && m.role !== 'admin')
-            .sort((a, b) => (b._rowIndex || 0) - (a._rowIndex || 0));
-
-        for (const member of membersToDelete) {
-            if (member._rowIndex) {
-                await this.deleteRow(groupId, "Members", member._rowIndex);
+        await this._runExclusive(async () => {
+            const settings = await this._getSettingsImpl(userEmail);
+            const cachedGroup = settings.groupCache.find(g => g.id === groupId);
+            if (cachedGroup && cachedGroup.name !== name) {
+                cachedGroup.name = name;
+                await this._saveSettingsImpl(settings);
             }
-        }
-    }
-
-    async deleteGroup(groupId: string): Promise<void> {
-        await this.fetchWithAuth(`${DRIVE_API_URL}/files/${groupId}`, {
-            method: "DELETE"
         });
     }
 
-    async leaveGroup(groupId: string, userId: string): Promise<void> {
+    async deleteGroup(groupId: string, userEmail: string): Promise<void> {
+        await this.fetchWithAuth(`${DRIVE_API_URL}/files/${groupId}`, { method: "DELETE" });
+
+        await this._runExclusive(async () => {
+            const settings = await this._getSettingsImpl(userEmail);
+            const initialLength = settings.groupCache.length;
+            settings.groupCache = settings.groupCache.filter(g => g.id !== groupId);
+
+            if (settings.groupCache.length !== initialLength) {
+                if (settings.activeGroupId === groupId) {
+                    settings.activeGroupId = settings.groupCache[0]?.id || null;
+                }
+                await this._saveSettingsImpl(settings);
+            }
+        });
+    }
+
+    async leaveGroup(groupId: string, userId: string, userEmail: string): Promise<void> {
         const data = await this.getGroupData(groupId);
         if (!data) throw new Error("Group not found");
-
         const member = data.members.find(m => m.userId === userId);
-        if (!member) throw new Error("Member not found in group");
-
-        if (member.role === 'admin') {
-            throw new Error("Admins cannot leave group. Transfer ownership or delete group.");
-        }
+        if (!member) throw new Error("Member not found");
+        if (member.role === 'admin') throw new Error("Admins cannot leave.");
 
         const hasExpenses = await this.checkMemberHasExpenses(groupId, userId);
-        if (hasExpenses) {
-            throw new Error("Cannot leave group while involved in expenses. Please settle and remove expenses first.");
-        }
+        if (hasExpenses) throw new Error("Cannot leave with expenses.");
 
-        if (member._rowIndex) {
-            await this.deleteRow(groupId, "Members", member._rowIndex);
-        }
+        if (member._rowIndex) await this.deleteRow(groupId, "Members", member._rowIndex);
+
+        await this._runExclusive(async () => {
+            const settings = await this._getSettingsImpl(userEmail);
+            const initialLength = settings.groupCache.length;
+            settings.groupCache = settings.groupCache.filter(g => g.id !== groupId);
+
+            if (settings.groupCache.length !== initialLength) {
+                if (settings.activeGroupId === groupId) {
+                    settings.activeGroupId = settings.groupCache[0]?.id || null;
+                }
+                await this._saveSettingsImpl(settings);
+            }
+        });
     }
+
+    // --- Standard Methods ---
 
     async checkMemberHasExpenses(groupId: string, userId: string): Promise<boolean> {
         const data = await this.getGroupData(groupId);
         if (!data) return false;
-
-        return data.expenses.some(e => {
-            if (e.paidBy === userId) return true;
-            if (e.splits && e.splits.some((s: any) => s.userId === userId && s.amount > 0)) return true;
-            return false;
-        });
+        return data.expenses.some(e => e.paidBy === userId || (e.splits && e.splits.some((s: any) => s.userId === userId && s.amount > 0)));
     }
 
-    async validateQuozenSpreadsheet(
-        spreadsheetId: string,
-        userEmail: string
-    ): Promise<{ valid: boolean; error?: string; name?: string }> {
+    async validateQuozenSpreadsheet(spreadsheetId: string, userEmail: string): Promise<{ valid: boolean; error?: string; name?: string }> {
         try {
-            const metadataRes = await this.fetchWithAuth(
-                `${SHEETS_API_URL}/${spreadsheetId}?fields=properties.title,sheets.properties.title`
-            );
-            const metadata = await metadataRes.json();
-            const sheetName = metadata.properties?.title || "";
-            const sheetTitles = metadata.sheets?.map((s: any) => s.properties.title) || [];
+            const metaRes = await this.fetchWithAuth(`${SHEETS_API_URL}/${spreadsheetId}?fields=properties.title,sheets.properties.title`);
+            const meta = await metaRes.json();
+            if (!meta.properties?.title?.startsWith(QUOZEN_PREFIX)) return { valid: false, error: "Invalid filename" };
 
-            if (!sheetName.startsWith(QUOZEN_PREFIX)) {
-                return {
-                    valid: false,
-                    error: `Invalid file: must be a Quozen group (name should start with "${QUOZEN_PREFIX}")`
-                };
-            }
+            const titles = meta.sheets?.map((s: any) => s.properties.title) || [];
+            if (!REQUIRED_SHEETS.every(t => titles.includes(t))) return { valid: false, error: "Missing tabs" };
 
-            const missingSheets = REQUIRED_SHEETS.filter(
-                (required) => !sheetTitles.includes(required)
-            );
-            if (missingSheets.length > 0) {
-                return {
-                    valid: false,
-                    error: `Invalid structure: missing tabs: ${missingSheets.join(", ")}`
-                };
-            }
+            const memRes = await this.fetchWithAuth(`${SHEETS_API_URL}/${spreadsheetId}/values/Members!A2:E`);
+            const memData = await memRes.json();
+            const isMember = memData.values?.some((row: string[]) => row[1] === userEmail);
+            if (!isMember) return { valid: false, error: "Not a member" };
 
-            const membersRes = await this.fetchWithAuth(
-                `${SHEETS_API_URL}/${spreadsheetId}/values/Members!A2:E`
-            );
-            const membersData = await membersRes.json();
-            const members = membersData.values || [];
-
-            const userIsMember = members.some((row: string[]) => row[1] === userEmail);
-
-            if (!userIsMember) {
-                return {
-                    valid: false,
-                    error: "Access denied: you are not a member of this group"
-                };
-            }
-
-            return {
-                valid: true,
-                name: sheetName.slice(QUOZEN_PREFIX.length)
-            };
-        } catch (error: any) {
-            if (error.message?.includes("403")) {
-                return { valid: false, error: "Access denied: you don't have permission to access this file" };
-            }
-            if (error.message?.includes("404")) {
-                return { valid: false, error: "File not found" };
-            }
-            return { valid: false, error: `Validation failed: ${error.message || "Unknown error"}` };
+            return { valid: true, name: meta.properties.title.slice(QUOZEN_PREFIX.length) };
+        } catch (e: any) {
+            return { valid: false, error: e.message };
         }
     }
 
     async getGroupData(spreadsheetId: string): Promise<GroupData | null> {
         if (!spreadsheetId) return null;
-
-        const ranges = ["Expenses!A2:Z", "Settlements!A2:Z", "Members!A2:Z"];
-        const url = `${SHEETS_API_URL}/${spreadsheetId}/values:batchGet?majorDimension=ROWS&${ranges.map(r => `ranges=${r}`).join('&')}`;
-
+        const ranges = REQUIRED_SHEETS.map(s => `${s}!A2:Z`).join('&ranges=');
         try {
-            const res = await this.fetchWithAuth(url);
+            const res = await this.fetchWithAuth(`${SHEETS_API_URL}/${spreadsheetId}/values:batchGet?majorDimension=ROWS&ranges=${ranges}`);
             const data = await res.json();
-            const valueRanges = data.valueRanges;
+            if (!data.valueRanges) return null;
 
-            const mapRows = (rows: any[][], schema: readonly string[]) => {
-                if (!rows) return [];
-                return rows.map((row, i) => {
+            const parseRows = (rows: any[][], schema: readonly string[]) => {
+                return (rows || []).map((row, i) => {
                     const obj: any = { _rowIndex: i + 2 };
-                    schema.forEach((key, index) => {
-                        let value = row[index];
+                    schema.forEach((key, idx) => {
+                        let val = row[idx];
                         if (key === 'splits' || key === 'meta') {
-                            try { value = value ? JSON.parse(value) : {}; } catch (e) { value = {}; }
-                        }
-                        if (['amount'].includes(key) && value) { value = parseFloat(value); }
-                        obj[key] = value;
+                            try { val = JSON.parse(val); } catch { val = {}; }
+                        } else if (key === 'amount' && val) val = parseFloat(val);
+                        obj[key] = val;
                     });
                     return obj;
                 });
             };
 
             return {
-                expenses: mapRows(valueRanges[0].values, SCHEMAS.Expenses) as unknown as import("./types").Expense[],
-                settlements: mapRows(valueRanges[1].values, SCHEMAS.Settlements) as unknown as import("./types").Settlement[],
-                members: mapRows(valueRanges[2].values, SCHEMAS.Members) as unknown as import("./types").Member[],
+                expenses: parseRows(data.valueRanges[0].values, SCHEMAS.Expenses) as Expense[],
+                settlements: parseRows(data.valueRanges[1].values, SCHEMAS.Settlements) as Settlement[],
+                members: parseRows(data.valueRanges[2].values, SCHEMAS.Members) as Member[]
             };
-        } catch (e: any) {
-            if (e.message && e.message.includes("404")) return null;
-            throw e;
-        }
-    }
-
-    private async addRow(spreadsheetId: string, sheetName: SchemaType, data: any) {
-        const schema = SCHEMAS[sheetName];
-        const rowValues = schema.map(key => {
-            const val = data[key];
-            return (typeof val === 'object' && val !== null) ? JSON.stringify(val) : (val ?? "");
-        });
-
-        const url = `${SHEETS_API_URL}/${spreadsheetId}/values/${sheetName}!A1:append?valueInputOption=USER_ENTERED`;
-        await this.fetchWithAuth(url, {
-            method: "POST",
-            body: JSON.stringify({ values: [rowValues] })
-        });
+        } catch { return null; }
     }
 
     async addExpense(spreadsheetId: string, expenseData: any): Promise<void> {
-        const newExpense = {
-            id: self.crypto.randomUUID(),
-            ...expenseData,
-            splits: expenseData.splits || [],
-            meta: {
-                createdAt: new Date().toISOString(),
-                lastModified: new Date().toISOString()
-            }
-        };
-        return this.addRow(spreadsheetId, "Expenses", newExpense);
+        const expense = { id: self.crypto.randomUUID(), ...expenseData, splits: expenseData.splits || [], meta: { createdAt: new Date().toISOString(), lastModified: new Date().toISOString() } };
+        await this.addRow(spreadsheetId, "Expenses", expense);
+    }
+
+    async updateExpense(spreadsheetId: string, rowIndex: number, expenseData: Partial<Expense>, expectedLastModified?: string): Promise<void> {
+        const sheet = "Expenses";
+        const res = await this.fetchWithAuth(`${SHEETS_API_URL}/${spreadsheetId}/values/${sheet}!A${rowIndex}:Z${rowIndex}`);
+        const data = await res.json();
+        const row = data.values?.[0];
+        if (!row) throw new NotFoundError();
+
+        const currentId = row[0];
+        if (currentId !== expenseData.id) throw new ConflictError("ID Mismatch");
+
+        let meta = {};
+        try { meta = JSON.parse(row[7]); } catch { }
+
+        if (expectedLastModified && (meta as any).lastModified) {
+            if (new Date((meta as any).lastModified).getTime() > new Date(expectedLastModified).getTime()) throw new ConflictError();
+        }
+
+        const updates = { ...expenseData, splits: expenseData.splits || [], meta: { ...meta, lastModified: new Date().toISOString() } };
+        await this.updateRow(spreadsheetId, "Expenses", rowIndex, updates);
     }
 
     async deleteExpense(spreadsheetId: string, rowIndex: number, expenseId: string): Promise<void> {
-        const sheetName = "Expenses";
-        const url = `${SHEETS_API_URL}/${spreadsheetId}/values/${sheetName}!A${rowIndex}:Z${rowIndex}`;
-
-        try {
-            const res = await this.fetchWithAuth(url);
-            const data = await res.json();
-            const rowValues = data.values?.[0];
-
-            if (!rowValues) {
-                throw new NotFoundError("Expense not found (row is empty).It may have been deleted.");
-            }
-
-            const currentId = rowValues[0];
-            if (currentId !== expenseId) {
-                throw new ConflictError("Expense location changed. The sheet was modified by someone else.");
-            }
-
-            return this.deleteRow(spreadsheetId, "Expenses", rowIndex);
-        } catch (e) {
-            throw e;
-        }
-    }
-
-    async addSettlement(spreadsheetId: string, settlementData: any): Promise<void> {
-        const newSettlement = {
-            id: self.crypto.randomUUID(),
-            ...settlementData,
-            date: settlementData.date || new Date().toISOString()
-        };
-        return this.addRow(spreadsheetId, "Settlements", newSettlement);
-    }
-
-    async updateExpense(
-        spreadsheetId: string,
-        rowIndex: number,
-        expenseData: Partial<Expense>,
-        expectedLastModified?: string
-    ): Promise<void> {
-        const sheetName = "Expenses";
-        const url = `${SHEETS_API_URL}/${spreadsheetId}/values/${sheetName}!A${rowIndex}:Z${rowIndex}`;
-        const res = await this.fetchWithAuth(url);
+        const res = await this.fetchWithAuth(`${SHEETS_API_URL}/${spreadsheetId}/values/Expenses!A${rowIndex}:Z${rowIndex}`);
         const data = await res.json();
-        const rowValues = data.values?.[0];
+        if (data.values?.[0]?.[0] !== expenseId) throw new ConflictError();
+        await this.deleteRow(spreadsheetId, "Expenses", rowIndex);
+    }
 
-        if (!rowValues) {
-            throw new NotFoundError("Expense row not found.");
-        }
+    async addSettlement(spreadsheetId: string, data: any): Promise<void> {
+        const settlement = { id: self.crypto.randomUUID(), ...data, date: data.date || new Date().toISOString() };
+        await this.addRow(spreadsheetId, "Settlements", settlement);
+    }
 
-        const currentId = rowValues[0];
-        const rawMeta = rowValues[7];
-
-        if (currentId !== expenseData.id) {
-            throw new ConflictError("Expense ID mismatch. Rows may have shifted.");
-        }
-
-        let currentMeta: any = {};
-        try {
-            currentMeta = rawMeta ? JSON.parse(rawMeta) : {};
-        } catch (e) {
-            // ignore parse error
-        }
-
-        if (expectedLastModified && currentMeta.lastModified) {
-            const serverTime = new Date(currentMeta.lastModified).getTime();
-            const clientTime = new Date(expectedLastModified).getTime();
-
-            if (serverTime > clientTime) {
-                throw new ConflictError("This expense has been modified by someone else.");
-            }
-        }
-
-        const newMeta = {
-            ...currentMeta,
-            lastModified: new Date().toISOString()
-        };
-
-        const updatedObject = {
-            ...expenseData,
-            splits: expenseData.splits || [],
-            meta: newMeta
-        };
-
-        return this.updateRow(spreadsheetId, "Expenses", rowIndex, updatedObject);
+    async addRow(spreadsheetId: string, sheetName: SchemaType, data: any): Promise<void> {
+        const row = SCHEMAS[sheetName].map(k => {
+            const v = data[k];
+            return (typeof v === 'object' && v !== null) ? JSON.stringify(v) : (v ?? "");
+        });
+        await this.fetchWithAuth(`${SHEETS_API_URL}/${spreadsheetId}/values/${sheetName}!A1:append?valueInputOption=USER_ENTERED`, {
+            method: "POST",
+            body: JSON.stringify({ values: [row] })
+        });
     }
 
     async updateRow(spreadsheetId: string, sheetName: SchemaType, rowIndex: number, data: any): Promise<void> {
-        const schema = SCHEMAS[sheetName];
-        const rowValues = schema.map(key => {
-            const val = data[key];
-            return (typeof val === 'object' && val !== null) ? JSON.stringify(val) : (val ?? "");
+        const row = SCHEMAS[sheetName].map(k => {
+            const v = data[k];
+            return (typeof v === 'object' && v !== null) ? JSON.stringify(v) : (v ?? "");
         });
-
-        const url = `${SHEETS_API_URL}/${spreadsheetId}/values/${sheetName}!A${rowIndex}:Z${rowIndex}?valueInputOption=USER_ENTERED`;
-        await this.fetchWithAuth(url, {
+        await this.fetchWithAuth(`${SHEETS_API_URL}/${spreadsheetId}/values/${sheetName}!A${rowIndex}:Z${rowIndex}?valueInputOption=USER_ENTERED`, {
             method: "PUT",
-            body: JSON.stringify({ values: [rowValues] })
+            body: JSON.stringify({ values: [row] })
         });
     }
 
     async deleteRow(spreadsheetId: string, sheetName: SchemaType, rowIndex: number): Promise<void> {
         const sheetId = await this.getSheetId(spreadsheetId, sheetName);
-        const body = {
-            requests: [{
-                deleteDimension: {
-                    range: {
-                        sheetId: sheetId,
-                        dimension: "ROWS",
-                        startIndex: rowIndex - 1,
-                        endIndex: rowIndex
-                    }
-                }
-            }]
-        };
-
         await this.fetchWithAuth(`${SHEETS_API_URL}/${spreadsheetId}:batchUpdate`, {
             method: "POST",
-            body: JSON.stringify(body)
+            body: JSON.stringify({ requests: [{ deleteDimension: { range: { sheetId, dimension: "ROWS", startIndex: rowIndex - 1, endIndex: rowIndex } } }] })
         });
     }
 
-    private sheetIdCache = new Map<string, number>();
-
     private async getSheetId(spreadsheetId: string, sheetName: string): Promise<number> {
-        const cacheKey = `${spreadsheetId}:${sheetName}`;
-        if (this.sheetIdCache.has(cacheKey)) {
-            return this.sheetIdCache.get(cacheKey)!;
-        }
-
+        const key = `${spreadsheetId}:${sheetName}`;
+        if (this.sheetIdCache.has(key)) return this.sheetIdCache.get(key)!;
         const res = await this.fetchWithAuth(`${SHEETS_API_URL}/${spreadsheetId}?fields=sheets.properties`);
         const data = await res.json();
         const sheet = data.sheets.find((s: any) => s.properties.title === sheetName);
-        if (!sheet) throw new Error(`Sheet ${sheetName} not found`);
-
-        const sheetId = sheet.properties.sheetId;
-        this.sheetIdCache.set(cacheKey, sheetId);
-        return sheetId;
+        if (!sheet) throw new Error("Sheet not found");
+        this.sheetIdCache.set(key, sheet.properties.sheetId);
+        return sheet.properties.sheetId;
     }
 }

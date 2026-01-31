@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { AuthenticatedApp } from "../../App";
 import { useAuth } from "@/context/auth-provider";
 import { useSettings } from "@/hooks/use-settings";
+import { useGroups } from "@/hooks/use-groups";
 import { useQuery } from "@tanstack/react-query";
 
 // Mock hooks
@@ -14,6 +15,10 @@ vi.mock("@/context/auth-provider", () => ({
 
 vi.mock("@/hooks/use-settings", () => ({
   useSettings: vi.fn(),
+}));
+
+vi.mock("@/hooks/use-groups", () => ({
+  useGroups: vi.fn(),
 }));
 
 vi.mock("@tanstack/react-query", async (importOriginal) => {
@@ -31,16 +36,15 @@ vi.mock("@/components/bottom-navigation", () => ({ default: () => <div data-test
 vi.mock("@/pages/login", () => ({ default: () => <div data-testid="login">Login</div> }));
 
 // Helper mock for Dashboard that consumes context
-// Using importActual to safely access the real context within the mock factory
 vi.mock("@/pages/dashboard", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
   const { AppContext } = await vi.importActual<typeof import("@/context/app-context")>("@/context/app-context");
-  
+
   return {
     default: () => {
       const context = React.useContext(AppContext);
       const activeGroupId = context?.activeGroupId || "none";
-      const setActiveGroupId = context?.setActiveGroupId || (() => {});
+      const setActiveGroupId = context?.setActiveGroupId || (() => { });
 
       return (
         <div data-testid="dashboard">
@@ -59,7 +63,11 @@ describe("AuthenticatedApp Integration", () => {
     { id: "group-1", name: "Group 1" },
     { id: "group-2", name: "Group 2" }
   ];
-  const mockSettings = { activeGroupId: "group-1", version: 1 };
+  const mockSettings = {
+    activeGroupId: "group-1",
+    version: 1,
+    groupCache: [{ id: "group-1", name: "Group 1" }, { id: "group-2", name: "Group 2" }]
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -74,6 +82,11 @@ describe("AuthenticatedApp Integration", () => {
       settings: mockSettings,
       isLoading: false,
       updateSettings: mockUpdateSettings
+    });
+
+    (useGroups as any).mockReturnValue({
+      groups: mockGroups,
+      isLoading: false
     });
 
     (useQuery as any).mockReturnValue({

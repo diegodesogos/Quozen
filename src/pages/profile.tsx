@@ -1,11 +1,12 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/auth-provider";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { User as UserIcon, Settings, HelpCircle, LogOut, Mail, RefreshCw, AlertCircle, Coins } from "lucide-react";
 import { googleApi } from "@/lib/drive";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/use-settings";
+import { useGroups } from "@/hooks/use-groups";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -15,13 +16,7 @@ export default function Profile() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { settings, updateSettings } = useSettings();
-
-  // Fetch groups from Drive to show count
-  const { data: groups = [] } = useQuery({
-    queryKey: ["drive", "groups", user?.email],
-    queryFn: () => googleApi.listGroups(user?.email),
-    enabled: !!user?.email
-  });
+  const { groups } = useGroups();
 
   const reconcileMutation = useMutation({
     mutationFn: async () => {
@@ -29,9 +24,9 @@ export default function Profile() {
       return await googleApi.reconcileGroups(user.email);
     },
     onSuccess: (newSettings) => {
+      // Invalidate settings query to trigger re-render of groups via derived hook
       queryClient.setQueryData(["drive", "settings", user?.email], newSettings);
-      queryClient.invalidateQueries({ queryKey: ["drive", "groups"] });
-      
+
       toast({
         title: "Scan Complete",
         description: `Found ${newSettings.groupCache.length} groups in your Drive.`,
@@ -82,9 +77,9 @@ export default function Profile() {
           <div className="flex items-center space-x-4">
             <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center overflow-hidden">
               {user.picture ? (
-                 <img src={user.picture} alt={user.name} className="w-full h-full object-cover" />
+                <img src={user.picture} alt={user.name} className="w-full h-full object-cover" />
               ) : (
-                 <UserIcon className="w-8 h-8 text-primary-foreground" />
+                <UserIcon className="w-8 h-8 text-primary-foreground" />
               )}
             </div>
             <div className="flex-1">
@@ -128,15 +123,15 @@ export default function Profile() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          
+
           {/* Currency */}
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
               <Coins className="w-4 h-4 text-muted-foreground" />
               Default Currency
             </Label>
-            <Select 
-              value={settings?.preferences?.defaultCurrency || "USD"} 
+            <Select
+              value={settings?.preferences?.defaultCurrency || "USD"}
               onValueChange={handleCurrencyChange}
             >
               <SelectTrigger>
@@ -161,8 +156,8 @@ export default function Profile() {
             <p className="text-xs text-muted-foreground">
               Scan your Google Drive to find groups created on other devices.
             </p>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full justify-start"
               onClick={() => reconcileMutation.mutate()}
               disabled={reconcileMutation.isPending}
@@ -177,9 +172,9 @@ export default function Profile() {
 
           <div className="space-y-2">
             <h4 className="text-sm font-medium">Troubleshooting</h4>
-             <Button 
-              variant="ghost" 
-              className="w-full justify-start text-destructive hover:text-destructive" 
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-destructive hover:text-destructive"
               onClick={() => {
                 localStorage.removeItem("quozen_access_token");
                 window.location.reload();
@@ -198,17 +193,17 @@ export default function Profile() {
         <CardContent className="p-4">
           <h3 className="font-semibold text-foreground mb-4">Support</h3>
           <div className="space-y-2">
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start" 
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
               data-testid="button-help"
             >
               <HelpCircle className="w-4 h-4 mr-3" />
               Help & FAQ
             </Button>
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start" 
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
               data-testid="button-contact"
             >
               <Mail className="w-4 h-4 mr-3" />
@@ -221,9 +216,9 @@ export default function Profile() {
       {/* Sign Out */}
       <Card>
         <CardContent className="p-4">
-          <Button 
-            variant="ghost" 
-            className="w-full justify-start text-destructive hover:text-destructive" 
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-destructive hover:text-destructive"
             data-testid="button-sign-out"
             onClick={handleLogout}
           >

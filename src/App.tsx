@@ -16,10 +16,9 @@ import BottomNavigation from "@/components/bottom-navigation";
 import Header from "@/components/header";
 import { AppContext } from "@/context/app-context";
 import { AuthProvider, useAuth } from "@/context/auth-provider";
-import { googleApi, Group } from "@/lib/drive";
 import { useSettings } from "@/hooks/use-settings";
+import { useGroups } from "@/hooks/use-groups";
 
-// ProtectedRoute definition...
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
@@ -49,29 +48,31 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-// Exported for testing purposes
 export function AuthenticatedApp() {
   const [activeGroupId, setActiveGroupIdState] = useState("");
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Load Settings
-  const { settings, isLoading: settingsLoading, updateSettings } = useSettings();
+  const { settings, updateSettings, isLoading: settingsLoading, error: settingsError } = useSettings();
+  const { groups } = useGroups();
 
-  // Explicitly type the query data as Group[]
-  const { data: groups, isLoading: groupsLoading } = useQuery<Group[]>({
-    queryKey: ["drive", "groups", user?.email],
-    queryFn: () => googleApi.listGroups(user?.email),
-    enabled: isAuthenticated && !!user?.email,
-  });
+  const appLoading = authLoading || (isAuthenticated && settingsLoading);
 
-  // Persistent Setter for Active Group
+  // Safety Break: Handle 401 loop by forcing logout
+  useEffect(() => {
+    if (settingsError) {
+      const errMsg = String(settingsError?.message || settingsError);
+      if (errMsg.includes("401") || errMsg.includes("Session expired")) {
+        console.warn("Session expired detected in App. Logging out.");
+        logout();
+        navigate("/login");
+      }
+    }
+  }, [settingsError, logout, navigate]);
+
   const handleSetActiveGroupId = (groupId: string) => {
-    // 1. Immediate UI update
     setActiveGroupIdState(groupId);
-
-    // 2. Persist to Drive (Fire and Forget)
     if (settings) {
       updateSettings({
         ...settings,
@@ -81,36 +82,23 @@ export function AuthenticatedApp() {
   };
 
   useEffect(() => {
-    // Wait for all data sources to load
-    if (isLoading || groupsLoading || settingsLoading) return;
+    if (appLoading) return;
 
     if (isAuthenticated && user) {
-      // Logic to determine active group:
-      // 1. If we already have one selected in local state, keep it (unless invalid).
-      // 2. If not, try the one from Settings.
-      // 3. If settings one is invalid/missing, fallback to first in list.
-      
       let targetId = activeGroupId;
-
-      // If no local selection, try settings
       if (!targetId && settings?.activeGroupId) {
         targetId = settings.activeGroupId;
       }
-
-      // Verify validity of targetId against the loaded groups list
-      const isValidGroup = groups && groups.some(g => g.id === targetId);
+      const isValidGroup = groups.some(g => g.id === targetId);
 
       if (isValidGroup) {
         if (activeGroupId !== targetId) {
           setActiveGroupIdState(targetId);
         }
       } else {
-        // Fallback if target is invalid or not set
-        if (groups && groups.length > 0) {
-          // Default to first group
+        if (groups.length > 0) {
           setActiveGroupIdState(groups[0].id);
-        } else if (groups && groups.length === 0) {
-          // No groups at all -> redirect to create group
+        } else if (groups.length === 0) {
           if (location.pathname !== '/groups') {
             navigate('/groups', { replace: true });
           }
@@ -118,17 +106,26 @@ export function AuthenticatedApp() {
       }
     }
   }, [
-    user, 
-    isAuthenticated, 
-    isLoading, 
-    groups, 
-    groupsLoading, 
-    settings, 
-    settingsLoading, 
-    activeGroupId, 
-    navigate, 
+    user,
+    isAuthenticated,
+    appLoading,
+    groups,
+    settings,
+    activeGroupId,
+    navigate,
     location.pathname
   ]);
+
+  if (isAuthenticated && appLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="text-muted-foreground">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <AppContext.Provider value={{ activeGroupId, setActiveGroupId: handleSetActiveGroupId, currentUserId: user?.id || "" }}>
@@ -161,7 +158,7 @@ export function AuthenticatedApp() {
         <Route
           path="/"
           element={
-            isLoading ? <div>Loading...</div> :
+            authLoading ? <div>Loading...</div> :
               isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
           }
         />

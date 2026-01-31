@@ -1,26 +1,21 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
-import { useAuth } from "@/context/auth-provider";
 import { Bell, ChevronDown, Users, RefreshCw } from "lucide-react";
 import GroupSwitcherModal from "./group-switcher-modal";
 import { useState } from "react";
-import { googleApi, Group } from "@/lib/drive";
+import { googleApi } from "@/lib/drive";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useGroups } from "@/hooks/use-groups";
 
 export default function Header() {
   const { activeGroupId } = useAppContext();
-  const { user } = useAuth();
   const [showGroupSwitcher, setShowGroupSwitcher] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // 1. Fetch group list (metadata)
-  const { data: groups = [], isFetching: isGroupsFetching } = useQuery<Group[]>({
-    queryKey: ["drive", "groups", user?.email],
-    queryFn: () => googleApi.listGroups(user?.email),
-    enabled: !!user?.email
-  });
+  // 1. Fetch group list via hook
+  const { groups, isLoading: isGroupsLoading } = useGroups();
 
   // 2. Fetch active group data (content)
   const { data: groupData, isFetching: isDataFetching } = useQuery({
@@ -32,15 +27,14 @@ export default function Header() {
   const activeGroup = groups.find((g) => g.id === activeGroupId);
   const memberCount = groupData?.members?.length || 0;
 
-  const isSyncing = isGroupsFetching || isDataFetching;
+  const isSyncing = isGroupsLoading || isDataFetching;
 
   const handleRefresh = async () => {
     if (!activeGroupId) return;
-    
-    // US-106: Only invalidate the active group data, NOT the file list.
-    // This saves Drive API quota by avoiding 'files.list'.
+
+    // US-106: Only invalidate the active group data
     await queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
-    
+
     toast({ description: "Synced latest changes." });
   };
 
@@ -72,7 +66,6 @@ export default function Header() {
           </div>
 
           <div className="flex items-center space-x-2">
-            {/* Sync/Refresh Button */}
             <button
               className="w-8 h-8 rounded-full bg-muted flex items-center justify-center hover:bg-accent transition-colors disabled:opacity-50"
               onClick={handleRefresh}
