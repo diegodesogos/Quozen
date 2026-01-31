@@ -202,7 +202,7 @@ Performs a full scan of Drive to rebuild the cache.
 **Goal:** Save user preference for currency.
 
 * **Task \[FE-05\]: Currency Preference UI**  
-* **Status: ✅ Completed**
+  * **Status: ✅ Completed**
   * **Description:**  
     * In `Profile.tsx` (Settings section), add a dropdown for Currency (USD, EUR, GBP, etc.).  
     * Bind value to `settings.preferences.defaultCurrency`.  
