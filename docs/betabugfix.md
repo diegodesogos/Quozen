@@ -34,4 +34,11 @@ Ancestor with aria-hidden: <div.fixed left-[50%] top-[50%] z-50 grid w-full max-
     while the written information for a settlement is:
     7426f9e8-91f2-4849-b07f-50dd46239ebe	2026-02-01T03:29:33.151Z			100	cash
     Expected result: The settlement is written to the sheet the right information about which user paid what amount to whom.
+
+### Bug-004: 
+    Description: The settle up and settle clickable links are shown as enabled but when clicked they are doing nothing (in some scenarios where there is nothing to settle). This UI behavior is confusing for the user. The user should not see the settle up and settle links if there is nothing to settle. 
+    Steps to reproduce: Create a group and add a member by email. Then create an expense and split it equally between the two users.
+    Actual result: The settle up and settle clickable links are shown as enabled but when clicked they are doing nothing (in some scenarios where there is nothing to settle). This UI behavior is confusing for the user. The user should not see the settle up and settle links if there is nothing to settle. 
+    Expected result: The settle up and settle clickable links are shown as enabled only when there is something to settle. 
+    
     
