@@ -53,6 +53,12 @@ Ancestor with aria-hidden: <div.fixed left-[50%] top-[50%] z-50 grid w-full max-
     Actual result: The edit and delete buttons are not rendered in the same way across all pages. 
     Expected result: The edit and delete buttons are rendered in the same way across all pages. They are rendered using a button and an icon
 
+### Bug-007: 
+    Description: Given user Alice and Bob. Alice created a group and added Bob as a member. Then share groupwith Bob. Bob imported group into its app. Now group is visible by both Alice and Bob. If Alice now edit group and removes Bob, operation success. However in Bob's app the group is still visible and if Bob tries to edit or leave the group, it will fail.  
+    Steps to reproduce: follow steps mentioned in the description.
+    Actual result: Bob has a group on its list which is not part anymore. And Bob cannot remove it from its list. 
+    Expected result: When Bob refresh or attemp any operation on the invalid group, if app found Bob is not a member anymore, it should remove the group from Bob's list showing a message to user tht he doesn't belong to the group anymore. 
+
 ## Desired changes
 
 The following are not bugs but improvements that I would like to see in the app:
