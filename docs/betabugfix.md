@@ -40,5 +40,12 @@ Ancestor with aria-hidden: <div.fixed left-[50%] top-[50%] z-50 grid w-full max-
     Steps to reproduce: Create a group and add a member by email. Then create an expense and split it equally between the two users.
     Actual result: The settle up and settle clickable links are shown as enabled but when clicked they are doing nothing (in some scenarios where there is nothing to settle). This UI behavior is confusing for the user. The user should not see the settle up and settle links if there is nothing to settle. 
     Expected result: The settle up and settle clickable links are shown as enabled only when there is something to settle. 
+
+### Bug-005: 
+    Description: The balance is not correctly calculated for an imported group. This may be related to Bug-001. The user balance is not updated when a new expense is added by another user.
+    Steps to reproduce: Create a group and add a member by email. Then create an expense and split it equally between the two users. Then, the other user will not see its balance udpated properly. 
+    Actual result: After another user adds an expense split with the the oher user Z. The user Z's balance shows 0 value.
+    Expected result: The user Z's balance shows the right value.
+
     
     
