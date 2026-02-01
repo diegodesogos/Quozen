@@ -33,15 +33,29 @@ export default function GroupSwitcherModal({ isOpen, onClose }: { isOpen: boolea
         // Use the provider's atomic import method
         const group = await googleApi.importGroup(doc.id, user.email);
 
+        // Invalidate settings to update the group list (cache)
         await queryClient.invalidateQueries({ queryKey: ["drive", "settings"] });
+
+        // BUG FIX 001: Force invalidate the specific group data query.
+        // This ensures that if the group was previously cached (with old IDs/Names),
+        // we refetch it immediately to get the post-migration state.
+        await queryClient.invalidateQueries({ queryKey: ["drive", "group", group.id] });
+
         setActiveGroupId(group.id);
         toast({ title: "Group imported successfully!" });
-        onClose();
+        // The modal is already closed by handleImportClick
       } catch (e: any) {
         toast({ title: "Import Failed", description: e.message, variant: "destructive" });
       }
     }
   });
+
+  // Fix Bug-002: Close dialog before opening picker to avoid aria-hidden conflicts
+  const handleImportClick = () => {
+    onClose();
+    // Allow small delay for dialog to unmount/close
+    setTimeout(() => openPicker(), 100);
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -67,7 +81,7 @@ export default function GroupSwitcherModal({ isOpen, onClose }: { isOpen: boolea
         </div>
 
         <div className="flex flex-col gap-2 mt-6">
-          <Button onClick={openPicker} variant="secondary" className="w-full"><Download className="w-4 h-4 mr-2" />Import Shared Group</Button>
+          <Button onClick={handleImportClick} variant="secondary" className="w-full"><Download className="w-4 h-4 mr-2" />Import Shared Group</Button>
           <Button onClick={() => { onClose(); navigate("/groups"); }} className="w-full"><Plus className="w-4 h-4 mr-2" />Create New Group</Button>
         </div>
       </DialogContent>
