@@ -47,5 +47,11 @@ Ancestor with aria-hidden: <div.fixed left-[50%] top-[50%] z-50 grid w-full max-
     Actual result: After another user adds an expense split with the the oher user Z. The user Z's balance shows 0 value.
     Expected result: The user Z's balance shows the right value.
 
+### Bug-006: 
+    Description: Inconsistent UI for some actions. edit and delete buttons are not rendered in the same way across all pages. Sometimes edit is a clickable hyperlink and sometimes it shows as a button with an icon and a text. The same applies to delete button. The settle up and settle links are also rendered in an inconsistent way. The UI must show hyperlinks instead of buttons only for those actions that navigate to a different page (e.g "view all" hyperlink). 
+    Steps to reproduce: Create a group, and create an expense. Look for edit and delete buttons in the group, and in the expense details.
+    Actual result: The edit and delete buttons are not rendered in the same way across all pages. 
+    Expected result: The edit and delete buttons are rendered in the same way across all pages. They are rendered using a button and an icon
+
     
     
