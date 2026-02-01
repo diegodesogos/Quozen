@@ -53,5 +53,9 @@ Ancestor with aria-hidden: <div.fixed left-[50%] top-[50%] z-50 grid w-full max-
     Actual result: The edit and delete buttons are not rendered in the same way across all pages. 
     Expected result: The edit and delete buttons are rendered in the same way across all pages. They are rendered using a button and an icon
 
-    
-    
+## Desired changes
+
+The following are not bugs but improvements that I would like to see in the app:
+
+### Balance card
+    Description: The balance card in the dashboard page (home), currently shows the total balance of the user. I would like to see below the balance, another description with the total amount spent by the user in the group. That is, balance can be positive or negative (changes with every new expense paid and can become zero by settle up), but the total amount spent by the user is always positive and increase each time the user participates in an expense.
