@@ -101,8 +101,9 @@ export interface IStorageProvider {
   /**
    * Import an existing spreadsheet into the user's settings.
    * Validates structure and adds to settings file.
+   * Requires the full User object to ensure ID consistency.
    */
-  importGroup(spreadsheetId: string, userEmail: string): Promise<Group>;
+  importGroup(spreadsheetId: string, user: User): Promise<Group>;
 
   /**
    * Update an existing group (rename and/or update members).

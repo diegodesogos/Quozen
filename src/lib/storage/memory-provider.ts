@@ -27,7 +27,7 @@ export class InMemoryProvider implements IStorageProvider {
             userId: user.id,
             email: user.email,
             name: user.name,
-            role: "owner", // Changed from admin to owner
+            role: "owner",
             joinedAt: new Date().toISOString(),
             _rowIndex: 2
         });
@@ -57,7 +57,6 @@ export class InMemoryProvider implements IStorageProvider {
         this.groups.set(id, group);
         this.sheets.set(id, { expenses: [], settlements: [], members: initialMembers });
 
-        // Auto-update settings
         if (user.email) {
             const settings = await this.getSettings(user.email);
             settings.groupCache.unshift({ id: group.id, name: group.name, role: "owner", lastAccessed: new Date().toISOString() });
@@ -68,12 +67,35 @@ export class InMemoryProvider implements IStorageProvider {
         return group;
     }
 
-    async importGroup(spreadsheetId: string, userEmail: string): Promise<Group> {
+    async importGroup(spreadsheetId: string, user: User): Promise<Group> {
         if (!this.groups.has(spreadsheetId)) throw new Error("Group not found");
 
         const group = this.groups.get(spreadsheetId)!;
-        const settings = await this.getSettings(userEmail);
+        const settings = await this.getSettings(user.email);
+
+        // Simulation of migration logic
+        // If the mock sheet contains a member with user.email, update it to user.id
         const sheet = this.getSheet(spreadsheetId);
+        const memberIdx = sheet.members.findIndex(m => m.email === user.email);
+        if (memberIdx !== -1) {
+            const oldId = sheet.members[memberIdx].userId;
+            const newId = user.id;
+            if (oldId !== newId) {
+                // Update member ID
+                sheet.members[memberIdx].userId = newId;
+                sheet.members[memberIdx].name = user.name;
+
+                // Migrate expenses
+                sheet.expenses.forEach(e => {
+                    if (e.paidBy === oldId) e.paidBy = newId;
+                    if (e.splits) {
+                        e.splits.forEach(s => {
+                            if (s.userId === oldId) s.userId = newId;
+                        });
+                    }
+                });
+            }
+        }
 
         if (!settings.groupCache.some(g => g.id === spreadsheetId)) {
             settings.groupCache.unshift({ id: spreadsheetId, name: group.name, role: "member", lastAccessed: new Date().toISOString() });
@@ -86,11 +108,9 @@ export class InMemoryProvider implements IStorageProvider {
     async updateGroup(groupId: string, name: string, members: MemberInput[], userEmail: string): Promise<void> {
         const group = this.groups.get(groupId);
         if (!group) throw new Error("Group not found");
-        const sheet = this.getSheet(groupId);
 
         group.name = name;
 
-        // Update Settings if name changed
         const settings = await this.getSettings(userEmail);
         const cached = settings.groupCache.find(g => g.id === groupId);
         if (cached) {
@@ -112,15 +132,12 @@ export class InMemoryProvider implements IStorageProvider {
     async leaveGroup(groupId: string, userId: string, userEmail: string): Promise<void> {
         const sheet = this.getSheet(groupId);
 
-        // Find by ID OR Email
         const idx = sheet.members.findIndex(m => m.userId === userId || (userEmail && m.email === userEmail));
         if (idx === -1) throw new Error("Member not found");
 
         const member = sheet.members[idx];
-        // Updated check: 'owner' role
         if (member.role === 'owner') throw new Error("Owners cannot leave.");
 
-        // Check using the FOUND member's ID
         if (await this.checkMemberHasExpenses(groupId, member.userId)) throw new Error("Cannot leave with expenses.");
 
         sheet.members.splice(idx, 1);
@@ -131,11 +148,9 @@ export class InMemoryProvider implements IStorageProvider {
         await this.saveSettings(settings);
     }
 
-    // ... Standard methods ...
-
     async checkMemberHasExpenses(groupId: string, userId: string): Promise<boolean> {
         const sheet = this.getSheet(groupId);
-        return sheet.expenses.some(e => e.paidBy === userId || e.splits.some((s: any) => s.userId === userId && s.amount > 0));
+        return sheet.expenses.some(e => e.paidBy === userId || (e.splits && e.splits.some((s: any) => s.userId === userId && s.amount > 0)));
     }
 
     async validateQuozenSpreadsheet(spreadsheetId: string, userEmail: string): Promise<{ valid: boolean; error?: string; name?: string; data?: GroupData }> {
@@ -179,7 +194,6 @@ export class InMemoryProvider implements IStorageProvider {
     }
 
     async updateRow(spreadsheetId: string, sheetName: SchemaType, rowIndex: number, data: any): Promise<void> {
-        // Generic mock update
         const sheet = this.getSheet(spreadsheetId);
         if (sheetName === 'Members') {
             const idx = sheet.members.findIndex(m => m._rowIndex === rowIndex);
@@ -202,7 +216,6 @@ export class InMemoryProvider implements IStorageProvider {
     }
 
     async saveSettings(settings: UserSettings): Promise<void> {
-        // Simplified: find matching email or just iterate (limit of mock)
         for (const [key] of this.userSettings) {
             this.userSettings.set(key, settings);
         }

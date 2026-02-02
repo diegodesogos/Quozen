@@ -27,33 +27,26 @@ export default function GroupSwitcherModal({ isOpen, onClose }: { isOpen: boolea
   const { openPicker, error: pickerError } = useGooglePicker({
     onPick: async (doc) => {
       toast({ title: "Importing group..." });
-      if (!user?.email) return;
+      if (!user) return; // Need full user object
 
       try {
         // Use the provider's atomic import method
-        const group = await googleApi.importGroup(doc.id, user.email);
+        // FIX: Pass the full user object to ensure ID consistency
+        const group = await googleApi.importGroup(doc.id, user);
 
-        // Invalidate settings to update the group list (cache)
         await queryClient.invalidateQueries({ queryKey: ["drive", "settings"] });
-
-        // BUG FIX 001: Force invalidate the specific group data query.
-        // This ensures that if the group was previously cached (with old IDs/Names),
-        // we refetch it immediately to get the post-migration state.
         await queryClient.invalidateQueries({ queryKey: ["drive", "group", group.id] });
 
         setActiveGroupId(group.id);
         toast({ title: "Group imported successfully!" });
-        // The modal is already closed by handleImportClick
       } catch (e: any) {
         toast({ title: "Import Failed", description: e.message, variant: "destructive" });
       }
     }
   });
 
-  // Fix Bug-002: Close dialog before opening picker to avoid aria-hidden conflicts
   const handleImportClick = () => {
     onClose();
-    // Allow small delay for dialog to unmount/close
     setTimeout(() => openPicker(), 100);
   };
 

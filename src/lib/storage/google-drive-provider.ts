@@ -88,7 +88,7 @@ export class GoogleDriveProvider implements IStorageProvider {
 
         // 1. Update Expenses Sheet (PaidBy and Splits)
         const expensesToUpdate = groupData.expenses.filter(e =>
-            e.paidBy === oldId || e.splits.some((s: any) => s.userId === oldId)
+            e.paidBy === oldId || (e.splits && e.splits.some((s: any) => s.userId === oldId))
         );
 
         for (const exp of expensesToUpdate) {
@@ -97,7 +97,7 @@ export class GoogleDriveProvider implements IStorageProvider {
             const updates: Partial<Expense> = {};
             if (exp.paidBy === oldId) updates.paidBy = newId;
 
-            if (exp.splits.some((s: any) => s.userId === oldId)) {
+            if (exp.splits && exp.splits.some((s: any) => s.userId === oldId)) {
                 updates.splits = exp.splits.map((s: any) =>
                     s.userId === oldId ? { ...s, userId: newId } : s
                 );
@@ -326,19 +326,19 @@ export class GoogleDriveProvider implements IStorageProvider {
         });
     }
 
-    async importGroup(spreadsheetId: string, userEmail: string): Promise<Group> {
-        const validation = await this.validateQuozenSpreadsheet(spreadsheetId, userEmail);
+    async importGroup(spreadsheetId: string, user: User): Promise<Group> {
+        const validation = await this.validateQuozenSpreadsheet(spreadsheetId, user.email);
         if (!validation.valid) throw new Error(validation.error || "Invalid group file");
 
         return this._runExclusive(async () => {
             try {
-                const aboutRes = await this.fetchWithAuth(`${DRIVE_API_URL}/about?fields=user`);
-                const aboutData = await aboutRes.json();
-                const currentGoogleId = aboutData.user?.permissionId;
-                const currentDisplayName = aboutData.user?.displayName;
+                // FIX: Use the passed User object (from Auth) as the source of truth for ID
+                // instead of fetching the Drive permission ID, which might mismatch.
+                const currentGoogleId = user.id;
+                const currentDisplayName = user.name;
 
                 if (currentGoogleId && validation.data) {
-                    const memberToUpdate = validation.data.members.find(m => m.email === userEmail);
+                    const memberToUpdate = validation.data.members.find(m => m.email === user.email);
 
                     if (memberToUpdate) {
                         const needsNameUpdate = currentDisplayName && memberToUpdate.name !== currentDisplayName;
@@ -369,7 +369,7 @@ export class GoogleDriveProvider implements IStorageProvider {
                 console.error("Migration check failed", e);
             }
 
-            const settings = await this._getSettingsImpl(userEmail);
+            const settings = await this._getSettingsImpl(user.email);
             if (!settings.groupCache.some(g => g.id === spreadsheetId)) {
                 settings.groupCache.unshift({
                     id: spreadsheetId,
