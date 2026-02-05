@@ -1,4 +1,5 @@
 import { test, expect, Page, chromium } from '@playwright/test';
+import { isMockMode } from './utils';
 
 const SETTINGS_FILE_NAME = "quozen-settings.json";
 const QUOZEN_PREFIX = "Quozen - ";
@@ -76,38 +77,28 @@ test.describe.serial('Google Drive Persistence Reproduction', () => {
     let accessToken: string;
     let userProfile: string;
 
-    test.beforeAll(async () => {
-        try {
-            console.log("Attempting to connect to Chrome over CDP (port 9222)...");
-            const browser = await chromium.connectOverCDP('http://localhost:9222');
-            const context = browser.contexts()[0] || await browser.newContext();
-            const page = context.pages()[0] || await context.newPage();
-
-            console.log("Connected to CDP. Navigating to root...");
-            await page.goto('http://localhost:3001/');
-
-            console.log("Waiting for user to log in...");
-            await expect(async () => {
-                const token = await page.evaluate(() => localStorage.getItem("quozen_access_token"));
-
-                // Debug logging
-                const keys = await page.evaluate(() => Object.keys(localStorage));
-                console.log(`Checking token. LocalStorage keys present: ${keys.join(', ')}`);
-
-                expect(token).toBeTruthy();
-            }).toPass({ timeout: 300_000 }); // 5 minutes login wait
-
-            accessToken = await getAccessToken(page);
-            userProfile = await page.evaluate(() => localStorage.getItem("quozen_user_profile") || "");
-            if (!userProfile) console.warn("User profile not found in localStorage!");
-            console.log("Access Token and Profile acquired via CDP.");
-
-            // Keep CDP browser open but disconnect test runner from it
-            await browser.close();
-        } catch (e) {
-            console.error(e);
-            throw new Error("Could not connect to Chrome. Please run Chrome with --remote-debugging-port=9222 and log in.");
+    test.beforeAll(async ({ browser }) => {
+        if (isMockMode) {
+            test.skip(true, 'Skipping Google Drive tests in Mock mode');
+            return;
         }
+
+        console.log("Real Mode: Launching browser for manual login...");
+        const page = await browser.newPage();
+
+        console.log("Navigating to root...");
+        await page.goto('/');
+
+        console.log("Waiting for user to log in manually (timeout: 5 minutes)...");
+        // Wait for dashboard to indicate login success
+        await expect(page.getByRole('button', { name: /New Group/i })).toBeVisible({ timeout: 300_000 });
+
+        accessToken = await getAccessToken(page);
+        userProfile = await page.evaluate(() => localStorage.getItem("quozen_user_profile") || "");
+        if (!userProfile) console.warn("User profile not found in localStorage!");
+        console.log("Access Token and Profile acquired.");
+
+        await page.close();
     });
 
     test.beforeEach(async () => {

@@ -1,27 +1,22 @@
 import { test, expect } from '@playwright/test';
+import { setupAuth, ensureLoggedIn, isMockMode } from './utils';
 
-test.describe('Functional Flow with Mock Storage', () => {
-    // Inject auth token and user profile to bypass Google Login
+test.describe('Functional Flow', () => {
+    // Inject auth token if in Mock mode
     test.beforeEach(async ({ page }) => {
-        await page.addInitScript(() => {
-            localStorage.setItem("quozen_access_token", "mock-token-123");
-            localStorage.setItem("quozen_user_profile", JSON.stringify({
-                id: "test-user-id",
-                username: "test@example.com",
-                email: "test@example.com",
-                name: "Test User",
-                picture: "https://via.placeholder.com/150"
-            }));
-        });
+        await setupAuth(page);
     });
 
     test('should allow creating a group and adding an expense', async ({ page }) => {
         // 1. Go to root (redirects to dashboard)
         await page.goto('/');
+        await ensureLoggedIn(page);
 
         // 2. Verify we are redirected to Groups page (because no groups exist)
         await expect(page).toHaveURL(/.*groups/);
-        await expect(page.getByText('No groups yet')).toBeVisible();
+        if (isMockMode) {
+            await expect(page.getByText('No groups yet')).toBeVisible();
+        }
 
         // 3. Create a Group
         await page.getByRole('button', { name: 'New Group' }).click();
@@ -50,11 +45,12 @@ test.describe('Functional Flow with Mock Storage', () => {
 
         // 6. Verify in List (Dashboard)
         await expect(page.getByText('Dinner')).toBeVisible();
-        await expect(page.getByText('$50.00')).toBeVisible();
+        await expect(page.getByText('$50.00').first()).toBeVisible();
     });
 
     test('should edit an existing group name and members', async ({ page }) => {
         await page.goto('/groups');
+        await ensureLoggedIn(page);
 
         // Create initial group
         await page.getByRole('button', { name: 'New Group' }).click();
@@ -78,12 +74,13 @@ test.describe('Functional Flow with Mock Storage', () => {
 
     test('should allow deleting a group', async ({ page }) => {
         await page.goto('/groups');
+        await ensureLoggedIn(page);
 
         // 1. Create a group to delete
         await page.getByRole('button', { name: 'New Group' }).click();
         await page.getByLabel('Group Name').fill('Group To Delete');
         await page.getByRole('button', { name: 'Create Group' }).click();
-        
+
         // Verify it exists
         const groupCard = page.locator('.rounded-lg', { hasText: 'Group To Delete' });
         await expect(groupCard).toBeVisible();
@@ -95,7 +92,7 @@ test.describe('Functional Flow with Mock Storage', () => {
         // 3. Confirm Dialog
         await expect(page.getByText('Delete Group')).toBeVisible();
         await expect(page.getByText('Are you sure you want to delete "Group To Delete"?')).toBeVisible();
-        
+
         await page.getByRole('button', { name: 'Delete' }).click();
 
         // 4. Verify it's gone
