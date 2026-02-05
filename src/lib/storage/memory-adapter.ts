@@ -8,6 +8,7 @@ interface MockSheet {
     settlements: Settlement[];
     members: Member[];
     createdTime: string;
+    content?: any;
 }
 
 export class InMemoryAdapter implements IStorageAdapter {
@@ -30,6 +31,24 @@ export class InMemoryAdapter implements IStorageAdapter {
             return;
         }
         this.userSettings.set(userEmail, settings);
+
+        // Also ensure a file exists for "quozen-settings.json" to support listFiles/reconciliation tests
+        const settingsName = "quozen-settings.json";
+        let existingId = Array.from(this.sheets.entries()).find(([_, s]) => s.name === settingsName)?.[0];
+        if (!existingId) {
+            existingId = "mock-settings-" + self.crypto.randomUUID();
+            this.sheets.set(existingId, {
+                name: settingsName,
+                expenses: [],
+                settlements: [],
+                members: [],
+                createdTime: new Date().toISOString(),
+                content: settings
+            });
+        } else {
+            const sheet = this.sheets.get(existingId);
+            if (sheet) sheet.content = settings;
+        }
     }
 
     // --- File Operations ---
@@ -62,8 +81,30 @@ export class InMemoryAdapter implements IStorageAdapter {
 
     async listFiles(queryPrefix: string): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any }>> {
         const files: any[] = [];
+
+        // Improve query parsing implementation
+        let nameFilter = "";
+        let exact = false;
+
+        const matchExact = queryPrefix.match(/name\s*=\s*'([^']+)'/);
+        const matchContains = queryPrefix.match(/name\s*contains\s*'([^']+)'/);
+
+        if (matchExact) {
+            nameFilter = matchExact[1];
+            exact = true;
+        } else if (matchContains) {
+            nameFilter = matchContains[1];
+        } else {
+            // Fallback to naive remove
+            nameFilter = queryPrefix.replace("name contains '", "").replace("'", "");
+        }
+
         for (const [id, sheet] of this.sheets.entries()) {
-            if (sheet.name.includes(queryPrefix.replace("name contains '", "").replace("'", ""))) { // approximate check
+            const matches = exact
+                ? sheet.name === nameFilter
+                : sheet.name.includes(nameFilter);
+
+            if (matches) {
                 files.push({
                     id,
                     name: sheet.name,
