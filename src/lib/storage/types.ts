@@ -190,7 +190,7 @@ export interface IStorageProvider {
   /**
    * Persists changes to settings.
    */
-  saveSettings(settings: UserSettings): Promise<void>;
+  saveSettings(userEmail: string, settings: UserSettings): Promise<void>;
 
   /**
    * Atomically updates the activeGroupId in settings.

@@ -79,4 +79,15 @@ describe('StorageService (with InMemoryAdapter)', () => {
         expect(settings.groupCache[0].name).toBe("Group Initial");
         expect(settings.preferences.defaultCurrency).toBe("USD");
     });
+
+    it('saveSettings updates settings for specific user', async () => {
+        // Initial reconcile
+        let settings = await provider.getSettings(mockUser.email);
+        settings.preferences.theme = "dark";
+
+        await provider.saveSettings(mockUser.email, settings);
+
+        settings = await provider.getSettings(mockUser.email);
+        expect(settings.preferences.theme).toBe("dark");
+    });
 });

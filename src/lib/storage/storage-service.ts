@@ -49,70 +49,8 @@ export class StorageService implements IStorageProvider {
         });
     }
 
-    async saveSettings(settings: UserSettings): Promise<void> {
-        // We need userEmail to save. Since UserSettings doesn't have it, 
-        // we assume the adapter handles it or we need to pass it?
-        // Wait, IStorageAdapter.saveSettings takes userEmail.
-        // But IStorageProvider.saveSettings(settings) does NOT take userEmail.
-        // Current implementation in GoogleDriveProvider extracted it from context or 
-        // cached it? No, GoogleDriveProvider.saveSettings implementation:
-        // `_saveSettingsImpl` uses `this.settingsFileIdCache`.
-        // It doesn't strictly need email if it knows where to save.
-        // BUT, `getSettings` needed email.
-        // Issue: `StorageService` is stateful regarding "current user"?
-        // No, `getSettings` is passed `userEmail`.
-        // `saveSettings` in `IStorageProvider` takes `settings`.
-        // How did `GoogleDriveProvider` know which file? `settingsFileIdCache`.
-        // Our Adapter `saveSettings` takes `userEmail`.
-        // Use case: `const { updateSettings } = useSettings(); updateSettings(newSettings)`.
-        // The `useSettings` hook calls `googleApi.saveSettings(newSettings)`.
-        // The `googleApi` is a singleton.
-        // WE MISS THE EMAIL!
-        // `GoogleDriveProvider` implementation used `this.settingsFileIdCache`.
-        // `InMemoryProvider` implementation iterates all keys in map and updates them? (Bad implementation).
-
-        // FIX: We should probably require email in `saveSettings` or store it?
-        // `GoogleDriveProvider` stores `settingsFileIdCache`.
-        // If we switch users, `settingsFileIdCache` might be wrong?
-        // `GoogleDriveProvider` is a singleton.
-        // If we want `StorageService` to be stateless, `saveSettings` needs email.
-        // But we are constrained by `IStorageProvider` interface.
-        // Let's rely on the Adapter's state if necessary? 
-        // Or assume the Adapter implementation can handle it?
-        // `GoogleDriveAdapter` can cache the file ID from `loadSettings`.
-        // So `StorageService` can just blindly call `adapter.saveSettings(null, settings)`?
-        // No, `adapter.saveSettings` signature in my plan was `(userEmail, settings)`.
-
-        // Solution: Update `IStorageProvider` interface to include email in `saveSettings`?
-        // Or change `IStorageAdapter` to not require email if ID is cached.
-        // Let's assume `adapter.saveSettings` can work if we provide `null` email IF we loaded before?
-        // Or we just throw error if we can't find context.
-
-        // Actually, looking at `GoogleDriveProvider._saveSettingsImpl`, it re-finds file if cache missing.
-        // But it doesn't use email in the query! `name = ...`.
-        // Ah, it uses the Auth Token which is "Current User".
-        // `fetchWithAuth` gets token.
-        // So EMAIL is strictly not needed for Drive if we trust the token.
-        // But for Memory provider, we use Map<Email, Settings>.
-
-        // I will change `IStorageAdapter.saveSettings` to take `userEmail?`.
-        // And `StorageService` will try to pass it if available?
-        // `IStorageProvider.saveSettings` assumes the auth context implies the user.
-
-        // I'll leave `userEmail` as optional or "" in call.
-        // Ideally we refactor `saveSettings` to take email, but that changes the API contract used by React Query.
-
-        // For now, I'll pass empty string or null, and let Adapter handle it via Auth Token (Drive) or throw (Memory).
-        // Wait, Memory provider NEEDS email.
-        // Check `GoogleDriveProvider.saveSettings`: ` _runExclusive(() => this._saveSettingsImpl(settings))`
-        // `_saveSettingsImpl` does NOT use email.
-
-        // OK, I'll use `adapter.saveSettings("", settings)` and Adapter implementation for Drive will ignore email.
-        // Adapter implementation for Memory will problematically need email.
-        // But `InMemoryProvider` currently iterates ALL users and updates them! (See line 219 in `memory-provider.ts`).
-        // So that behavior (while buggy) matches current state.
-
-        return this._runExclusive(() => this.adapter.saveSettings("", settings));
+    async saveSettings(userEmail: string, settings: UserSettings): Promise<void> {
+        return this._runExclusive(() => this.adapter.saveSettings(userEmail, settings));
     }
 
     async updateActiveGroup(userEmail: string, groupId: string): Promise<void> {

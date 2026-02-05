@@ -25,28 +25,11 @@ export class InMemoryAdapter implements IStorageAdapter {
     }
 
     async saveSettings(userEmail: string, settings: UserSettings): Promise<void> {
-        // If userEmail is provided, use it.
-        // If not (legacy issue), try to find where this settings object belongs? 
-        // Or simplistic assumption: In memory provider, we might just store by email.
-        if (userEmail) {
-            this.userSettings.set(userEmail, settings);
-        } else {
-            // Fallback: If we don't have email, we can't save to a specific user.
-            // But StorageService calls with "" sometimes?
-            // Actually, StorageService.saveSettings tries `adapter.saveSettings("", settings)`.
-            // This WILL FAIL for InMemoryAdapter if we don't handle it.
-            // Hack: Update ALL settings that match? Or throw?
-            // Ideally we fix StorageService to pass email.
-
-            // BUT, for tests (MemoryProvider usage), we rely on `user.email`.
-            // Let's assume for Memory adapter we MIGHT save to "default" if single user?
-            if (this.userSettings.size === 1) {
-                const key = this.userSettings.keys().next().value;
-                if (key) this.userSettings.set(key, settings);
-            } else {
-                console.warn("[MemoryAdapter] Cannot save settings without email and multiple users exist.");
-            }
+        if (!userEmail) {
+            console.warn("[MemoryAdapter] Cannot save settings without email.");
+            return;
         }
+        this.userSettings.set(userEmail, settings);
     }
 
     // --- File Operations ---

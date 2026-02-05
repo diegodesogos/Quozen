@@ -8,7 +8,9 @@ const DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3";
 const SHEETS_API_URL = "https://sheets.googleapis.com/v4/spreadsheets";
 
 export class GoogleDriveAdapter implements IStorageAdapter {
-    private settingsFileIdCache: string | null = null;
+    // Map<UserEmail, FileId>
+    // We use a Map instead of single string to support fast user switching or concurrent usage scenarios (rare but possible).
+    private settingsFileIdCache = new Map<string, string>();
     private sheetIdCache = new Map<string, number>();
 
     constructor() {
@@ -62,7 +64,8 @@ export class GoogleDriveAdapter implements IStorageAdapter {
                     }
                 }
 
-                this.settingsFileIdCache = fileToUse.id;
+                // Cache the ID for this user
+                this.settingsFileIdCache.set(userEmail, fileToUse.id);
                 const contentRes = await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileToUse.id}?alt=media`);
                 const settings = await contentRes.json();
 
@@ -82,7 +85,7 @@ export class GoogleDriveAdapter implements IStorageAdapter {
         settings.lastUpdated = new Date().toISOString();
         const content = JSON.stringify(settings, null, 2);
 
-        let fileId = this.settingsFileIdCache;
+        let fileId = this.settingsFileIdCache.get(userEmail);
         if (!fileId) {
             // Try to find it again just in case
             const query = `name = '${SETTINGS_FILE_NAME}' and trashed = false`;
@@ -90,7 +93,7 @@ export class GoogleDriveAdapter implements IStorageAdapter {
             const listData = await listRes.json();
             if (listData.files?.[0]) {
                 fileId = listData.files[0].id;
-                this.settingsFileIdCache = fileId;
+                if (fileId) this.settingsFileIdCache.set(userEmail, fileId);
             }
         }
 
@@ -105,7 +108,7 @@ export class GoogleDriveAdapter implements IStorageAdapter {
                 body: JSON.stringify({ name: SETTINGS_FILE_NAME, mimeType: "application/json" })
             });
             const fileData = await createRes.json();
-            this.settingsFileIdCache = fileData.id;
+            this.settingsFileIdCache.set(userEmail, fileData.id);
             await this.fetchWithAuth(`${DRIVE_UPLOAD_URL}/files/${fileData.id}?uploadType=media`, {
                 method: "PATCH",
                 body: content
