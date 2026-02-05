@@ -48,6 +48,19 @@ export async function resetTestState() {
 }
 
 /**
+ * Waits for the user to be logged in (Real Mode only).
+ * Call this after navigating to the app.
+ */
+export async function ensureLoggedIn(page: Page) {
+    if (!isMockMode) {
+        console.log("Real Mode: Waiting for user to log in manually (timeout: 5 minutes)...");
+        // Wait for a sign that we are logged in, e.g., the 'New Group' button on dashboard
+        await expect(page.getByRole('button', { name: 'New Group' })).toBeVisible({ timeout: 300_000 });
+        console.log("Real Mode: User logged in.");
+    }
+}
+
+/**
  * Gets the access token. 
  * In Mock Mode, returns a static token.
  * In Real Mode, scrapes it from the page (requires manual login).
