@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { InMemoryProvider } from './memory-provider';
+import { StorageService, InMemoryAdapter, IStorageProvider } from './index';
 import { User, Expense } from './types';
 import { ConflictError, NotFoundError } from '../errors';
 
-describe('InMemoryProvider', () => {
-    let provider: InMemoryProvider;
+describe('StorageService (with InMemoryAdapter)', () => {
+    let provider: IStorageProvider;
     const mockUser: User = {
         id: 'user1',
         username: 'testuser',
@@ -13,7 +13,7 @@ describe('InMemoryProvider', () => {
     };
 
     beforeEach(() => {
-        provider = new InMemoryProvider();
+        provider = new StorageService(new InMemoryAdapter());
     });
 
     it('createGroupSheet creates a new group and updates settings', async () => {

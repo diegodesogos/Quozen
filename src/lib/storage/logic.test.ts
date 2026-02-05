@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { InMemoryProvider } from './memory-provider';
+import { StorageService, InMemoryAdapter, IStorageProvider } from './index';
 import { User } from './types';
 
 describe('Storage Logic & Data Integrity', () => {
-    let provider: InMemoryProvider;
+    let provider: IStorageProvider;
     const ownerUser: User = {
         id: 'owner-google-id',
         username: 'owner',
@@ -15,7 +15,7 @@ describe('Storage Logic & Data Integrity', () => {
     const invitedUserGoogleId = 'invited-google-id';
 
     beforeEach(() => {
-        provider = new InMemoryProvider();
+        provider = new StorageService(new InMemoryAdapter());
     });
 
     it('Fix Verification: invited user has Email as ID, but leaveGroup handles it via lookup', async () => {

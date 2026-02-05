@@ -4,6 +4,10 @@ export const SCHEMAS = {
   Members: ["userId", "email", "name", "role", "joinedAt"]
 } as const;
 
+export const QUOZEN_PREFIX = "Quozen - ";
+export const SETTINGS_FILE_NAME = "quozen-settings.json";
+export const REQUIRED_SHEETS = ["Expenses", "Settlements", "Members"] as const;
+
 export type SchemaType = keyof typeof SCHEMAS;
 
 export interface Group {

@@ -1,12 +1,17 @@
 
-import { GoogleDriveProvider } from "./google-drive-provider";
-import { InMemoryProvider } from "./memory-provider";
+import { StorageService } from "./storage-service";
+import { GoogleDriveAdapter } from "./google-drive-adapter";
+import { InMemoryAdapter } from "./memory-adapter";
 import { IStorageProvider } from "./types";
 
 const useMock = import.meta.env.VITE_USE_MOCK_STORAGE === 'true' || import.meta.env.MODE === 'test';
 
-export const storage: IStorageProvider = useMock
-    ? new InMemoryProvider()
-    : new GoogleDriveProvider();
+const adapter = useMock
+    ? new InMemoryAdapter()
+    : new GoogleDriveAdapter();
+
+export const storage: IStorageProvider = new StorageService(adapter);
 
 export * from './types';
+export { StorageService }; // Optional export for testing
+export { InMemoryAdapter }; // Optional export for testing
