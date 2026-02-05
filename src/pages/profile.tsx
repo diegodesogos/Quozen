@@ -229,7 +229,7 @@ export default function Profile() {
       </Card>
 
       <div className="text-center text-xs text-muted-foreground py-4">
-        <p>Quozen v1.0.0</p>
+        <p>Quozen version ({__COMMIT_HASH__})</p>
         <p>Decentralized Expense Sharing</p>
       </div>
     </div>
