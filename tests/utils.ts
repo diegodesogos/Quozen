@@ -1,4 +1,3 @@
-
 import { Page, BrowserContext, APIRequestContext, expect } from '@playwright/test';
 import { mockServer } from './mock-server';
 
@@ -57,6 +56,9 @@ export async function ensureLoggedIn(page: Page) {
         // Wait for a sign that we are logged in, e.g., the 'New Group' button on dashboard
         await expect(page.getByRole('button', { name: 'New Group' })).toBeVisible({ timeout: 300_000 });
         console.log("Real Mode: User logged in.");
+    } else {
+        // Mock Mode: Wait for app to hydrate and show main layout (Bottom Navigation is a good indicator)
+        await expect(page.getByTestId('bottom-navigation')).toBeVisible();
     }
 }
 
