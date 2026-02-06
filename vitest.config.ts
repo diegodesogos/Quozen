@@ -15,4 +15,8 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  define: {
+    // Provide a dummy hash for the test environment
+    __COMMIT_HASH__: JSON.stringify('test-hash'),
+  },
 });
