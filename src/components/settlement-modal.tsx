@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -35,9 +35,18 @@ export default function SettlementModal({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const [amount, setAmount] = useState(suggestedAmount.toString());
+  const [amount, setAmount] = useState(suggestedAmount > 0 ? suggestedAmount.toString() : "");
   const [method, setMethod] = useState("cash");
   const [notes, setNotes] = useState("");
+
+  // Sync state with props when modal opens or suggestion changes
+  useEffect(() => {
+    if (isOpen) {
+      setAmount(suggestedAmount > 0 ? suggestedAmount.toFixed(2) : "");
+      setMethod("cash");
+      setNotes("");
+    }
+  }, [isOpen, suggestedAmount]);
 
   const settlementMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -52,7 +61,7 @@ export default function SettlementModal({
         description: "The payment has been recorded successfully.",
       });
       onClose();
-      setAmount("0");
+      setAmount("");
       setNotes("");
     },
     onError: (error) => {

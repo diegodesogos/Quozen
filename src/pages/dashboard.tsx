@@ -94,14 +94,22 @@ export default function Dashboard() {
 
     const otherBalance = balances[userId] || 0;
 
-    // Heuristic: If I'm negative and they are positive, I pay them.
-    const iPay = userBalance < 0 && otherBalance > 0;
+    // Heuristic: If I owe (negative), I pay. If I'm owed (positive), they pay me.
+    const iPay = userBalance < 0; 
+    
+    // Calculate logical settlement: Intersection of absolute balances if signs are opposite
+    // e.g. I owe 50, They are owed 20 -> I pay 20.
+    // e.g. I owe 20, They are owed 50 -> I pay 20.
+    let suggested = 0;
+    if ((userBalance < 0 && otherBalance > 0) || (userBalance > 0 && otherBalance < 0)) {
+        suggested = Math.min(Math.abs(userBalance), Math.abs(otherBalance));
+    }
 
     setSettlementModal({
       isOpen: true,
       fromUser: iPay ? { userId: currentUser.userId, name: currentUser.name } : otherUser,
       toUser: iPay ? otherUser : { userId: currentUser.userId, name: currentUser.name },
-      suggestedAmount: 0, // Let user decide amount
+      suggestedAmount: suggested, 
     });
   };
 
