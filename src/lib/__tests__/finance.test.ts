@@ -245,6 +245,21 @@ describe("Finance Utilities", () => {
       expect(suggestion?.amount).toBe(80);
       expect(suggestion?.toUserId).toBe("u3");
     });
+
+    it("intelligent selection: allows settling between two OTHER users when invoked on a target", () => {
+      // Scenario: Alice (u1) is logged in. She clicks settle on Bob (u2).
+      // Balances: Bob (u2) owes 50. Charlie (u3) is owed 50. Alice (u1) is flat.
+      const balances = { u1: 0, u2: -50, u3: 50 };
+      
+      // We ask strategy for u2 (Bob)
+      const suggestion = suggestSettlementStrategy("u2", balances, users);
+
+      expect(suggestion).toEqual({
+        fromUserId: "u2", // Bob pays
+        toUserId: "u3",   // Charlie receives
+        amount: 50
+      });
+    });
   });
 
   // --- getDirectSettlementDetails (NEW TESTS) ---

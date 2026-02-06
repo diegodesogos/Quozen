@@ -93,20 +93,31 @@ export default function Dashboard() {
     }
   };
 
-  const handleSettleWith = (userId: string) => {
+  const handleSettleWith = (targetUserId: string) => {
     if (!currentUser) return;
-    const otherUser = getUserById(userId);
-    if (!otherUser) return;
+    const targetUser = getUserById(targetUserId);
+    if (!targetUser) return;
 
-    const otherBalance = balances[userId] || 0;
+    // Feature Update: Intelligent Selection
+    // Try to find the best settlement strategy for the SELECTED user first.
+    // This allows settling debts between two other people (e.g. Bob owes Charlie, I click Settle on Bob).
+    const smartStrategy = suggestSettlementStrategy(targetUserId, balances, users);
 
-    // Delegate business logic to finance lib
-    const settlement = getDirectSettlementDetails(
-      currentUser.userId,
-      userBalance,
-      userId,
-      otherBalance
-    );
+    let settlement;
+
+    if (smartStrategy) {
+      settlement = smartStrategy;
+    } else {
+      // Fallback: Default to direct settlement between Current User and Target User
+      // (Used when balance is 0 or strategy returns null)
+      const otherBalance = balances[targetUserId] || 0;
+      settlement = getDirectSettlementDetails(
+        currentUser.userId,
+        userBalance,
+        targetUserId,
+        otherBalance
+      );
+    }
 
     const fromUser = getUserById(settlement.fromUserId);
     const toUser = getUserById(settlement.toUserId);
