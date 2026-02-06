@@ -8,20 +8,22 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { googleApi } from "@/lib/drive"; // Fixed import
+import { googleApi } from "@/lib/drive"; 
+import { Member } from "@/lib/storage/types";
 import { ArrowRight } from "lucide-react";
 
-interface User {
-  userId: string; // Changed from id to userId to match Member interface consistency
+interface UserInfo {
+  userId: string;
   name: string;
 }
 
 interface SettlementModalProps {
   isOpen: boolean;
   onClose: () => void;
-  fromUser?: User;
-  toUser?: User;
+  fromUser?: UserInfo;
+  toUser?: UserInfo;
   suggestedAmount?: number;
+  users?: Member[]; // Add list of all users to allow changing selection
 }
 
 export default function SettlementModal({ 
@@ -29,40 +31,43 @@ export default function SettlementModal({
   onClose, 
   fromUser, 
   toUser, 
-  suggestedAmount = 0 
+  suggestedAmount = 0,
+  users = [] 
 }: SettlementModalProps) {
   const { activeGroupId } = useAppContext();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const [amount, setAmount] = useState(suggestedAmount > 0 ? suggestedAmount.toString() : "");
+  const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("cash");
   const [notes, setNotes] = useState("");
+  
+  // Editable state for users
+  const [selectedFromId, setSelectedFromId] = useState("");
+  const [selectedToId, setSelectedToId] = useState("");
 
-  // Sync state with props when modal opens or suggestion changes
+  // Sync state with props when modal opens
   useEffect(() => {
     if (isOpen) {
       setAmount(suggestedAmount > 0 ? suggestedAmount.toFixed(2) : "");
       setMethod("cash");
       setNotes("");
+      setSelectedFromId(fromUser?.userId || "");
+      setSelectedToId(toUser?.userId || "");
     }
-  }, [isOpen, suggestedAmount]);
+  }, [isOpen, suggestedAmount, fromUser, toUser]);
 
   const settlementMutation = useMutation({
     mutationFn: async (data: any) => {
-      // Use the googleApi directly instead of apiRequest
       return await googleApi.addSettlement(activeGroupId, data);
     },
     onSuccess: () => {
-      // Invalidate the group data query to refresh expenses and settlements
       queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
       toast({
         title: "Settlement recorded",
         description: "The payment has been recorded successfully.",
       });
       onClose();
-      setAmount("");
-      setNotes("");
     },
     onError: (error) => {
       console.error(error);
@@ -77,19 +82,28 @@ export default function SettlementModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!fromUser || !toUser || !amount || parseFloat(amount) <= 0) {
+    if (!selectedFromId || !selectedToId || !amount || parseFloat(amount) <= 0) {
       toast({
         title: "Invalid data",
-        description: "Please fill in all required fields with valid values.",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (selectedFromId === selectedToId) {
+      toast({
+        title: "Invalid selection",
+        description: "Payer and receiver cannot be the same person.",
         variant: "destructive",
       });
       return;
     }
 
     settlementMutation.mutate({
-      fromUserId: fromUser.userId,
-      toUserId: toUser.userId,
-      amount: parseFloat(amount), // Ensure number type
+      fromUserId: selectedFromId,
+      toUserId: selectedToId,
+      amount: parseFloat(amount),
       method,
       notes: notes.trim() || undefined,
       date: new Date().toISOString(),
@@ -102,40 +116,52 @@ export default function SettlementModal({
         <DialogHeader>
           <DialogTitle className="text-center">Settle Balance</DialogTitle>
           <DialogDescription>
-              Record a payment between two group members.
+              Record a payment between group members.
             </DialogDescription>
         </DialogHeader>
 
-        {fromUser && toUser && (
-          <div className="bg-secondary rounded-lg p-4 mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-                  <span className="text-primary-foreground font-medium text-sm">
-                    {fromUser.name.split(' ').map(n => n[0]).join('')}
-                  </span>
-                </div>
-                <span className="font-medium">{fromUser.name}</span>
-              </div>
-              <div className="flex flex-col items-center">
-                <ArrowRight className="w-5 h-5 text-primary mb-1" />
-                <span className="text-xs text-muted-foreground">pays</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-secondary rounded-full flex items-center justify-center">
-                  <span className="text-secondary-foreground font-medium text-sm">
-                    {toUser.name.split(' ').map(n => n[0]).join('')}
-                  </span>
-                </div>
-                <span className="font-medium">{toUser.name}</span>
-              </div>
+        <form onSubmit={handleSubmit} className="space-y-4" data-testid="form-settlement">
+          
+          <div className="grid grid-cols-[1fr,auto,1fr] gap-2 items-end">
+            <div className="space-y-2">
+              <Label>Payer (From)</Label>
+              <Select value={selectedFromId} onValueChange={setSelectedFromId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Who paid?" />
+                </SelectTrigger>
+                <SelectContent>
+                  {users.map(u => (
+                    <SelectItem key={u.userId} value={u.userId}>
+                      {u.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="pb-3 text-muted-foreground">
+              <ArrowRight className="w-5 h-5" />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Receiver (To)</Label>
+              <Select value={selectedToId} onValueChange={setSelectedToId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Who got paid?" />
+                </SelectTrigger>
+                <SelectContent>
+                  {users.map(u => (
+                    <SelectItem key={u.userId} value={u.userId}>
+                      {u.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
-        )}
 
-        <form onSubmit={handleSubmit} className="space-y-4" data-testid="form-settlement">
           <div>
-            <Label htmlFor="amount">Settlement Amount</Label>
+            <Label htmlFor="amount">Amount</Label>
             <div className="relative">
               <span className="absolute left-3 top-3 text-muted-foreground">$</span>
               <Input
@@ -152,7 +178,7 @@ export default function SettlementModal({
             </div>
             {suggestedAmount > 0 && (
               <p className="text-xs text-muted-foreground mt-1">
-                Suggested: ${suggestedAmount.toFixed(2)} (full balance)
+                Suggested: ${suggestedAmount.toFixed(2)}
               </p>
             )}
           </div>

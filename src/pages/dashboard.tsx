@@ -297,6 +297,7 @@ export default function Dashboard() {
         fromUser={settlementModal.fromUser as any}
         toUser={settlementModal.toUser as any}
         suggestedAmount={settlementModal.suggestedAmount}
+        users={users}
       />
     </>
   );
