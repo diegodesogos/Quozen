@@ -119,9 +119,6 @@ describe("Finance Settlement Scenarios", () => {
   });
 
   it("Scenario 6: Rounding / Floating Point Precision (3 users split 100)", () => {
-    // This tests the "app should solve this by rounding values with a +-5 cents variation/error margin" requirement.
-    // In practice, balances should sum to zero. 
-    
     const users = [
         createMember("u1", "A"), 
         createMember("u2", "B"), 
@@ -129,10 +126,8 @@ describe("Finance Settlement Scenarios", () => {
     ];
 
     // 100 / 3 = 33.3333...
-    // If the system saves high precision:
     const preciseAmount = 100 / 3; 
     
-    // Case A: High precision splits stored
     const expense = createExpense(100, "u1", [
       { userId: "u1", amount: preciseAmount },
       { userId: "u2", amount: preciseAmount },
@@ -141,22 +136,23 @@ describe("Finance Settlement Scenarios", () => {
 
     const balances = calculateBalances(users, [expense], []);
 
-    // A: Paid 100, Consumed 33.333... Balance = 66.666...
-    // B: Consumed 33.333... Balance = -33.333...
-    // C: Consumed 33.333... Balance = -33.333...
+    // A: Paid 100.
+    // Lends to B: 33.33 (rounded from 33.333)
+    // Lends to C: 33.33 (rounded from 33.333)
+    // Total Owed to A: 66.66
     
-    // Sum of balances should be effectively 0
-    const sum = balances["u1"] + balances["u2"] + balances["u3"];
-    expect(sum).toBeCloseTo(0, 5); // Verify sum is zero within precision
-
-    // Verify individual balances
-    expect(balances["u1"]).toBeCloseTo(66.67, 1); // Close to 66.66...
-    expect(balances["u2"]).toBeCloseTo(-33.33, 1);
-    expect(balances["u3"]).toBeCloseTo(-33.33, 1);
+    // B: Owes 33.33
+    // C: Owes 33.33
+    
+    // Note: The total spent was 100. The total splits accounted for are 33.33 * 3 = 99.99.
+    // The 0.01 difference is absorbed by the payer as "personal unshared expense" in this logic model.
+    
+    expect(balances["u1"]).toBe(66.66); 
+    expect(balances["u2"]).toBe(-33.33);
+    expect(balances["u3"]).toBe(-33.33);
   });
 
   it("Scenario 7: Manual Uneven Split with Settlement (Rounding Check)", () => {
-    // Simulating user manually entering truncated values
     // Total 100. Split 33.33, 33.33, 33.33. 
     // Total Split Sum = 99.99. 
     // Residual 0.01 exists. Payer paid 100.
@@ -171,39 +167,20 @@ describe("Finance Settlement Scenarios", () => {
 
     const balances = calculateBalances(users, [expense], []);
 
-    // A: Paid 100. Consumed 33.33. Net +66.67.
-    // B: Consumed 33.33. Net -33.33.
-    // C: Consumed 33.33. Net -33.33.
-    // Check: 66.67 - 33.33 - 33.33 = 0.01.
-    // This 0.01 is effectively "owed to A" because A paid 100 but only 99.99 was accounted for in debts.
-    // However, the `calculateBalances` logic is:
-    // bal[payer] += amount (100)
-    // bal[splitter] -= splitAmount (33.33)
+    // A: Lends 33.33 to B + 33.33 to C = 66.66.
+    // B: Owes 33.33
+    // C: Owes 33.33
     
-    // bal[A] = +100 - 33.33 = +66.67
-    // bal[B] = -33.33
-    // bal[C] = -33.33
-    // Sum = +0.01. The system has created money? No, the system reflects the ledger.
-    // Ideally, the sum of all balances should be 0.
-    // 100 (in) - 99.99 (out) != 0.
-    
-    // The requirement says: "app should solve this by rounding values with a +-5 cents variation/error margin".
-    // This usually means the SETTLEMENT suggestion or display might round it off, 
-    // OR valid splits must sum to Total.
-    // The ExpenseForm component enforces splits matching amount (~0.05 margin).
-    // So this scenario is technically valid per input validation.
-    
-    // Let's settle B and C fully.
+    // Settle fully
     const s1 = createSettlement("u2", "u1", 33.33);
     const s2 = createSettlement("u3", "u1", 33.33);
     
     const balancesAfter = calculateBalances(users, [expense], [s1, s2]);
     
-    expect(balancesAfter["u1"]).toBeCloseTo(0.01, 5); // A keeps the rounding penny
+    // Balances should be zero. The payer simply paid 0.01 more than was split, which is their cost.
+    expect(balancesAfter["u1"]).toBe(0); 
     expect(balancesAfter["u2"]).toBe(0);
     expect(balancesAfter["u3"]).toBe(0);
-    
-    // This confirms the logic holds up even with rounding artifacts.
   });
 
   it("Scenario 8: Complex Multiple Expenses and Settlements", () => {

@@ -4,6 +4,7 @@ import {
   calculateTotalSpent,
   getExpenseUserStatus,
   suggestSettlementStrategy,
+  getDirectSettlementDetails,
   ExpenseUserStatus
 } from "../finance";
 import { Member, Expense, Settlement } from "../storage/types";
@@ -113,15 +114,12 @@ describe("Finance Utilities", () => {
     });
 
     it("BUG REPRO: returns 0 balance if expense ID does not match Member ID (Mismatch case)", () => {
-      // Setup: Member list has updated ID "u2" (Bob).
-      // Expense still refers to old ID "bob@email.com".
-
       const members = [
         { userId: "u1", name: "Alice", role: "member", email: "", joinedAt: "" },
-        { userId: "u2", name: "Bob", role: "member", email: "", joinedAt: "" } // Migrated ID
+        { userId: "u2", name: "Bob", role: "member", email: "", joinedAt: "" } 
       ];
 
-      // Expense uses OLD ID
+      // Expense uses OLD ID (simulated mismatch)
       const exp = createExpense("e1", 20, "u1", [
         { userId: "u1", amount: 10 },
         { userId: "bob@email.com", amount: 10 }
@@ -129,12 +127,7 @@ describe("Finance Utilities", () => {
 
       const balances = calculateBalances(members, [exp], []);
 
-      // Alice: Paid 20. Consumed 10. Balance +10.
       expect(balances["u1"]).toBe(10);
-
-      // Bob (u2): Since the expense refers to "bob@email.com", and balances is keyed by "u2",
-      // Bob's balance remains 0. He "owes nothing" according to the system.
-      // This reproduces the user's issue.
       expect(balances["u2"]).toBe(0);
     });
   });
@@ -147,7 +140,7 @@ describe("Finance Utilities", () => {
 
     it("sums up only the user's split amounts (Consumption)", () => {
       const e1 = createExpense("e1", 100, "u2", [{ userId: "u1", amount: 25 }, { userId: "u2", amount: 75 }]);
-      const e2 = createExpense("e2", 50, "u1", [{ userId: "u1", amount: 50 }]); // Alice treated herself
+      const e2 = createExpense("e2", 50, "u1", [{ userId: "u1", amount: 50 }]); 
 
       const total = calculateTotalSpent("u1", [e1, e2]);
       expect(total).toBe(75); // 25 + 50
@@ -167,14 +160,13 @@ describe("Finance Utilities", () => {
   // --- getExpenseUserStatus ---
   describe("getExpenseUserStatus", () => {
     it("identifies payer who also consumed", () => {
-      // Alice paid 100, split 50/50 with Bob
       const exp = createExpense("e1", 100, "u1", [{ userId: "u1", amount: 50 }, { userId: "u2", amount: 50 }]);
       const status = getExpenseUserStatus(exp, "u1");
 
       expect(status.status).toBe("payer");
       if (status.status === "payer") {
         expect(status.amountPaid).toBe(100);
-        expect(status.lentAmount).toBe(50); // 100 - 50
+        expect(status.lentAmount).toBe(50); 
       }
     });
 
@@ -200,7 +192,7 @@ describe("Finance Utilities", () => {
 
     it("identifies uninvolved user", () => {
       const exp = createExpense("e1", 100, "u1", [{ userId: "u1", amount: 100 }]);
-      const status = getExpenseUserStatus(exp, "u3"); // Charlie not involved
+      const status = getExpenseUserStatus(exp, "u3"); 
       expect(status.status).toBe("none");
     });
   });
@@ -214,11 +206,9 @@ describe("Finance Utilities", () => {
     });
 
     it("suggests payment when user owes money (Negative Balance)", () => {
-      // Alice: -50, Bob: +50, Charlie: 0
       const balances = { u1: -50, u2: 50, u3: 0 };
       const suggestion = suggestSettlementStrategy("u1", balances, users);
 
-      // Should pay Bob
       expect(suggestion).toEqual({
         fromUserId: "u1",
         toUserId: "u2",
@@ -227,11 +217,9 @@ describe("Finance Utilities", () => {
     });
 
     it("suggests receiving when user is owed money (Positive Balance)", () => {
-      // Alice: +50, Bob: -50
       const balances = { u1: 50, u2: -50 };
       const suggestion = suggestSettlementStrategy("u1", balances, users);
 
-      // Should request from Bob
       expect(suggestion).toEqual({
         fromUserId: "u2",
         toUserId: "u1",
@@ -240,27 +228,62 @@ describe("Finance Utilities", () => {
     });
 
     it("prioritizes the largest creditor/debtor", () => {
-      // Alice: -50. Bob: +10. Charlie: +40.
-      // Alice owes 50. She should pay Charlie first as he is owed the most.
       const balances = { u1: -50, u2: 10, u3: 40 };
       const suggestion = suggestSettlementStrategy("u1", balances, users);
 
       expect(suggestion).toEqual({
         fromUserId: "u1",
         toUserId: "u3",
-        amount: 40 // Can only pay 40 to Charlie fully, remaining 10 later
+        amount: 40 
       });
     });
 
     it("handles partial settlement caps", () => {
-      // Alice: -100. Bob: +20. Charlie: +80.
-      // Alice owes 100. Should pay Charlie (80).
-      // Amount is min(abs(-100), 80) = 80.
       const balances = { u1: -100, u2: 20, u3: 80 };
       const suggestion = suggestSettlementStrategy("u1", balances, users);
 
       expect(suggestion?.amount).toBe(80);
       expect(suggestion?.toUserId).toBe("u3");
+    });
+  });
+
+  // --- getDirectSettlementDetails (NEW TESTS) ---
+  describe("getDirectSettlementDetails", () => {
+    it("calculates amount correctly when current user owes less than other is owed", () => {
+      // Alice owes 20, Bob is owed 50. Alice pays Bob 20.
+      const result = getDirectSettlementDetails("u1", -20, "u2", 50);
+      expect(result).toEqual({ amount: 20, fromUserId: "u1", toUserId: "u2" });
+    });
+
+    it("calculates amount correctly when current user owes more than other is owed", () => {
+      // Alice owes 50, Bob is owed 20. Alice pays Bob 20.
+      const result = getDirectSettlementDetails("u1", -50, "u2", 20);
+      expect(result).toEqual({ amount: 20, fromUserId: "u1", toUserId: "u2" });
+    });
+
+    it("calculates amount correctly when current user is owed and other owes", () => {
+      // Alice owed 30, Bob owes 40. Bob pays Alice 30.
+      const result = getDirectSettlementDetails("u1", 30, "u2", -40);
+      expect(result).toEqual({ amount: 30, fromUserId: "u2", toUserId: "u1" });
+    });
+
+    it("returns 0 amount if both users have same sign (Both owe)", () => {
+      // Both owe money to someone else (Charlie). They shouldn't settle with each other.
+      const result = getDirectSettlementDetails("u1", -20, "u2", -20);
+      expect(result.amount).toBe(0);
+    });
+
+    it("returns 0 amount if both users have same sign (Both owed)", () => {
+      const result = getDirectSettlementDetails("u1", 20, "u2", 20);
+      expect(result.amount).toBe(0);
+    });
+
+    it("defaults to correct direction even if amount is 0 (Payer/Receiver based on current user)", () => {
+      // Alice owes, Bob owes. Default: Alice pays Bob (arbitrary direction for 0 amount, but predictable)
+      // Logic: if current < 0, from=current.
+      const result = getDirectSettlementDetails("u1", -10, "u2", -10);
+      expect(result.fromUserId).toBe("u1");
+      expect(result.amount).toBe(0);
     });
   });
 });

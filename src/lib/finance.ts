@@ -1,5 +1,13 @@
 import { Expense, Settlement, Member } from "./storage/types";
 
+/**
+ * Rounds a number to 2 decimal places to ensure currency consistency.
+ * Uses Math.round((n + Number.EPSILON) * 100) / 100 to handle float edge cases.
+ */
+export function roundCurrency(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 export function calculateBalances(
   users: Member[],
   expenses: Expense[],
@@ -10,41 +18,66 @@ export function calculateBalances(
 
   // Process expenses
   expenses.forEach(expense => {
-    const amount = typeof expense.amount === 'string' ? parseFloat(expense.amount) : expense.amount;
+    // Logic Refactor:
+    // Instead of crediting Payer with Total Amount and debiting everyone (including payer),
+    // we only debit the *other* participants and credit the Payer for *those specific amounts*.
+    // This ensures that PayerBalance = Sum(DebtorsBalance) regardless of whether
+    // expense.amount matches sum(expense.splits).
+    // The splits are the source of truth for debt.
 
-    // Credit payer
-    if (bal[expense.paidBy] !== undefined) {
-      bal[expense.paidBy] += amount;
+    const payerId = expense.paidBy;
+
+    if (expense.splits) {
+      expense.splits.forEach((split: any) => {
+        const splitAmount = typeof split.amount === 'string' ? parseFloat(split.amount) : split.amount;
+        const roundedAmount = roundCurrency(splitAmount);
+
+        // If Payer is paying for themselves, no debt is created. Skip.
+        if (split.userId === payerId) {
+          return;
+        }
+
+        // Payer lends money to Splitter
+        if (bal[payerId] !== undefined) {
+          bal[payerId] += roundedAmount;
+        }
+        
+        // Splitter borrows money
+        if (bal[split.userId] !== undefined) {
+          bal[split.userId] -= roundedAmount;
+        }
+      });
     }
-
-    // Debit splitters
-    expense.splits?.forEach((split: any) => {
-      if (bal[split.userId] !== undefined) {
-        bal[split.userId] -= split.amount;
-      }
-    });
   });
 
   // Process settlements
   settlements.forEach(settlement => {
     const amount = typeof settlement.amount === 'string' ? parseFloat(settlement.amount) : settlement.amount;
+    const roundedAmount = roundCurrency(amount);
 
     if (bal[settlement.fromUserId] !== undefined) {
-      bal[settlement.fromUserId] += amount;
+      bal[settlement.fromUserId] += roundedAmount;
     }
     if (bal[settlement.toUserId] !== undefined) {
-      bal[settlement.toUserId] -= amount;
+      bal[settlement.toUserId] -= roundedAmount;
     }
+  });
+
+  // Final rounding pass just in case of accumulated float noise in summation
+  Object.keys(bal).forEach(userId => {
+    bal[userId] = roundCurrency(bal[userId]);
   });
 
   return bal;
 }
 
 export function calculateTotalSpent(userId: string, expenses: Expense[]): number {
-  return expenses.reduce((total, exp) => {
+  const total = expenses.reduce((sum, exp) => {
     const mySplit = exp.splits?.find((s: any) => s.userId === userId);
-    return total + (mySplit?.amount || 0);
+    return sum + (mySplit?.amount || 0);
   }, 0);
+  
+  return roundCurrency(total);
 }
 
 export type ExpenseUserStatus =
@@ -57,20 +90,32 @@ export function getExpenseUserStatus(expense: Expense, userId: string): ExpenseU
   const userSplit = expense.splits?.find(s => s.userId === userId);
   const splitAmount = userSplit?.amount || 0;
 
+  // Refactor logic to match calculateBalances (Consolidated view)
+  
   if (expense.paidBy === userId) {
-    // I paid. I lent (Total - MyShare)
-    // If I didn't participate in split, I lent everything.
+    // I paid.
+    // My "Lent Amount" is effectively the sum of everyone else's splits.
+    // Or simpler: Total Amount - My Split.
+    // To match calculateBalances exactly, we should sum others.
+    
+    let lent = 0;
+    if (expense.splits) {
+        lent = expense.splits
+            .filter((s: any) => s.userId !== userId)
+            .reduce((sum: number, s: any) => sum + (s.amount || 0), 0);
+    }
+
     return {
       status: 'payer',
       amountPaid: amount,
-      lentAmount: amount - splitAmount
+      lentAmount: roundCurrency(lent)
     };
   }
 
   if (splitAmount > 0) {
     return {
       status: 'debtor',
-      amountOwed: splitAmount
+      amountOwed: roundCurrency(splitAmount)
     };
   }
 
@@ -113,6 +158,62 @@ export function suggestSettlementStrategy(
   return {
     fromUserId: userBalance < 0 ? currentUserId : target.userId,
     toUserId: userBalance < 0 ? target.userId : currentUserId,
-    amount
+    amount: roundCurrency(amount)
   };
+}
+
+/**
+ * Calculates the suggested settlement between the current user and another user
+ * based on their current balances.
+ */
+export function getDirectSettlementDetails(
+  currentUserId: string,
+  currentBalance: number,
+  otherUserId: string,
+  otherBalance: number
+): { amount: number; fromUserId: string; toUserId: string } {
+  let amount = 0;
+  let fromUserId = currentUserId;
+  let toUserId = otherUserId;
+
+  // Calculate logical settlement: Intersection of absolute balances if signs are opposite
+  if ((currentBalance < 0 && otherBalance > 0) || (currentBalance > 0 && otherBalance < 0)) {
+    amount = Math.min(Math.abs(currentBalance), Math.abs(otherBalance));
+  }
+
+  // Determine direction
+  if (currentBalance < 0) {
+    fromUserId = currentUserId;
+    toUserId = otherUserId;
+  } else {
+    fromUserId = otherUserId;
+    toUserId = currentUserId;
+  }
+
+  return { amount: roundCurrency(amount), fromUserId, toUserId };
+}
+
+/**
+ * Distributes a total amount into 'n' parts, ensuring the sum of parts equals the total exactly.
+ * Useful for splitting expenses without floating point rounding errors (pennies).
+ */
+export function distributeAmount(total: number, count: number): number[] {
+  if (count <= 0) return [];
+  
+  // Work with integers (cents) to avoid float errors
+  const totalCents = Math.round(total * 100);
+  const baseSplitCents = Math.floor(totalCents / count);
+  const remainderCents = totalCents % count;
+
+  const results = [];
+  for (let i = 0; i < count; i++) {
+    // Distribute remainder one cent at a time
+    let valCents = baseSplitCents;
+    if (i < remainderCents) {
+      valCents += 1;
+    }
+    results.push(valCents / 100);
+  }
+  
+  return results;
 }

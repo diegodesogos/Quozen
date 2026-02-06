@@ -6,7 +6,13 @@ import { useState, useMemo } from "react";
 import { Utensils, Car, Bed, ShoppingBag, Gamepad2, MoreHorizontal, Wallet } from "lucide-react";
 import { googleApi } from "@/lib/drive";
 import { useNavigate } from "react-router-dom";
-import { calculateBalances, suggestSettlementStrategy, calculateTotalSpent, getExpenseUserStatus } from "@/lib/finance";
+import { 
+  calculateBalances, 
+  suggestSettlementStrategy, 
+  calculateTotalSpent, 
+  getExpenseUserStatus,
+  getDirectSettlementDetails 
+} from "@/lib/finance";
 import { Expense, Settlement, Member } from "@/lib/storage/types";
 
 export default function Dashboard() {
@@ -94,23 +100,25 @@ export default function Dashboard() {
 
     const otherBalance = balances[userId] || 0;
 
-    // Heuristic: If I owe (negative), I pay. If I'm owed (positive), they pay me.
-    const iPay = userBalance < 0; 
-    
-    // Calculate logical settlement: Intersection of absolute balances if signs are opposite
-    // e.g. I owe 50, They are owed 20 -> I pay 20.
-    // e.g. I owe 20, They are owed 50 -> I pay 20.
-    let suggested = 0;
-    if ((userBalance < 0 && otherBalance > 0) || (userBalance > 0 && otherBalance < 0)) {
-        suggested = Math.min(Math.abs(userBalance), Math.abs(otherBalance));
-    }
+    // Delegate business logic to finance lib
+    const settlement = getDirectSettlementDetails(
+      currentUser.userId,
+      userBalance,
+      userId,
+      otherBalance
+    );
 
-    setSettlementModal({
-      isOpen: true,
-      fromUser: iPay ? { userId: currentUser.userId, name: currentUser.name } : otherUser,
-      toUser: iPay ? otherUser : { userId: currentUser.userId, name: currentUser.name },
-      suggestedAmount: suggested, 
-    });
+    const fromUser = getUserById(settlement.fromUserId);
+    const toUser = getUserById(settlement.toUserId);
+
+    if (fromUser && toUser) {
+      setSettlementModal({
+        isOpen: true,
+        fromUser,
+        toUser,
+        suggestedAmount: settlement.amount, 
+      });
+    }
   };
 
   if (isLoading) {
