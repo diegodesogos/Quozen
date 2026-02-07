@@ -9,44 +9,64 @@
   --card-foreground: hsl(222.2, 84%, 4.9%);
   --popover: hsl(0, 0%, 100%);
   --popover-foreground: hsl(222.2, 84%, 4.9%);
-  --primary: hsl(221.2, 83.2%, 53.3%);
+
+  /* Primary: Dark Teal #0F766E */
+  --primary: hsl(175, 77%, 26%);
   --primary-foreground: hsl(210, 40%, 98%);
-  --secondary: hsl(210, 40%, 96%);
-  --secondary-foreground: hsl(222.2, 84%, 4.9%);
-  --muted: hsl(210, 40%, 96%);
+
+  /* Secondary: Light Teal Tint */
+  --secondary: hsl(175, 30%, 96%);
+  --secondary-foreground: hsl(222.2, 47.4%, 11.2%);
+
+  /* Muted: Teal Gray */
+  --muted: hsl(175, 20%, 96%);
   --muted-foreground: hsl(215.4, 16.3%, 46.9%);
-  --accent: hsl(210, 40%, 96%);
-  --accent-foreground: hsl(222.2, 84%, 4.9%);
+
+  /* Accent: Hover effects */
+  --accent: hsl(175, 30%, 96%);
+  --accent-foreground: hsl(222.2, 47.4%, 11.2%);
+
   --destructive: hsl(0, 84.2%, 60.2%);
   --destructive-foreground: hsl(210, 40%, 98%);
+
   --border: hsl(214.3, 31.8%, 91.4%);
   --input: hsl(214.3, 31.8%, 91.4%);
-  --ring: hsl(221.2, 83.2%, 53.3%);
-  --chart-1: hsl(203.8, 88.3%, 53.1%);
-  --chart-2: hsl(159.8, 100%, 36.1%);
-  --chart-3: hsl(42.0, 92.8%, 56.3%);
-  --chart-4: hsl(147.1, 78.5%, 41.9%);
+
+  /* Ring: Bright Teal #2DD4BF */
+  --ring: hsl(173, 66%, 50%);
+
+  /* Charts adapted to Teal spectrum */
+  --chart-1: hsl(175, 77%, 26%);
+  --chart-2: hsl(173, 66%, 50%);
+  --chart-3: hsl(150, 60%, 40%);
+  --chart-4: hsl(190, 70%, 40%);
   --chart-5: hsl(341.5, 75.2%, 51.0%);
+
+  /* Sidebar colors */
   --sidebar: hsl(180, 6.7%, 97.1%);
   --sidebar-foreground: hsl(210, 25%, 7.8%);
-  --sidebar-primary: hsl(203.9, 88.3%, 53.1%);
+  --sidebar-primary: hsl(175, 77%, 26%);
   --sidebar-primary-foreground: hsl(0, 0%, 100%);
-  --sidebar-accent: hsl(211.6, 51.4%, 92.7%);
-  --sidebar-accent-foreground: hsl(203.9, 88.3%, 53.1%);
+  --sidebar-accent: hsl(175, 20%, 96%);
+  --sidebar-accent-foreground: hsl(175, 77%, 26%);
   --sidebar-border: hsl(205.0, 25.0%, 90.6%);
-  --sidebar-ring: hsl(202.8, 89.1%, 53.1%);
+  --sidebar-ring: hsl(173, 66%, 50%);
+
+  /* Preserved Fonts & Radius */
   --font-sans: "Inter", system-ui, sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: Menlo, monospace;
   --radius: 12px;
-  --shadow-2xs: 0px 2px 0px 0px hsl(202.8, 89.1%, 53.1%, 0);
-  --shadow-xs: 0px 2px 0px 0px hsl(202.8, 89.1%, 53.1%, 0);
-  --shadow-sm: 0px 2px 0px 0px hsl(202.8, 89.1%, 53.1%, 0), 0px 1px 2px -1px hsl(202.8, 89.1%, 53.1%, 0);
-  --shadow: 0px 2px 0px 0px hsl(202.8, 89.1%, 53.1%, 0), 0px 1px 2px -1px hsl(202.8, 89.1%, 53.1%, 0);
-  --shadow-md: 0px 2px 0px 0px hsl(202.8, 89.1%, 53.1%, 0), 0px 2px 4px -1px hsl(202.8, 89.1%, 53.1%, 0);
-  --shadow-lg: 0px 2px 0px 0px hsl(202.8, 89.1%, 53.1%, 0), 0px 4px 6px -1px hsl(202.8, 89.1%, 53.1%, 0);
-  --shadow-xl: 0px 2px 0px 0px hsl(202.8, 89.1%, 53.1%, 0), 0px 8px 10px -1px hsl(202.8, 89.1%, 53.1%, 0);
-  --shadow-2xl: 0px 2px 0px 0px hsl(202.8, 89.1%, 53.1%, 0);
+
+  /* Preserved Shadows & Spacing */
+  --shadow-2xs: 0px 2px 0px 0px hsl(173, 66%, 50%, 0);
+  --shadow-xs: 0px 2px 0px 0px hsl(173, 66%, 50%, 0);
+  --shadow-sm: 0px 2px 0px 0px hsl(173, 66%, 50%, 0), 0px 1px 2px -1px hsl(173, 66%, 50%, 0);
+  --shadow: 0px 2px 0px 0px hsl(173, 66%, 50%, 0), 0px 1px 2px -1px hsl(173, 66%, 50%, 0);
+  --shadow-md: 0px 2px 0px 0px hsl(173, 66%, 50%, 0), 0px 2px 4px -1px hsl(173, 66%, 50%, 0);
+  --shadow-lg: 0px 2px 0px 0px hsl(173, 66%, 50%, 0), 0px 4px 6px -1px hsl(173, 66%, 50%, 0);
+  --shadow-xl: 0px 2px 0px 0px hsl(173, 66%, 50%, 0), 0px 8px 10px -1px hsl(173, 66%, 50%, 0);
+  --shadow-2xl: 0px 2px 0px 0px hsl(173, 66%, 50%, 0);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
 }
@@ -58,8 +78,11 @@
   --card-foreground: hsl(210, 40%, 98%);
   --popover: hsl(222.2, 84%, 4.9%);
   --popover-foreground: hsl(210, 40%, 98%);
-  --primary: hsl(217.2, 91.2%, 59.8%);
-  --primary-foreground: hsl(222.2, 84%, 4.9%);
+
+  /* Primary Dark: Bright Teal */
+  --primary: hsl(173, 66%, 50%);
+  --primary-foreground: hsl(175, 77%, 26%);
+
   --secondary: hsl(217.2, 32.6%, 17.5%);
   --secondary-foreground: hsl(210, 40%, 98%);
   --muted: hsl(217.2, 32.6%, 17.5%);
@@ -70,7 +93,17 @@
   --destructive-foreground: hsl(210, 40%, 98%);
   --border: hsl(217.2, 32.6%, 17.5%);
   --input: hsl(217.2, 32.6%, 17.5%);
-  --ring: hsl(224.3, 76.3%, 94.1%);
+
+  --ring: hsl(173, 66%, 50%);
+
+  --sidebar: hsl(240, 5.9%, 10%);
+  --sidebar-foreground: hsl(240, 4.8%, 95.9%);
+  --sidebar-primary: hsl(173, 66%, 50%);
+  --sidebar-primary-foreground: hsl(0, 0%, 100%);
+  --sidebar-accent: hsl(240, 3.7%, 15.9%);
+  --sidebar-accent-foreground: hsl(240, 4.8%, 95.9%);
+  --sidebar-border: hsl(240, 3.7%, 15.9%);
+  --sidebar-ring: hsl(173, 66%, 50%);
   --font-sans: "Inter", system-ui, sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: Menlo, monospace;
@@ -104,8 +137,9 @@
   background-color: hsl(0, 84.2%, 60.2%);
 }
 
+/* Updated active tab color to match new primary */
 .tab-active {
-  color: hsl(221.2, 83.2%, 53.3%);
+  color: hsl(175, 77%, 26%);
 }
 
 .modal-backdrop {
