@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useTranslation } from "react-i18next";
 
 interface UserInfo {
   userId: string;
@@ -34,7 +35,7 @@ interface SettlementModalProps {
   toUser?: UserInfo;
   suggestedAmount?: number;
   users?: Member[];
-  initialData?: Settlement; // If present, we are in EDIT mode
+  initialData?: Settlement;
 }
 
 export default function SettlementModal({
@@ -49,6 +50,7 @@ export default function SettlementModal({
   const { activeGroupId } = useAppContext();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("cash");
@@ -62,14 +64,12 @@ export default function SettlementModal({
   useEffect(() => {
     if (isOpen) {
       if (initialData) {
-        // Edit Mode
         setAmount(initialData.amount.toString());
         setMethod(initialData.method || "cash");
         setNotes(initialData.notes || "");
         setSelectedFromId(initialData.fromUserId);
         setSelectedToId(initialData.toUserId);
       } else {
-        // Create Mode
         setAmount(suggestedAmount > 0 ? suggestedAmount.toFixed(2) : "");
         setMethod("cash");
         setNotes("");
@@ -91,15 +91,15 @@ export default function SettlementModal({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
       toast({
-        title: initialData ? "Settlement updated" : "Settlement recorded",
+        title: t("common.success"),
       });
       onClose();
     },
     onError: (error) => {
       console.error(error);
       toast({
-        title: "Error",
-        description: "Failed to save settlement.",
+        title: t("common.error"),
+        description: t("settlement.saveError"),
         variant: "destructive",
       });
     },
@@ -112,12 +112,12 @@ export default function SettlementModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
-      toast({ title: "Settlement deleted" });
+      toast({ title: t("common.success") });
       setShowDeleteConfirm(false);
       onClose();
     },
     onError: (error) => {
-      toast({ title: "Error", description: "Failed to delete.", variant: "destructive" });
+      toast({ title: t("common.error"), description: t("settlement.deleteError"), variant: "destructive" });
     }
   });
 
@@ -125,7 +125,7 @@ export default function SettlementModal({
     e.preventDefault();
     if (!selectedFromId || !selectedToId || !amount || parseFloat(amount) <= 0) return;
     if (selectedFromId === selectedToId) {
-      toast({ title: "Invalid selection", description: "Payer and receiver cannot be the same.", variant: "destructive" });
+      toast({ title: "Invalid selection", description: t("settlement.sameUser"), variant: "destructive" });
       return;
     }
 
@@ -144,9 +144,9 @@ export default function SettlementModal({
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-md" data-testid="modal-settlement">
           <DialogHeader>
-            <DialogTitle className="text-center">{initialData ? "Edit Settlement" : "Settle Balance"}</DialogTitle>
+            <DialogTitle className="text-center">{initialData ? t("settlement.editTitle") : t("settlement.title")}</DialogTitle>
             <DialogDescription className="text-center">
-              {initialData ? "Update payment details." : "Record a payment between group members."}
+              {initialData ? t("settlement.editDesc") : t("settlement.desc")}
             </DialogDescription>
           </DialogHeader>
 
@@ -154,10 +154,10 @@ export default function SettlementModal({
 
             <div className="grid grid-cols-[1fr,auto,1fr] gap-2 items-end">
               <div className="space-y-2">
-                <Label>Payer (From)</Label>
+                <Label>{t("settlement.payer")}</Label>
                 <Select value={selectedFromId} onValueChange={setSelectedFromId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Who paid?" />
+                    <SelectValue placeholder={t("settlement.whoPaid")} />
                   </SelectTrigger>
                   <SelectContent>
                     {users.map(u => (
@@ -174,10 +174,10 @@ export default function SettlementModal({
               </div>
 
               <div className="space-y-2">
-                <Label>Receiver (To)</Label>
+                <Label>{t("settlement.receiver")}</Label>
                 <Select value={selectedToId} onValueChange={setSelectedToId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Who got paid?" />
+                    <SelectValue placeholder={t("settlement.whoReceived")} />
                   </SelectTrigger>
                   <SelectContent>
                     {users.map(u => (
@@ -191,7 +191,7 @@ export default function SettlementModal({
             </div>
 
             <div>
-              <Label htmlFor="amount">Amount</Label>
+              <Label htmlFor="amount">{t("expenseForm.amount")}</Label>
               <div className="relative">
                 <span className="absolute left-3 top-3 text-muted-foreground">$</span>
                 <Input
@@ -208,13 +208,13 @@ export default function SettlementModal({
               </div>
               {!initialData && suggestedAmount > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Suggested: ${suggestedAmount.toFixed(2)}
+                  {t("settlement.suggested")}: ${suggestedAmount.toFixed(2)}
                 </p>
               )}
             </div>
 
             <div>
-              <Label htmlFor="method">Payment Method</Label>
+              <Label htmlFor="method">{t("settlement.method")}</Label>
               <Select value={method} onValueChange={setMethod}>
                 <SelectTrigger data-testid="select-payment-method">
                   <SelectValue />
@@ -230,11 +230,11 @@ export default function SettlementModal({
             </div>
 
             <div>
-              <Label htmlFor="notes">Notes (Optional)</Label>
+              <Label htmlFor="notes">{t("settlement.notes")}</Label>
               <Textarea
                 id="notes"
                 rows={2}
-                placeholder="Add any notes about this payment..."
+                placeholder={t("settlement.notesPlaceholder")}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 data-testid="textarea-settlement-notes"
@@ -249,7 +249,7 @@ export default function SettlementModal({
                   size="icon"
                   className="shrink-0"
                   onClick={() => setShowDeleteConfirm(true)}
-                  title="Delete Settlement"
+                  title={t("common.delete")}
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -262,7 +262,7 @@ export default function SettlementModal({
                 onClick={onClose}
                 data-testid="button-cancel-settlement"
               >
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button
                 type="submit"
@@ -270,7 +270,7 @@ export default function SettlementModal({
                 disabled={saveMutation.isPending}
                 data-testid="button-record-payment"
               >
-                {saveMutation.isPending ? "Saving..." : (initialData ? "Update" : "Record Payment")}
+                {saveMutation.isPending ? t("expenseForm.saving") : (initialData ? t("settlement.update") : t("settlement.record"))}
               </Button>
             </div>
           </form>
@@ -280,15 +280,15 @@ export default function SettlementModal({
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Settlement?</AlertDialogTitle>
+            <AlertDialogTitle>{t("settlement.deleteTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove this record. This action cannot be undone.
+              {t("settlement.deleteDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+              {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

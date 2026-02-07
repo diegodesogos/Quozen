@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import Profile from "../profile";
 import { useAuth } from "@/context/auth-provider";
-import { useQuery } from "@tanstack/react-query";
 import { useSettings } from "@/hooks/use-settings";
 import { useGroups } from "@/hooks/use-groups";
+import en from "@/locales/en/translation.json";
 
 // Mock hooks
 vi.mock("@/context/app-context", () => ({
@@ -75,33 +75,23 @@ describe("Profile Page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Mock Auth Provider to return user
     (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       user: mockUser,
       logout: mockLogout,
     });
 
-    // Mock Settings
     (useSettings as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       settings: {
         preferences: { defaultCurrency: "USD" },
-        // Need to provide groupCache if logic depends on it, though we rely on useGroups mostly
         groupCache: mockGroups.map(g => ({ id: g.id, name: g.name, role: 'owner' }))
       },
       updateSettings: mockUpdateSettings,
     });
 
-    // Mock Groups
     (useGroups as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       groups: mockGroups,
       isLoading: false
     });
-
-    // Mock Drive Query - Profile still calls listGroups directly for the count? 
-    // Checking source: Profile uses useGroups() now (in my refactor plan), 
-    // or did I only refactor Header? 
-    // I refactored Profile.tsx in the previous step to use `useGroups`.
-    // So we don't need to rely on the useQuery mock for groups anymore.
   });
 
   it("renders user profile information", () => {
@@ -114,9 +104,8 @@ describe("Profile Page", () => {
   it("displays correct statistics", () => {
     render(<Profile />);
 
-    // We mocked 3 groups via useGroups
     expect(screen.getByTestId("text-group-count")).toHaveTextContent("3");
-    expect(screen.getByText("Active Groups")).toBeInTheDocument();
+    expect(screen.getByText(en.profile.activeGroups)).toBeInTheDocument();
   });
 
   it("triggers logout when Sign Out is clicked", () => {
@@ -129,7 +118,6 @@ describe("Profile Page", () => {
   });
 
   it("allows forcing re-login (troubleshooting)", () => {
-    // Mock window.location.reload
     const originalLocation = window.location;
     Object.defineProperty(window, "location", {
       configurable: true,
@@ -138,12 +126,10 @@ describe("Profile Page", () => {
 
     render(<Profile />);
 
-    const forceLoginBtn = screen.getByText("Force Re-login");
+    const forceLoginBtn = screen.getByText(en.profile.forceLogin);
     fireEvent.click(forceLoginBtn);
 
     expect(window.location.reload).toHaveBeenCalled();
-
-    // Cleanup
     Object.defineProperty(window, "location", { configurable: true, value: originalLocation });
   });
 });

@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import EditExpense from "../edit-expense";
 import { useAppContext } from "@/context/app-context";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { ConflictError } from "@/lib/errors";
 import { googleApi } from "@/lib/drive";
+import en from "@/locales/en/translation.json";
 
 // Mocks
 vi.mock("@/context/app-context", () => ({
@@ -125,6 +126,7 @@ describe("Edit Expense Page", () => {
 
     expect(screen.getByDisplayValue("Lunch")).toBeInTheDocument();
     expect(screen.getByDisplayValue("20")).toBeInTheDocument();
+    expect(screen.getByText(en.expenseForm.editTitle)).toBeInTheDocument();
   });
 
   it("shows Not Found dialog if expense does not exist", () => {
@@ -141,7 +143,8 @@ describe("Edit Expense Page", () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText("Expense Not Found")).toBeInTheDocument();
+    expect(screen.getByText(en.expenseForm.notFoundTitle)).toBeInTheDocument();
+    expect(screen.getByText(en.expenseForm.notFoundDesc)).toBeInTheDocument();
   });
 
   it("shows Conflict dialog on ConflictError during save", async () => {
@@ -157,7 +160,7 @@ describe("Edit Expense Page", () => {
       </MemoryRouter>
     );
 
-    const saveBtn = screen.getByText("Save Expense");
+    const saveBtn = screen.getByText(en.expenseForm.save);
 
     await act(async () => {
       fireEvent.click(saveBtn);
@@ -165,7 +168,9 @@ describe("Edit Expense Page", () => {
 
     const conflictDialog = await screen.findByTestId("alert-dialog");
     expect(conflictDialog).toBeInTheDocument();
-    expect(screen.getByText("Data Conflict")).toBeInTheDocument();
+    expect(screen.getByText(en.expenseForm.conflictTitle)).toBeInTheDocument();
+
+    // We check for the error message from the exception OR the description from translation
     expect(screen.getByText(/Modified by someone else/)).toBeInTheDocument();
 
     expect(mockToast).not.toHaveBeenCalled();

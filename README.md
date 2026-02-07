@@ -15,6 +15,10 @@ Quozen operates entirely within your browser (Single Page Application). It uses 
 * **Role-Based Access**:
     * **Owners**: Can edit group settings, manage members, and delete the group.
     * **Members**: Can add/edit expenses, view balances, and leave the group.
+* **Internationalization & Localization**:
+    * **Multi-Language Support**: Fully translated into **English** and **Spanish** (Español). Auto-detects your system preference with manual override in Profile.
+    * **Regional Formatting**: Automatically formats dates and numbers (e.g., 1,234.56 vs 1.234,56) based on your selected locale.
+    * **Currency Selection**: Set your preferred display currency (USD, EUR, GBP, JPY, etc.).
 * **Data Integrity**:
     * **Conflict Detection**: Prevents accidental overwrites if multiple users edit an expense simultaneously.
     * **Manual Sync**: Refresh data instantly to see the latest changes from other members.
@@ -43,6 +47,7 @@ To function, Quozen requests these specific permissions:
 * **Styling**: Tailwind CSS, Shadcn UI
 * **State Management**: TanStack Query (React Query)
 * **Authentication & Data**: Google Identity Services, Google Drive API v3, Google Sheets API v4
+* **i18n**: react-i18next
 
 ## 🏃‍♂️ Getting Started
 

@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Expense, Member } from "@/lib/storage/types";
 import { distributeAmount } from "@/lib/finance";
+import { useTranslation } from "react-i18next";
 
 interface ExpenseSplit {
   userId: string;
@@ -27,7 +28,8 @@ interface ExpenseFormProps {
 export default function ExpenseForm({ initialData, users, currentUserId, onSubmit, isPending, title }: ExpenseFormProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+  const { t } = useTranslation();
+
   const [description, setDescription] = useState(initialData?.description || "");
   const [amount, setAmount] = useState(initialData?.amount?.toString() || "");
   const [paidBy, setPaidBy] = useState(initialData?.paidBy || currentUserId);
@@ -36,46 +38,40 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
   const [splits, setSplits] = useState<ExpenseSplit[]>([]);
 
   useEffect(() => {
-    // Initialize splits when users are loaded
     if (users.length > 0 && splits.length === 0) {
       const initialSplits = users.map((u) => {
         const existingSplit = initialData?.splits?.find((s: any) => s.userId === u.userId);
         return {
           userId: u.userId,
           amount: existingSplit?.amount || 0,
-          selected: !!existingSplit || !initialData, // Default to true for new expenses
+          selected: !!existingSplit || !initialData,
         };
       });
-      
-      // If it's a new expense (no initialData), calculate equal splits immediately
+
       if (!initialData && amount) {
-         updateSplitEqually(amount, initialSplits);
+        updateSplitEqually(amount, initialSplits);
       } else {
-         setSplits(initialSplits);
+        setSplits(initialSplits);
       }
     }
-  }, [users, initialData]); // removed 'amount' from dep array to avoid overwrite on edit load
+  }, [users, initialData]);
 
-  // Helper to recalculate splits equally among selected users
   const updateSplitEqually = (currentAmount: string, currentSplits: ExpenseSplit[]) => {
     const selectedSplits = currentSplits.filter(s => s.selected);
     const count = selectedSplits.length;
-    
+
     if (count === 0) {
-        // If no one selected, just update state without amounts
-        setSplits(currentSplits.map(s => ({ ...s, amount: 0 })));
-        return;
+      setSplits(currentSplits.map(s => ({ ...s, amount: 0 })));
+      return;
     }
-    
+
     if (!currentAmount) return;
 
     const totalAmount = parseFloat(currentAmount);
     if (isNaN(totalAmount)) return;
 
-    // Use centralized distribution logic to handle pennies
     const distributedAmounts = distributeAmount(totalAmount, count);
 
-    // Map the distributed amounts back to the selected users
     let distIndex = 0;
     const newSplits = currentSplits.map(s => {
       if (s.selected) {
@@ -85,7 +81,7 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
       }
       return { ...s, amount: 0 };
     });
-    
+
     setSplits(newSplits);
   };
 
@@ -101,8 +97,8 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
 
   const handleSplitAmountChange = (userId: string, newAmount: string) => {
     const value = parseFloat(newAmount) || 0;
-    setSplits(prev => 
-      prev.map(split => 
+    setSplits(prev =>
+      prev.map(split =>
         split.userId === userId ? { ...split, amount: value } : split
       )
     );
@@ -110,11 +106,11 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!description || !amount || !paidBy || !category || !date) {
       toast({
-        title: "Missing information",
-        description: "Please fill in all required fields.",
+        title: t("expenseForm.missingInfo"),
+        description: t("expenseForm.missingInfoDesc"),
         variant: "destructive",
       });
       return;
@@ -123,8 +119,8 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
     const selectedSplits = splits.filter(s => s.selected);
     if (selectedSplits.length === 0) {
       toast({
-        title: "Invalid split",
-        description: "At least one person must be selected for the split.",
+        title: t("expenseForm.invalidSplit"),
+        description: t("expenseForm.invalidSplitDesc"),
         variant: "destructive",
       });
       return;
@@ -132,22 +128,19 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
 
     const expenseAmount = parseFloat(amount);
     const totalSplit = splits.reduce((sum, s) => sum + (s.selected ? s.amount : 0), 0);
-    
-    // Validation: Check if splits sum up to total amount (allow small floating point margin)
-    // Now that we use distributeAmount, this should nearly always be exact, but manual edits might drift
+
     if (Math.abs(totalSplit - expenseAmount) > 0.05) {
       toast({
-        title: "Split mismatch",
-        description: `Split amounts ($${totalSplit.toFixed(2)}) don't match expense amount ($${expenseAmount.toFixed(2)}).`,
+        title: t("expenseForm.splitMismatch"),
+        description: t("expenseForm.splitMismatchDesc"),
         variant: "destructive",
       });
       return;
     }
 
-    // Only send the splits that have amounts
     const finalSplits = splits
-        .filter(s => s.selected && s.amount > 0)
-        .map(s => ({ userId: s.userId, amount: s.amount }));
+      .filter(s => s.selected && s.amount > 0)
+      .map(s => ({ userId: s.userId, amount: s.amount }));
 
     onSubmit({
       description,
@@ -164,115 +157,115 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
       <h2 className="text-xl font-bold mb-6">{title}</h2>
       <form onSubmit={handleSubmit} className="space-y-6" data-testid="form-expense">
         <div>
-          <Label htmlFor="description">Description *</Label>
-          <Input 
-            id="description" 
-            value={description} 
-            onChange={(e) => setDescription(e.target.value)} 
-            required 
+          <Label htmlFor="description">{t("expenseForm.description")} *</Label>
+          <Input
+            id="description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            required
             data-testid="input-expense-description"
           />
         </div>
         <div>
-          <Label htmlFor="amount">Amount *</Label>
+          <Label htmlFor="amount">{t("expenseForm.amount")} *</Label>
           <div className="relative">
             <span className="absolute left-3 top-3 text-muted-foreground">$</span>
-            <Input 
-                id="amount" 
-                type="number" 
-                step="0.01" 
-                className="pl-8"
-                value={amount} 
-                onChange={(e) => handleAmountChange(e.target.value)} 
-                required 
-                data-testid="input-expense-amount"
+            <Input
+              id="amount"
+              type="number"
+              step="0.01"
+              className="pl-8"
+              value={amount}
+              onChange={(e) => handleAmountChange(e.target.value)}
+              required
+              data-testid="input-expense-amount"
             />
           </div>
         </div>
         <div>
-          <Label htmlFor="paidBy">Paid by *</Label>
+          <Label htmlFor="paidBy">{t("expenseForm.paidBy")} *</Label>
           <Select value={paidBy} onValueChange={setPaidBy}>
             <SelectTrigger data-testid="select-paid-by"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {users.map((u) => <SelectItem key={u.userId} value={u.userId}>{u.userId === currentUserId ? "You" : u.name}</SelectItem>)}
+              {users.map((u) => <SelectItem key={u.userId} value={u.userId}>{u.userId === currentUserId ? t("expenseForm.you") : u.name}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
         <div>
-          <Label htmlFor="category">Category *</Label>
+          <Label htmlFor="category">{t("expenseForm.category")} *</Label>
           <Select value={category} onValueChange={setCategory}>
-            <SelectTrigger data-testid="select-category"><SelectValue placeholder="Select category" /></SelectTrigger>
+            <SelectTrigger data-testid="select-category"><SelectValue placeholder={t("expenseForm.selectCategory")} /></SelectTrigger>
             <SelectContent>
               {["Food & Dining", "Transportation", "Accommodation", "Entertainment", "Shopping", "Other"].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
         <div>
-            <Label htmlFor="date">Date *</Label>
-            <Input
-                id="date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                data-testid="input-expense-date"
-            />
+          <Label htmlFor="date">{t("expenseForm.date")} *</Label>
+          <Input
+            id="date"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            data-testid="input-expense-date"
+          />
         </div>
         <div>
-          <Label className="mb-3 block">Split Between</Label>
+          <Label className="mb-3 block">{t("expenseForm.splitBetween")}</Label>
           <div className="space-y-3">
             {splits.map((split) => (
               <div key={split.userId} className="flex items-center justify-between p-3 bg-secondary rounded-lg" data-testid={`split-item-${split.userId}`}>
                 <div className="flex items-center space-x-3">
-                  <Checkbox 
-                    checked={split.selected} 
-                    onCheckedChange={(checked) => handleSplitSelection(split.userId, !!checked)} 
+                  <Checkbox
+                    checked={split.selected}
+                    onCheckedChange={(checked) => handleSplitSelection(split.userId, !!checked)}
                     data-testid={`checkbox-split-${split.userId}`}
                   />
                   <div className="flex items-center space-x-2">
                     <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                        <span className="text-primary-foreground font-medium text-xs">
-                          {users.find(u => u.userId === split.userId)?.name?.substring(0,2)}
-                        </span>
+                      <span className="text-primary-foreground font-medium text-xs">
+                        {users.find(u => u.userId === split.userId)?.name?.substring(0, 2)}
+                      </span>
                     </div>
                     <span className="text-sm font-medium">
-                        {users.find(u => u.userId === split.userId)?.userId === currentUserId ? "You" : users.find(u => u.userId === split.userId)?.name}
+                      {users.find(u => u.userId === split.userId)?.userId === currentUserId ? t("expenseForm.you") : users.find(u => u.userId === split.userId)?.name}
                     </span>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                    <span className="text-xs text-muted-foreground">$</span>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className="w-20 h-8 text-sm"
-                      value={split.amount.toFixed(2)}
-                      onChange={(e) => handleSplitAmountChange(split.userId, e.target.value)}
-                      disabled={!split.selected}
-                      data-testid={`input-split-amount-${split.userId}`}
-                    />
+                  <span className="text-xs text-muted-foreground">$</span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="w-20 h-8 text-sm"
+                    value={split.amount.toFixed(2)}
+                    onChange={(e) => handleSplitAmountChange(split.userId, e.target.value)}
+                    disabled={!split.selected}
+                    data-testid={`input-split-amount-${split.userId}`}
+                  />
                 </div>
               </div>
             ))}
           </div>
         </div>
         <div className="flex space-x-3">
-          <Button 
-            type="button" 
-            variant="secondary" 
-            className="flex-1" 
+          <Button
+            type="button"
+            variant="secondary"
+            className="flex-1"
             onClick={() => navigate(-1)}
             data-testid="button-cancel-expense"
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
-          <Button 
-            type="submit" 
-            className="flex-1" 
+          <Button
+            type="submit"
+            className="flex-1"
             disabled={isPending}
             data-testid="button-submit-expense"
           >
-            {isPending ? "Saving..." : "Save Expense"}
+            {isPending ? t("expenseForm.saving") : t("expenseForm.save")}
           </Button>
         </div>
       </form>

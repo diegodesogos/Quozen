@@ -1,16 +1,18 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, Receipt, Plus, Users, User, Activity } from "lucide-react";
+import { Home, Plus, Users, User, Activity } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function BottomNavigation() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const tabs = [
-    { id: "home", path: "/dashboard", icon: Home, label: "Home" },
-    { id: "expenses", path: "/expenses", icon: Activity, label: "Activity" }, // Changed Icon to Activity (optional but fits) and Label to Activity
+    { id: "home", path: "/dashboard", icon: Home, label: t("nav.home") },
+    { id: "expenses", path: "/expenses", icon: Activity, label: t("nav.activity") },
     { id: "add", path: "/add-expense", icon: Plus, label: "" },
-    { id: "groups", path: "/groups", icon: Users, label: "Groups" },
-    { id: "profile", path: "/profile", icon: User, label: "Profile" },
+    { id: "groups", path: "/groups", icon: Users, label: t("nav.groups") },
+    { id: "profile", path: "/profile", icon: User, label: t("nav.profile") },
   ];
 
   return (
@@ -26,10 +28,10 @@ export default function BottomNavigation() {
               key={tab.id}
               onClick={() => navigate(tab.path)}
               className={`flex flex-col items-center py-2 px-4 ${isAddButton
-                  ? "bg-primary text-primary-foreground rounded-full -mt-3 shadow-lg"
-                  : isActive
-                    ? "text-primary"
-                    : "text-muted-foreground"
+                ? "bg-primary text-primary-foreground rounded-full -mt-3 shadow-lg"
+                : isActive
+                  ? "text-primary"
+                  : "text-muted-foreground"
                 }`}
               data-testid={`button-nav-${tab.id}`}
             >

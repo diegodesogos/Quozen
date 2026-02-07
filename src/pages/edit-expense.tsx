@@ -7,6 +7,7 @@ import ExpenseForm from "@/components/expense-form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useState, useEffect } from "react";
 import { ConflictError, NotFoundError } from "@/lib/errors";
+import { useTranslation } from "react-i18next";
 
 export default function EditExpense() {
   const { id } = useParams();
@@ -14,21 +15,19 @@ export default function EditExpense() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   const [conflictError, setConflictError] = useState<string | null>(null);
   const [notFoundError, setNotFoundError] = useState(false);
 
-  // Fetch group data
   const { data: groupData, isLoading, refetch } = useQuery({
     queryKey: ["drive", "group", activeGroupId],
     queryFn: () => googleApi.getGroupData(activeGroupId!),
     enabled: !!activeGroupId,
   });
 
-  // Find the specific expense to edit
   const expense = groupData?.expenses.find((e: any) => e.id === id);
 
-  // Check existence once loaded
   useEffect(() => {
     if (!isLoading && groupData && !expense) {
       setNotFoundError(true);
@@ -38,17 +37,17 @@ export default function EditExpense() {
   const editMutation = useMutation({
     mutationFn: (updatedData: any) => {
       if (!activeGroupId || !expense || typeof expense._rowIndex !== 'number') throw new Error("Missing required data");
-      
+
       return googleApi.updateExpense(
         activeGroupId,
         expense._rowIndex,
         { ...expense, ...updatedData },
-        expense.meta?.lastModified // Pass current known version
+        expense.meta?.lastModified
       );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
-      toast({ title: "Expense updated", description: "The spreadsheet has been saved." });
+      toast({ title: t("common.success") });
       navigate("/expenses");
     },
     onError: (error) => {
@@ -59,8 +58,8 @@ export default function EditExpense() {
         setNotFoundError(true);
       } else {
         toast({
-          title: "Error",
-          description: "Failed to update expense. Please check your connection.",
+          title: t("common.error"),
+          description: t("expenseForm.updateError"),
           variant: "destructive"
         });
       }
@@ -71,8 +70,6 @@ export default function EditExpense() {
     setConflictError(null);
     setNotFoundError(false);
     await refetch();
-    // After refetch, if expense is gone, useEffect triggers notFound.
-    // If expense changed, form updates naturally via key/props.
   };
 
   const handleBack = () => {
@@ -83,24 +80,23 @@ export default function EditExpense() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <p className="ml-3 text-muted-foreground">Loading expense details...</p>
+        <p className="ml-3 text-muted-foreground">{t("common.loading")}</p>
       </div>
     );
   }
 
-  // If not found (either initially or after delete conflict)
   if (notFoundError) {
     return (
       <AlertDialog open={true}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Expense Not Found</AlertDialogTitle>
+            <AlertDialogTitle>{t("expenseForm.notFoundTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This expense seems to have been deleted by another user.
+              {t("expenseForm.notFoundDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction onClick={handleBack}>Go Back to List</AlertDialogAction>
+            <AlertDialogAction onClick={handleBack}>{t("expenseForm.goBack")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -112,7 +108,7 @@ export default function EditExpense() {
   return (
     <>
       <ExpenseForm
-        title="Edit Expense"
+        title={t("expenseForm.editTitle")}
         initialData={expense}
         users={groupData.members}
         currentUserId={currentUserId}
@@ -120,20 +116,19 @@ export default function EditExpense() {
         onSubmit={(data) => editMutation.mutate(data)}
       />
 
-      {/* Conflict Dialog */}
       <AlertDialog open={!!conflictError}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Data Conflict</AlertDialogTitle>
+            <AlertDialogTitle>{t("expenseForm.conflictTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
               {conflictError}
-              <br/><br/>
-              Someone else has modified this expense. Please refresh to see the latest changes.
+              <br /><br />
+              {t("expenseForm.conflictDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConflictError(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRefresh}>Refresh Data</AlertDialogAction>
+            <AlertDialogCancel onClick={() => setConflictError(null)}>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRefresh}>{t("expenseForm.refreshData")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

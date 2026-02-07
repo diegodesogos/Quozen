@@ -91,6 +91,7 @@ export interface UserSettings {
   preferences: {
     defaultCurrency: string;
     theme?: "light" | "dark" | "system";
+    locale?: "en" | "es" | "system"; // New Field
   };
   lastUpdated: string;
 }

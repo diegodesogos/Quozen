@@ -19,26 +19,31 @@ import {
 import { Expense, Settlement, Member } from "@/lib/storage/types";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { useTranslation } from "react-i18next";
+import { useDateFormatter } from "@/hooks/use-date-formatter";
+import { formatCurrency } from "@/lib/format-currency";
+import { useSettings } from "@/hooks/use-settings";
 
 export default function Dashboard() {
   const { activeGroupId, currentUserId } = useAppContext();
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
+  const { formatDate } = useDateFormatter();
+  const { settings } = useSettings();
 
-  // Unified state for Create/Edit settlement
+  const currencyCode = settings?.preferences?.defaultCurrency || "USD";
+
   const [settlementModal, setSettlementModal] = useState<{
     isOpen: boolean;
-    fromUser?: { userId: string; name: string }; // For creating new
-    toUser?: { userId: string; name: string };   // For creating new
-    suggestedAmount?: number;                    // For creating new
-    initialData?: Settlement;                    // For editing existing
+    fromUser?: { userId: string; name: string };
+    toUser?: { userId: string; name: string };
+    suggestedAmount?: number;
+    initialData?: Settlement;
   }>({ isOpen: false });
 
-  // Collapsible states
   const [isBalancesOpen, setIsBalancesOpen] = useState(true);
   const [isActivityOpen, setIsActivityOpen] = useState(true);
 
-  // Fetch all group data from Drive
   const { data: groupData, isLoading } = useQuery({
     queryKey: ["drive", "group", activeGroupId],
     queryFn: () => googleApi.getGroupData(activeGroupId),
@@ -49,10 +54,8 @@ export default function Dashboard() {
   const settlements = (groupData?.settlements || []) as Settlement[];
   const users = (groupData?.members || []) as Member[];
 
-  // Derived state: Current User Object
   const currentUser = users.find(u => u.userId === currentUserId);
 
-  // Helper to finding users
   const getUserById = (id: string) => {
     const u = users.find(u => u.userId === id);
     return u ? { userId: u.userId, name: u.name, email: u.email } : undefined;
@@ -63,29 +66,25 @@ export default function Dashboard() {
     return u ? u.name : "Unknown";
   };
 
-  // Client-side Balance Calculation
   const balances = useMemo(() => {
     return calculateBalances(users, expenses, settlements);
   }, [expenses, settlements, users]);
 
-  // Use Centralized Finance Logic for Total Spent
   const totalSpent = useMemo(() => {
     return calculateTotalSpent(currentUserId, expenses);
   }, [expenses, currentUserId]);
 
   const userBalance = balances[currentUserId] || 0;
 
-  // --- Mix Expenses and Settlements for Recent Activity ---
   const recentActivity = useMemo(() => {
     const combined = [
       ...expenses.map(e => ({ ...e, type: 'expense' as const })),
       ...settlements.map(s => ({ ...s, type: 'settlement' as const }))
     ];
 
-    // Sort Descending by Date
     return combined
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 5); // Show top 5
+      .slice(0, 5);
   }, [expenses, settlements]);
 
   const getExpenseIcon = (category: string) => {
@@ -99,7 +98,6 @@ export default function Dashboard() {
     }
   };
 
-  // Determine if settlement is needed for "Settle Up" button state
   const settlementSuggestion = useMemo(() => {
     if (!users.length) return null;
     return suggestSettlementStrategy(currentUserId, balances, users);
@@ -117,7 +115,7 @@ export default function Dashboard() {
         fromUser,
         toUser,
         suggestedAmount: settlementSuggestion.amount,
-        initialData: undefined // Ensure we are in create mode
+        initialData: undefined
       });
     }
   };
@@ -151,27 +149,26 @@ export default function Dashboard() {
         fromUser,
         toUser,
         suggestedAmount: settlement.amount,
-        initialData: undefined // Ensure we are in create mode
+        initialData: undefined
       });
     }
   };
 
   if (isLoading) {
-    return <div className="p-4 text-center">Loading group data...</div>;
+    return <div className="p-4 text-center">{t("common.loading")}</div>;
   }
 
   if (!groupData) {
-    return <div className="p-4 text-center">Group not found.</div>;
+    return <div className="p-4 text-center">{t("dashboard.groupNotFound")}</div>;
   }
 
   return (
     <>
       <div className="space-y-4" data-testid="dashboard-view">
-        {/* Balance Overview Card */}
         <div className="mx-4 mt-4 bg-card rounded-lg border border-border p-4 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Wallet className="w-5 h-5 text-primary" /> Your Balance
+              <Wallet className="w-5 h-5 text-primary" /> {t("dashboard.balance")}
             </h2>
             <Button
               variant="outline"
@@ -181,7 +178,7 @@ export default function Dashboard() {
               disabled={!settlementSuggestion}
               data-testid="button-settle-up"
             >
-              Settle Up
+              {t("dashboard.settleUp")}
             </Button>
           </div>
           <div className="text-center py-2">
@@ -189,24 +186,23 @@ export default function Dashboard() {
               className={`text-4xl font-bold ${userBalance >= 0 ? 'expense-positive' : 'expense-negative'}`}
               data-testid="text-user-balance"
             >
-              {userBalance >= 0 ? '+' : ''}${Math.abs(userBalance).toFixed(2)}
+              {userBalance >= 0 ? '+' : ''}{formatCurrency(Math.abs(userBalance), currencyCode, i18n.language)}
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              {userBalance >= 0 ? 'You are owed overall' : 'You owe overall'}
+              {userBalance >= 0 ? t("dashboard.owed") : t("dashboard.owe")}
             </p>
 
             <div className="mt-4 pt-4 border-t border-dashed border-border flex justify-between items-center px-8">
-              <span className="text-xs text-muted-foreground uppercase tracking-wider">Total Spent</span>
-              <span className="font-medium text-foreground">${totalSpent.toFixed(2)}</span>
+              <span className="text-xs text-muted-foreground uppercase tracking-wider">{t("dashboard.totalSpent")}</span>
+              <span className="font-medium text-foreground">{formatCurrency(totalSpent, currencyCode, i18n.language)}</span>
             </div>
           </div>
         </div>
 
-        {/* Participants & Balances (Collapsible) */}
         <div className="mx-4 bg-card rounded-lg border border-border overflow-hidden">
           <Collapsible open={isBalancesOpen} onOpenChange={setIsBalancesOpen}>
             <CollapsibleTrigger className="w-full flex items-center justify-between p-4 border-b border-border bg-muted/30 hover:bg-muted/50 transition-colors">
-              <h3 className="font-semibold text-foreground text-sm uppercase tracking-wide">Group Balances</h3>
+              <h3 className="font-semibold text-foreground text-sm uppercase tracking-wide">{t("dashboard.groupBalances")}</h3>
               <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform duration-200", !isBalancesOpen && "-rotate-90")} />
             </CollapsibleTrigger>
 
@@ -227,7 +223,11 @@ export default function Dashboard() {
                           </div>
                           <div>
                             <p className="font-medium text-foreground">{u.name}</p>
-                            {u.role === 'owner' && <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">Owner</span>}
+                            {u.role === 'owner' && (
+                              <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                                {t("roles.owner")}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div className="text-right">
@@ -235,7 +235,7 @@ export default function Dashboard() {
                             className={`font-semibold ${balance >= 0 ? 'expense-positive' : 'expense-negative'}`}
                             data-testid={`text-balance-${u.userId}`}
                           >
-                            {balance >= 0 ? '+' : ''}${Math.abs(balance).toFixed(2)}
+                            {balance >= 0 ? '+' : ''}{formatCurrency(Math.abs(balance), currencyCode, i18n.language)}
                           </div>
                           <Button
                             variant="link"
@@ -244,7 +244,7 @@ export default function Dashboard() {
                             onClick={() => handleSettleWith(u.userId)}
                             data-testid={`button-settle-with-${u.userId}`}
                           >
-                            Settle
+                            {t("dashboard.settle")}
                           </Button>
                         </div>
                       </div>
@@ -255,11 +255,10 @@ export default function Dashboard() {
           </Collapsible>
         </div>
 
-        {/* Recent Activity (Collapsible) */}
         <div className="mx-4 bg-card rounded-lg border border-border overflow-hidden">
           <Collapsible open={isActivityOpen} onOpenChange={setIsActivityOpen}>
             <CollapsibleTrigger className="w-full flex items-center justify-between p-4 border-b border-border bg-muted/30 hover:bg-muted/50 transition-colors">
-              <h3 className="font-semibold text-foreground text-sm uppercase tracking-wide">Recent Activity</h3>
+              <h3 className="font-semibold text-foreground text-sm uppercase tracking-wide">{t("dashboard.recentActivity")}</h3>
               <div className="flex items-center gap-2">
                 <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform duration-200", !isActivityOpen && "-rotate-90")} />
               </div>
@@ -270,18 +269,15 @@ export default function Dashboard() {
                 <div className="divide-y divide-border">
                   {recentActivity.length === 0 ? (
                     <div className="p-8 text-center">
-                      <p className="text-muted-foreground text-sm">No activity yet</p>
-                      <Button variant="link" onClick={() => navigate('/add-expense')} className="mt-2">Add your first expense</Button>
+                      <p className="text-muted-foreground text-sm">{t("dashboard.noActivity")}</p>
+                      <Button variant="link" onClick={() => navigate('/add-expense')} className="mt-2">{t("dashboard.addFirst")}</Button>
                     </div>
                   ) : (
                     recentActivity.map((item) => {
-                      // ---------------------------
-                      // RENDER SETTLEMENT
-                      // ---------------------------
                       if (item.type === 'settlement') {
                         const s = item as Settlement;
-                        const fromName = s.fromUserId === currentUserId ? "You" : getMemberName(s.fromUserId).split(' ')[0];
-                        const toName = s.toUserId === currentUserId ? "You" : getMemberName(s.toUserId).split(' ')[0];
+                        const fromName = s.fromUserId === currentUserId ? t("dashboard.you") : getMemberName(s.fromUserId).split(' ')[0];
+                        const toName = s.toUserId === currentUserId ? t("dashboard.you") : getMemberName(s.toUserId).split(' ')[0];
                         const isMeSender = s.fromUserId === currentUserId;
                         const isMeReceiver = s.toUserId === currentUserId;
 
@@ -293,7 +289,7 @@ export default function Dashboard() {
                           <div
                             key={s.id}
                             className="p-4 hover:bg-muted/50 transition-colors cursor-pointer"
-                            onClick={() => setSettlementModal({ isOpen: true, initialData: s })} // Open Edit Modal
+                            onClick={() => setSettlementModal({ isOpen: true, initialData: s })}
                           >
                             <div className="flex items-center justify-between mb-1">
                               <div className="flex items-center space-x-3">
@@ -307,13 +303,13 @@ export default function Dashboard() {
                                     <span>{toName}</span>
                                   </div>
                                   <p className="text-xs text-muted-foreground">
-                                    Transfer • {format(new Date(s.date), "MMM d")}
+                                    {t("dashboard.transfer")} • {formatDate(s.date, "MMM d")}
                                   </p>
                                 </div>
                               </div>
                               <div className="text-right">
                                 <div className={cn("font-bold text-sm", colorClass)}>
-                                  ${Number(s.amount).toFixed(2)}
+                                  {formatCurrency(Number(s.amount), currencyCode, i18n.language)}
                                 </div>
                               </div>
                             </div>
@@ -321,9 +317,6 @@ export default function Dashboard() {
                         );
                       }
 
-                      // ---------------------------
-                      // RENDER EXPENSE
-                      // ---------------------------
                       const e = item as Expense;
                       const paidByUser = getUserById(e.paidBy);
                       const Icon = getExpenseIcon(e.category);
@@ -339,21 +332,21 @@ export default function Dashboard() {
                               <div>
                                 <p className="font-medium text-foreground text-sm">{e.description}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  {paidByUser?.name || 'Unknown'} • {format(new Date(e.date), "MMM d")}
+                                  {paidByUser?.name || 'Unknown'} • {formatDate(e.date, "MMM d")}
                                 </p>
                               </div>
                             </div>
                             <div className="text-right">
-                              <div className="font-semibold text-foreground text-sm">${Number(e.amount).toFixed(2)}</div>
+                              <div className="font-semibold text-foreground text-sm">{formatCurrency(Number(e.amount), currencyCode, i18n.language)}</div>
 
                               {status.status === 'payer' && (
-                                <div className="text-xs expense-positive">You paid</div>
+                                <div className="text-xs expense-positive">{t("dashboard.paid")}</div>
                               )}
                               {status.status === 'debtor' && (
-                                <div className="text-xs expense-negative">Owe ${status.amountOwed.toFixed(2)}</div>
+                                <div className="text-xs expense-negative">{t("dashboard.owe").split(' ')[0]} {formatCurrency(status.amountOwed, currencyCode, i18n.language)}</div>
                               )}
                               {status.status === 'none' && (
-                                <div className="text-xs text-muted-foreground">Not involved</div>
+                                <div className="text-xs text-muted-foreground">{t("dashboard.notInvolved")}</div>
                               )}
                             </div>
                           </div>
@@ -361,7 +354,6 @@ export default function Dashboard() {
                       );
                     })
                   )}
-                  {/* Footer Link */}
                   <div className="p-2 text-center bg-muted/10">
                     <Button
                       variant="ghost"
@@ -370,7 +362,7 @@ export default function Dashboard() {
                       data-testid="button-view-all-expenses"
                       onClick={() => navigate('/expenses')}
                     >
-                      View Full History
+                      {t("dashboard.viewHistory")}
                     </Button>
                   </div>
                 </div>

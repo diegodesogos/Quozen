@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { googleApi, UserSettings } from "@/lib/drive";
 import { useAuth } from "@/context/auth-provider";
+import { useEffect } from "react";
+import i18n from "@/lib/i18n";
 
 export function useSettings() {
   const { user, isAuthenticated } = useAuth();
@@ -16,6 +18,25 @@ export function useSettings() {
     enabled: !!user?.email && isAuthenticated,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
+
+  // Sync i18n with settings
+  useEffect(() => {
+    if (query.data?.preferences?.locale) {
+      const pref = query.data.preferences.locale;
+      if (pref === 'system') {
+        // Detect browser language (simple check)
+        const detected = navigator.language.split('-')[0];
+        const target = ['es', 'en'].includes(detected) ? detected : 'en';
+        if (i18n.language !== target) {
+          i18n.changeLanguage(target);
+        }
+      } else {
+        if (i18n.language !== pref) {
+          i18n.changeLanguage(pref);
+        }
+      }
+    }
+  }, [query.data?.preferences?.locale]);
 
   const mutation = useMutation({
     mutationFn: (newSettings: UserSettings) => {
@@ -50,7 +71,6 @@ export function useSettings() {
     updateSettings: mutation.mutate,
     updateSettingsAsync: mutation.mutateAsync,
     isUpdating: mutation.isPending,
-    // New atomic updater
     updateActiveGroup: activeGroupMutation.mutate,
   };
 }

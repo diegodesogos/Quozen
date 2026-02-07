@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { parseMembers } from "@/lib/utils";
 import { MemberInput } from "@/lib/storage/types";
+import { useTranslation } from "react-i18next";
 
 interface GroupDialogProps {
   open: boolean;
@@ -17,19 +18,19 @@ interface GroupDialogProps {
   onSubmit: (data: { name: string, members: MemberInput[] }) => void;
 }
 
-export default function GroupDialog({ 
-  open, 
-  onOpenChange, 
-  mode, 
-  initialName = "", 
-  initialMembers = "", 
-  isPending, 
-  onSubmit 
+export default function GroupDialog({
+  open,
+  onOpenChange,
+  mode,
+  initialName = "",
+  initialMembers = "",
+  isPending,
+  onSubmit
 }: GroupDialogProps) {
   const [groupName, setGroupName] = useState(initialName);
   const [membersInput, setMembersInput] = useState(initialMembers);
+  const { t } = useTranslation();
 
-  // Reset or initialize state when dialog opens
   useEffect(() => {
     if (open) {
       setGroupName(initialName);
@@ -43,8 +44,8 @@ export default function GroupDialog({
 
     const members = parseMembers(membersInput);
     onSubmit({
-        name: groupName.trim(),
-        members
+      name: groupName.trim(),
+      members
     });
   };
 
@@ -52,16 +53,16 @@ export default function GroupDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{mode === 'create' ? "Create New Group" : "Edit Group"}</DialogTitle>
+          <DialogTitle>{mode === 'create' ? t("groups.create") : t("groups.edit")}</DialogTitle>
           <DialogDescription>
             {mode === 'create'
-              ? "This will create a new Spreadsheet in your Google Drive."
-              : "Update group name or manage members."}
+              ? t("groups.new")
+              : t("groups.update")}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="groupName">Group Name *</Label>
+            <Label htmlFor="groupName">{t("groups.nameLabel")} *</Label>
             <Input
               id="groupName"
               placeholder="e.g., Weekend Trip"
@@ -72,16 +73,16 @@ export default function GroupDialog({
           </div>
 
           <div>
-            <Label htmlFor="members">Members (Optional)</Label>
+            <Label htmlFor="members">{t("groups.membersLabel")}</Label>
             <Textarea
               id="members"
-              placeholder="Enter emails or usernames, separated by commas (e.g., alice@gmail.com, bob123)"
+              placeholder={t("groups.membersHint")}
               value={membersInput}
               onChange={(e) => setMembersInput(e.target.value)}
               className="mt-1"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Emails will receive a Google Drive share invite. Usernames are for tracking only.
+              {t("groups.membersHint2")}
             </p>
           </div>
 
@@ -92,14 +93,14 @@ export default function GroupDialog({
               className="flex-1"
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               type="submit"
               className="flex-1"
               disabled={isPending}
             >
-              {isPending ? "Saving..." : (mode === 'create' ? "Create Group" : "Update Group")}
+              {isPending ? t("expenseForm.saving") : (mode === 'create' ? t("groups.create") : t("groups.update"))}
             </Button>
           </div>
         </form>

@@ -7,12 +7,14 @@ import { googleApi } from "@/lib/drive";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useGroups } from "@/hooks/use-groups";
+import { useTranslation } from "react-i18next";
 
 export default function Header() {
   const { activeGroupId } = useAppContext();
   const [showGroupSwitcher, setShowGroupSwitcher] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   // 1. Fetch group list via hook
   const { groups, isLoading: isGroupsLoading } = useGroups();
@@ -35,7 +37,7 @@ export default function Header() {
     // US-106: Only invalidate the active group data
     await queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
 
-    toast({ description: "Synced latest changes." });
+    toast({ description: t("header.synced") });
   };
 
   return (
@@ -53,11 +55,11 @@ export default function Header() {
                 data-testid="button-switch-group"
               >
                 <h1 className="text-lg font-semibold text-foreground">
-                  {activeGroup?.name || "Select Group"}
+                  {activeGroup?.name || t("header.selectGroup")}
                 </h1>
                 <div className="flex items-center text-sm text-muted-foreground">
                   <span data-testid="text-participant-count">
-                    {memberCount} people
+                    {t("header.people", { count: memberCount })}
                   </span>
                   <ChevronDown className="ml-1 w-3 h-3" />
                 </div>

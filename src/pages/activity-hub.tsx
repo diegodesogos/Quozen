@@ -7,19 +7,26 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Handshake, Filter, ArrowUpDown } from "lucide-react";
+import { ArrowRight, Handshake, ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
 import SettlementModal from "@/components/settlement-modal";
 import ExpensesList from "./expenses";
 import { Member, Settlement, Expense } from "@/lib/storage/types";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useTranslation } from "react-i18next";
+import { useDateFormatter } from "@/hooks/use-date-formatter";
+import { formatCurrency } from "@/lib/format-currency";
+import { useSettings } from "@/hooks/use-settings";
 
 type SortOption = "date_desc" | "date_asc" | "amount_desc" | "amount_asc";
 
 export default function ActivityHub() {
     const { activeGroupId, currentUserId } = useAppContext();
     const [activeTab, setActiveTab] = useState("expenses");
+    const { t, i18n } = useTranslation();
+    const { formatDate } = useDateFormatter();
+    const { settings } = useSettings();
+    const currencyCode = settings?.preferences?.defaultCurrency || "USD";
 
     // Expenses State
     const [sortOption, setSortOption] = useState<SortOption>("date_desc");
@@ -112,8 +119,8 @@ export default function ActivityHub() {
             <div className="sticky top-[57px] z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border shadow-sm pt-2 pb-2 px-4">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="expenses">Expenses</TabsTrigger>
-                        <TabsTrigger value="transfers">Transfers</TabsTrigger>
+                        <TabsTrigger value="expenses">{t("activity.expensesTab")}</TabsTrigger>
+                        <TabsTrigger value="transfers">{t("activity.transfersTab")}</TabsTrigger>
                     </TabsList>
                 </Tabs>
             </div>
@@ -124,7 +131,7 @@ export default function ActivityHub() {
                         {/* Sub-header for Expenses */}
                         <div className="px-4 py-4 flex items-center justify-between">
                             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                                {!filterMyExpenses ? "All Expenses" : "My Expenses"}
+                                {filterMyExpenses ? t("activity.myExpenses") : t("activity.allExpenses")}
                             </h3>
                             <div className="flex items-center gap-2">
                                 <DropdownMenu>
@@ -134,19 +141,19 @@ export default function ActivityHub() {
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                                        <DropdownMenuLabel>{t("activity.sortBy")}</DropdownMenuLabel>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem onClick={() => setSortOption("date_desc")}>
-                                            Date (Newest)
+                                            {t("activity.dateNewest")}
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => setSortOption("date_asc")}>
-                                            Date (Oldest)
+                                            {t("activity.dateOldest")}
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => setSortOption("amount_desc")}>
-                                            Amount (High to Low)
+                                            {t("activity.amountHigh")}
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => setSortOption("amount_asc")}>
-                                            Amount (Low to High)
+                                            {t("activity.amountLow")}
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
@@ -157,7 +164,7 @@ export default function ActivityHub() {
                                         className={cn("text-[10px] px-2 cursor-pointer transition-colors", filterMyExpenses ? "font-bold text-primary" : "text-muted-foreground")}
                                         onClick={() => setFilterMyExpenses(true)}
                                     >
-                                        Me
+                                        {t("activity.me")}
                                     </span>
                                     <Switch
                                         id="expenses-mode-switch"
@@ -169,7 +176,7 @@ export default function ActivityHub() {
                                         className={cn("text-[10px] px-2 cursor-pointer transition-colors", !filterMyExpenses ? "font-bold text-primary" : "text-muted-foreground")}
                                         onClick={() => setFilterMyExpenses(false)}
                                     >
-                                        All
+                                        {t("activity.all")}
                                     </span>
                                 </div>
                             </div>
@@ -185,7 +192,7 @@ export default function ActivityHub() {
                     <div className="px-4">
                         <div className="flex items-center justify-between py-4">
                             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                                {showAllSettlements ? "All Transfers" : "My Transfers"}
+                                {showAllSettlements ? t("activity.allTransfers") : t("activity.myTransfers")}
                             </h3>
 
                             <div className="flex items-center gap-2">
@@ -196,32 +203,32 @@ export default function ActivityHub() {
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                                        <DropdownMenuLabel>{t("activity.sortBy")}</DropdownMenuLabel>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem onClick={() => setSortTransfersOption("date_desc")}>
-                                            Date (Newest)
+                                            {t("activity.dateNewest")}
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => setSortTransfersOption("date_asc")}>
-                                            Date (Oldest)
+                                            {t("activity.dateOldest")}
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => setSortTransfersOption("amount_desc")}>
-                                            Amount (High to Low)
+                                            {t("activity.amountHigh")}
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => setSortTransfersOption("amount_asc")}>
-                                            Amount (Low to High)
+                                            {t("activity.amountLow")}
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
 
                                 <div className="flex items-center space-x-2 bg-muted/50 p-1 rounded-full border border-border">
-                                    <span className={cn("text-[10px] px-2 cursor-pointer transition-colors", !showAllSettlements ? "font-bold text-primary" : "text-muted-foreground")} onClick={() => setShowAllSettlements(false)}>Me</span>
+                                    <span className={cn("text-[10px] px-2 cursor-pointer transition-colors", !showAllSettlements ? "font-bold text-primary" : "text-muted-foreground")} onClick={() => setShowAllSettlements(false)}>{t("activity.me")}</span>
                                     <Switch
                                         id="transfers-mode-switch"
                                         className="scale-75"
                                         checked={showAllSettlements}
                                         onCheckedChange={setShowAllSettlements}
                                     />
-                                    <span className={cn("text-[10px] px-2 cursor-pointer transition-colors", showAllSettlements ? "font-bold text-primary" : "text-muted-foreground")} onClick={() => setShowAllSettlements(true)}>All</span>
+                                    <span className={cn("text-[10px] px-2 cursor-pointer transition-colors", showAllSettlements ? "font-bold text-primary" : "text-muted-foreground")} onClick={() => setShowAllSettlements(true)}>{t("activity.all")}</span>
                                 </div>
                             </div>
                         </div>
@@ -232,7 +239,7 @@ export default function ActivityHub() {
                                     <div className="bg-muted w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
                                         <Handshake className="w-8 h-8 text-muted-foreground" />
                                     </div>
-                                    <p className="text-sm font-medium">No transfers found</p>
+                                    <p className="text-sm font-medium">{t("activity.noTransfers")}</p>
                                 </div>
                             ) : (
                                 filteredSettlements.map((settlement) => {
@@ -262,7 +269,7 @@ export default function ActivityHub() {
                                                         <AvatarFallback className="text-[10px] bg-muted text-muted-foreground">{from.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                                                     </Avatar>
                                                     <span className="text-[10px] truncate max-w-full font-medium text-muted-foreground">
-                                                        {isMeSender ? "You" : from.name.split(' ')[0]}
+                                                        {isMeSender ? t("dashboard.you") : from.name.split(' ')[0]}
                                                     </span>
                                                 </div>
 
@@ -276,10 +283,10 @@ export default function ActivityHub() {
                                                     </div>
 
                                                     <div className={cn("relative z-10 text-base font-bold bg-card px-3 rounded-full", statusColor)}>
-                                                        ${settlement.amount.toFixed(2)}
+                                                        {formatCurrency(settlement.amount, currencyCode, i18n.language)}
                                                     </div>
                                                     <span className="text-[9px] text-muted-foreground mt-1 relative z-10 bg-card px-1">
-                                                        {format(new Date(settlement.date), "MMM d")}
+                                                        {formatDate(settlement.date, "MMM d")}
                                                     </span>
                                                 </div>
 
@@ -289,7 +296,7 @@ export default function ActivityHub() {
                                                         <AvatarFallback className="text-[10px] bg-primary/10 text-primary">{to.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                                                     </Avatar>
                                                     <span className="text-[10px] truncate max-w-full font-medium text-muted-foreground">
-                                                        {isMeReceiver ? "You" : to.name.split(' ')[0]}
+                                                        {isMeReceiver ? t("dashboard.you") : to.name.split(' ')[0]}
                                                     </span>
                                                 </div>
                                             </CardContent>

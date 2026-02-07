@@ -17,19 +17,22 @@ test.describe('Functional Flow', () => {
         // 2. Verify we are redirected to Groups page (because no groups exist)
         await expect(page).toHaveURL(/.*groups/);
         if (isMockMode) {
+            // matches "No groups yet."
             await expect(page.getByText('No groups yet')).toBeVisible();
         }
 
         // 3. Create a Group
         await page.getByRole('button', { name: 'New Group' }).click();
 
-        // Modal appears
-        await expect(page.getByText('Create New Group')).toBeVisible();
+        // Modal appears - Title changed to "Create Group" in i18n
+        // We use getByRole('heading') to avoid ambiguity with the "Create Group" submit button
+        await expect(page.getByRole('heading', { name: 'Create Group' })).toBeVisible();
+
         await page.getByLabel('Group Name').fill('Holiday Trip');
         await page.getByRole('button', { name: 'Create Group' }).click();
 
         // Wait for modal to close (implies success)
-        await expect(page.getByText('Create New Group')).not.toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Create Group' })).not.toBeVisible();
 
         // 4. Verify Group Switch
         // Note: In functional tests, we rely on the UI updates. The header should update.
@@ -93,6 +96,7 @@ test.describe('Functional Flow', () => {
 
         // 3. Confirm Dialog
         await expect(page.getByText('Delete Group')).toBeVisible();
+        // Updated text expectation to match i18n key: "Are you sure you want to delete \"{{name}}\"?"
         await expect(page.getByText('Are you sure you want to delete "Group To Delete"?')).toBeVisible();
 
         await page.getByRole('button', { name: 'Delete' }).click();

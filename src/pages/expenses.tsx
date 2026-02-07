@@ -24,6 +24,10 @@ import {
 import { ConflictError, NotFoundError } from "@/lib/errors";
 import { getExpenseUserStatus } from "@/lib/finance";
 import { Expense, Member } from "@/lib/storage/types";
+import { useTranslation } from "react-i18next";
+import { useDateFormatter } from "@/hooks/use-date-formatter";
+import { formatCurrency } from "@/lib/format-currency";
+import { useSettings } from "@/hooks/use-settings";
 
 // Interface for props passed from ActivityHub
 interface ExpensesListProps {
@@ -37,6 +41,11 @@ export default function ExpensesList({ expenses = [], members = [], isLoading = 
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
+  const { formatDate } = useDateFormatter();
+  const { settings } = useSettings();
+
+  const currencyCode = settings?.preferences?.defaultCurrency || "USD";
 
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
 
@@ -48,8 +57,8 @@ export default function ExpensesList({ expenses = [], members = [], isLoading = 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
       toast({
-        title: "Expense deleted",
-        description: "The spreadsheet has been updated successfully."
+        title: t("common.success"),
+        description: t("expenseItem.deleteTitle") // Reusing title concept or generic message
       });
       setExpenseToDelete(null);
     },
@@ -57,15 +66,15 @@ export default function ExpensesList({ expenses = [], members = [], isLoading = 
       setExpenseToDelete(null);
       if (error instanceof NotFoundError || error instanceof ConflictError) {
         toast({
-          title: "Sync Error",
-          description: "Expense list is out of date. Refreshing...",
+          title: t("expenseItem.syncError"),
+          description: t("expenseItem.syncErrorDesc"),
           variant: "destructive"
         });
         queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
       } else {
         toast({
-          title: "Error",
-          description: "Failed to delete expense. Please try again.",
+          title: t("expenseItem.deleteError"),
+          description: t("expenseItem.deleteErrorDesc"),
           variant: "destructive"
         });
       }
@@ -114,9 +123,9 @@ export default function ExpensesList({ expenses = [], members = [], isLoading = 
             <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
               <Wallet className="w-8 h-8 text-muted-foreground" />
             </div>
-            <h3 className="font-semibold text-foreground mb-2">No expenses yet</h3>
+            <h3 className="font-semibold text-foreground mb-2">{t("activity.noExpenses")}</h3>
             <p className="text-sm text-muted-foreground">
-              Start by adding your first expense to track group spending
+              {t("activity.startAdding")}
             </p>
           </CardContent>
         </Card>
@@ -128,8 +137,6 @@ export default function ExpensesList({ expenses = [], members = [], isLoading = 
     <div className="px-4 pb-4 space-y-3">
       {expenses.map((expense) => {
         const paidByUser = getUserById(expense.paidBy);
-        // const userSplit = expense.splits?.find((s: any) => s.userId === currentUserId);
-        // const yourShare = userSplit?.amount || 0;
         const Icon = getExpenseIcon(expense.category);
 
         const status = getExpenseUserStatus(expense, currentUserId);
@@ -145,7 +152,7 @@ export default function ExpensesList({ expenses = [], members = [], isLoading = 
                   <div className="flex-1">
                     <h3 className="font-semibold text-foreground line-clamp-1">{expense.description}</h3>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {paidByUser?.name || 'Unknown'} • {new Date(expense.date).toLocaleDateString()}
+                      {paidByUser?.name || 'Unknown'} • {formatDate(expense.date)}
                     </p>
                     <div className="flex flex-wrap gap-1 mt-2">
                       <Badge variant="secondary" className={`font-normal text-[10px] px-1.5 py-0 ${getCategoryColor(expense.category)}`}>
@@ -156,17 +163,17 @@ export default function ExpensesList({ expenses = [], members = [], isLoading = 
                 </div>
                 <div className="flex flex-col items-end">
                   <div className="font-bold text-lg text-foreground">
-                    ${Number(expense.amount).toFixed(2)}
+                    {formatCurrency(Number(expense.amount), currencyCode, i18n.language)}
                   </div>
 
                   {status.status === 'payer' && (
-                    <div className="text-xs expense-positive mb-2 font-medium">You paid</div>
+                    <div className="text-xs expense-positive mb-2 font-medium">{t("expenseItem.paid")}</div>
                   )}
                   {status.status === 'debtor' && (
-                    <div className="text-xs expense-negative mb-2 font-medium">You owe ${status.amountOwed.toFixed(2)}</div>
+                    <div className="text-xs expense-negative mb-2 font-medium">{t("expenseItem.owe", { amount: formatCurrency(status.amountOwed, currencyCode, i18n.language) })}</div>
                   )}
                   {status.status === 'none' && (
-                    <div className="text-xs text-muted-foreground mb-2">Not involved</div>
+                    <div className="text-xs text-muted-foreground mb-2">{t("expenseItem.notInvolved")}</div>
                   )}
 
                   <div className="flex gap-1">
@@ -199,18 +206,18 @@ export default function ExpensesList({ expenses = [], members = [], isLoading = 
       <AlertDialog open={!!expenseToDelete} onOpenChange={(open) => !open && setExpenseToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Expense?</AlertDialogTitle>
+            <AlertDialogTitle>{t("expenseItem.deleteTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove "{expenseToDelete?.description}" from your Google Sheet.
+              {t("expenseItem.deleteDesc", { description: expenseToDelete?.description })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => expenseToDelete && deleteMutation.mutate(expenseToDelete)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+              {deleteMutation.isPending ? t("common.loading") : t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

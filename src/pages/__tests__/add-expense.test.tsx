@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, within } from "@testing-library/rea
 import AddExpense from "../add-expense";
 import { useAppContext } from "@/context/app-context";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import en from "@/locales/en/translation.json";
 
 // Mock hooks
 vi.mock("@/context/app-context", () => ({
@@ -82,48 +83,52 @@ describe("Add Expense Page", () => {
 
   it("renders the add expense form", async () => {
     render(<AddExpense />);
-    
+
     // Wait for the data to load and items to render
     await screen.findByTestId("split-item-user2");
 
-    expect(screen.getByRole("heading", { name: "Add Expense" })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Description/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Amount/)).toBeInTheDocument();
-    expect(screen.getByText("Split Between")).toBeInTheDocument();
-    
+    expect(screen.getByRole("heading", { name: en.expenseForm.addTitle })).toBeInTheDocument();
+
+    // Labels in the form have " *" appended to them.
+    // Use regex to match the label text flexibly.
+    expect(screen.getByText(new RegExp(en.expenseForm.description, "i"))).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(en.expenseForm.amount, "i"))).toBeInTheDocument();
+    expect(screen.getByText(en.expenseForm.splitBetween)).toBeInTheDocument();
+
     const splitListAlice = screen.getByTestId("split-item-user1");
-    expect(within(splitListAlice).getByText("You")).toBeInTheDocument();
-    
+    expect(within(splitListAlice).getByText(en.expenseForm.you)).toBeInTheDocument();
+
     const splitListBob = screen.getByTestId("split-item-user2");
     expect(within(splitListBob).getByText("Bob")).toBeInTheDocument();
   });
 
   it("calculates equal splits automatically when amount changes", async () => {
     render(<AddExpense />);
-    
+
     await screen.findByTestId("split-item-user2");
 
     const amountInput = screen.getByTestId("input-expense-amount");
     fireEvent.change(amountInput, { target: { value: "100" } });
 
     await waitFor(() => {
-        const splitInputs = screen.getAllByTestId(/input-split-amount-/);
-        expect(splitInputs[0]).toHaveValue(50);
-        expect(splitInputs[1]).toHaveValue(50);
+      const splitInputs = screen.getAllByTestId(/input-split-amount-/);
+      expect(splitInputs[0]).toHaveValue(50);
+      expect(splitInputs[1]).toHaveValue(50);
     });
   });
 
   it("submits the form successfully", async () => {
     render(<AddExpense />);
-    
+
     await screen.findByTestId("split-item-user2");
 
     fireEvent.change(screen.getByTestId("input-expense-description"), { target: { value: "Dinner" } });
     fireEvent.change(screen.getByTestId("input-expense-amount"), { target: { value: "100" } });
-    
+
     // Select Category
     const categoryTrigger = screen.getByTestId("select-category");
     fireEvent.click(categoryTrigger);
+    // Categories are hardcoded in English in the component for now, so we select by that text
     const option = await screen.findByRole("option", { name: "Food & Dining" });
     fireEvent.click(option);
 
@@ -131,15 +136,15 @@ describe("Add Expense Page", () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-        expect(mutateAddExpense).toHaveBeenCalledWith(expect.objectContaining({
-            description: "Dinner",
-            amount: 100,
-            category: "Food & Dining",
-            splits: expect.arrayContaining([
-                { userId: "user1", amount: 50 },
-                { userId: "user2", amount: 50 }
-            ])
-        }));
+      expect(mutateAddExpense).toHaveBeenCalledWith(expect.objectContaining({
+        description: "Dinner",
+        amount: 100,
+        category: "Food & Dining",
+        splits: expect.arrayContaining([
+          { userId: "user1", amount: 50 },
+          { userId: "user2", amount: 50 }
+        ])
+      }));
     });
 
     expect(mockNavigate).toHaveBeenCalledWith("/dashboard");
