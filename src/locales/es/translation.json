@@ -5,6 +5,12 @@
         "groups": "Grupos",
         "profile": "Perfil"
     },
+    "header": {
+        "selectGroup": "Seleccionar Grupo",
+        "people_one": "{{count}} persona",
+        "people_other": "{{count}} personas",
+        "synced": "Cambios sincronizados."
+    },
     "common": {
         "loading": "Cargando...",
         "save": "Guardar",
@@ -18,9 +24,17 @@
         "owe": "Debes en total",
         "owed": "Te deben en total",
         "settleUp": "Saldar Deudas",
+        "settle": "Saldar",
         "totalSpent": "Gasto Total",
+        "groupBalances": "Balances del Grupo",
         "recentActivity": "Actividad Reciente",
-        "noActivity": "Sin actividad aún"
+        "noActivity": "Sin actividad aún",
+        "addFirst": "Añade tu primer gasto",
+        "viewHistory": "Ver Historial Completo",
+        "you": "Tú",
+        "transfer": "Transferencia",
+        "paid": "Pagaste",
+        "notInvolved": "No participas"
     },
     "profile": {
         "title": "Perfil",

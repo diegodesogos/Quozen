@@ -19,11 +19,20 @@ import {
 import { Expense, Settlement, Member } from "@/lib/storage/types";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+// Removed direct date-fns import
+import { useTranslation } from "react-i18next";
+import { useDateFormatter } from "@/hooks/use-date-formatter";
+import { formatCurrency } from "@/lib/format-currency";
+import { useSettings } from "@/hooks/use-settings";
 
 export default function Dashboard() {
   const { activeGroupId, currentUserId } = useAppContext();
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
+  const { formatDate } = useDateFormatter();
+  const { settings } = useSettings();
+
+  const currencyCode = settings?.preferences?.defaultCurrency || "USD";
 
   // Unified state for Create/Edit settlement
   const [settlementModal, setSettlementModal] = useState<{
@@ -157,7 +166,7 @@ export default function Dashboard() {
   };
 
   if (isLoading) {
-    return <div className="p-4 text-center">Loading group data...</div>;
+    return <div className="p-4 text-center">{t("common.loading")}</div>;
   }
 
   if (!groupData) {
@@ -171,7 +180,7 @@ export default function Dashboard() {
         <div className="mx-4 mt-4 bg-card rounded-lg border border-border p-4 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Wallet className="w-5 h-5 text-primary" /> Your Balance
+              <Wallet className="w-5 h-5 text-primary" /> {t("dashboard.balance")}
             </h2>
             <Button
               variant="outline"
@@ -181,7 +190,7 @@ export default function Dashboard() {
               disabled={!settlementSuggestion}
               data-testid="button-settle-up"
             >
-              Settle Up
+              {t("dashboard.settleUp")}
             </Button>
           </div>
           <div className="text-center py-2">
@@ -189,15 +198,15 @@ export default function Dashboard() {
               className={`text-4xl font-bold ${userBalance >= 0 ? 'expense-positive' : 'expense-negative'}`}
               data-testid="text-user-balance"
             >
-              {userBalance >= 0 ? '+' : ''}${Math.abs(userBalance).toFixed(2)}
+              {userBalance >= 0 ? '+' : ''}{formatCurrency(Math.abs(userBalance), currencyCode, i18n.language)}
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              {userBalance >= 0 ? 'You are owed overall' : 'You owe overall'}
+              {userBalance >= 0 ? t("dashboard.owed") : t("dashboard.owe")}
             </p>
 
             <div className="mt-4 pt-4 border-t border-dashed border-border flex justify-between items-center px-8">
-              <span className="text-xs text-muted-foreground uppercase tracking-wider">Total Spent</span>
-              <span className="font-medium text-foreground">${totalSpent.toFixed(2)}</span>
+              <span className="text-xs text-muted-foreground uppercase tracking-wider">{t("dashboard.totalSpent")}</span>
+              <span className="font-medium text-foreground">{formatCurrency(totalSpent, currencyCode, i18n.language)}</span>
             </div>
           </div>
         </div>
@@ -206,7 +215,7 @@ export default function Dashboard() {
         <div className="mx-4 bg-card rounded-lg border border-border overflow-hidden">
           <Collapsible open={isBalancesOpen} onOpenChange={setIsBalancesOpen}>
             <CollapsibleTrigger className="w-full flex items-center justify-between p-4 border-b border-border bg-muted/30 hover:bg-muted/50 transition-colors">
-              <h3 className="font-semibold text-foreground text-sm uppercase tracking-wide">Group Balances</h3>
+              <h3 className="font-semibold text-foreground text-sm uppercase tracking-wide">{t("dashboard.groupBalances")}</h3>
               <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform duration-200", !isBalancesOpen && "-rotate-90")} />
             </CollapsibleTrigger>
 
@@ -235,7 +244,7 @@ export default function Dashboard() {
                             className={`font-semibold ${balance >= 0 ? 'expense-positive' : 'expense-negative'}`}
                             data-testid={`text-balance-${u.userId}`}
                           >
-                            {balance >= 0 ? '+' : ''}${Math.abs(balance).toFixed(2)}
+                            {balance >= 0 ? '+' : ''}{formatCurrency(Math.abs(balance), currencyCode, i18n.language)}
                           </div>
                           <Button
                             variant="link"
@@ -244,7 +253,7 @@ export default function Dashboard() {
                             onClick={() => handleSettleWith(u.userId)}
                             data-testid={`button-settle-with-${u.userId}`}
                           >
-                            Settle
+                            {t("dashboard.settle")}
                           </Button>
                         </div>
                       </div>
@@ -259,7 +268,7 @@ export default function Dashboard() {
         <div className="mx-4 bg-card rounded-lg border border-border overflow-hidden">
           <Collapsible open={isActivityOpen} onOpenChange={setIsActivityOpen}>
             <CollapsibleTrigger className="w-full flex items-center justify-between p-4 border-b border-border bg-muted/30 hover:bg-muted/50 transition-colors">
-              <h3 className="font-semibold text-foreground text-sm uppercase tracking-wide">Recent Activity</h3>
+              <h3 className="font-semibold text-foreground text-sm uppercase tracking-wide">{t("dashboard.recentActivity")}</h3>
               <div className="flex items-center gap-2">
                 <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform duration-200", !isActivityOpen && "-rotate-90")} />
               </div>
@@ -270,8 +279,8 @@ export default function Dashboard() {
                 <div className="divide-y divide-border">
                   {recentActivity.length === 0 ? (
                     <div className="p-8 text-center">
-                      <p className="text-muted-foreground text-sm">No activity yet</p>
-                      <Button variant="link" onClick={() => navigate('/add-expense')} className="mt-2">Add your first expense</Button>
+                      <p className="text-muted-foreground text-sm">{t("dashboard.noActivity")}</p>
+                      <Button variant="link" onClick={() => navigate('/add-expense')} className="mt-2">{t("dashboard.addFirst")}</Button>
                     </div>
                   ) : (
                     recentActivity.map((item) => {
@@ -280,8 +289,8 @@ export default function Dashboard() {
                       // ---------------------------
                       if (item.type === 'settlement') {
                         const s = item as Settlement;
-                        const fromName = s.fromUserId === currentUserId ? "You" : getMemberName(s.fromUserId).split(' ')[0];
-                        const toName = s.toUserId === currentUserId ? "You" : getMemberName(s.toUserId).split(' ')[0];
+                        const fromName = s.fromUserId === currentUserId ? t("dashboard.you") : getMemberName(s.fromUserId).split(' ')[0];
+                        const toName = s.toUserId === currentUserId ? t("dashboard.you") : getMemberName(s.toUserId).split(' ')[0];
                         const isMeSender = s.fromUserId === currentUserId;
                         const isMeReceiver = s.toUserId === currentUserId;
 
@@ -307,13 +316,13 @@ export default function Dashboard() {
                                     <span>{toName}</span>
                                   </div>
                                   <p className="text-xs text-muted-foreground">
-                                    Transfer • {format(new Date(s.date), "MMM d")}
+                                    {t("dashboard.transfer")} • {formatDate(s.date, "MMM d")}
                                   </p>
                                 </div>
                               </div>
                               <div className="text-right">
                                 <div className={cn("font-bold text-sm", colorClass)}>
-                                  ${Number(s.amount).toFixed(2)}
+                                  {formatCurrency(Number(s.amount), currencyCode, i18n.language)}
                                 </div>
                               </div>
                             </div>
@@ -339,21 +348,21 @@ export default function Dashboard() {
                               <div>
                                 <p className="font-medium text-foreground text-sm">{e.description}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  {paidByUser?.name || 'Unknown'} • {format(new Date(e.date), "MMM d")}
+                                  {paidByUser?.name || 'Unknown'} • {formatDate(e.date, "MMM d")}
                                 </p>
                               </div>
                             </div>
                             <div className="text-right">
-                              <div className="font-semibold text-foreground text-sm">${Number(e.amount).toFixed(2)}</div>
+                              <div className="font-semibold text-foreground text-sm">{formatCurrency(Number(e.amount), currencyCode, i18n.language)}</div>
 
                               {status.status === 'payer' && (
-                                <div className="text-xs expense-positive">You paid</div>
+                                <div className="text-xs expense-positive">{t("dashboard.paid")}</div>
                               )}
                               {status.status === 'debtor' && (
-                                <div className="text-xs expense-negative">Owe ${status.amountOwed.toFixed(2)}</div>
+                                <div className="text-xs expense-negative">{t("dashboard.owe").split(' ')[0]} {formatCurrency(status.amountOwed, currencyCode, i18n.language)}</div>
                               )}
                               {status.status === 'none' && (
-                                <div className="text-xs text-muted-foreground">Not involved</div>
+                                <div className="text-xs text-muted-foreground">{t("dashboard.notInvolved")}</div>
                               )}
                             </div>
                           </div>
@@ -370,7 +379,7 @@ export default function Dashboard() {
                       data-testid="button-view-all-expenses"
                       onClick={() => navigate('/expenses')}
                     >
-                      View Full History
+                      {t("dashboard.viewHistory")}
                     </Button>
                   </div>
                 </div>

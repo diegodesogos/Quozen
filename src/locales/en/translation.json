@@ -5,6 +5,12 @@
         "groups": "Groups",
         "profile": "Profile"
     },
+    "header": {
+        "selectGroup": "Select Group",
+        "people_one": "{{count}} person",
+        "people_other": "{{count}} people",
+        "synced": "Synced latest changes."
+    },
     "common": {
         "loading": "Loading...",
         "save": "Save",
@@ -18,9 +24,17 @@
         "owe": "You owe overall",
         "owed": "You are owed overall",
         "settleUp": "Settle Up",
+        "settle": "Settle",
         "totalSpent": "Total Spent",
+        "groupBalances": "Group Balances",
         "recentActivity": "Recent Activity",
-        "noActivity": "No activity yet"
+        "noActivity": "No activity yet",
+        "addFirst": "Add your first expense",
+        "viewHistory": "View Full History",
+        "you": "You",
+        "transfer": "Transfer",
+        "paid": "You paid",
+        "notInvolved": "Not involved"
     },
     "profile": {
         "title": "Profile",
