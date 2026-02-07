@@ -171,6 +171,16 @@ export interface IStorageProvider {
   addSettlement(spreadsheetId: string, settlementData: Partial<Settlement>): Promise<void>;
 
   /**
+   * Update an existing settlement (ID verification only, no timestamp check available in schema)
+   */
+  updateSettlement(spreadsheetId: string, rowIndex: number, settlementData: Partial<Settlement>): Promise<void>;
+
+  /**
+   * Delete a settlement by row index with existence check
+   */
+  deleteSettlement(spreadsheetId: string, rowIndex: number, settlementId: string): Promise<void>;
+
+  /**
    * Update a row in any sheet (Generic, use updateExpense for conflict checks)
    */
   updateRow(spreadsheetId: string, sheetName: SchemaType, rowIndex: number, data: any): Promise<void>;

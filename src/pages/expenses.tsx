@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Filter, ArrowUpDown, Utensils, Car, Bed, ShoppingBag,
-  Gamepad2, MoreHorizontal, Trash2, Pencil
+  Utensils, Car, Bed, ShoppingBag,
+  Gamepad2, MoreHorizontal, Trash2, Pencil, Wallet
 } from "lucide-react";
 import { googleApi } from "@/lib/drive";
 import { useNavigate } from "react-router-dom";
@@ -25,22 +25,20 @@ import { ConflictError, NotFoundError } from "@/lib/errors";
 import { getExpenseUserStatus } from "@/lib/finance";
 import { Expense, Member } from "@/lib/storage/types";
 
-export default function Expenses() {
+// Interface for props passed from ActivityHub
+interface ExpensesListProps {
+  expenses: Expense[];
+  members: Member[];
+  isLoading?: boolean;
+}
+
+export default function ExpensesList({ expenses = [], members = [], isLoading = false }: ExpensesListProps) {
   const { activeGroupId, currentUserId } = useAppContext();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
-
-  const { data: groupData, isLoading } = useQuery({
-    queryKey: ["drive", "group", activeGroupId],
-    queryFn: () => googleApi.getGroupData(activeGroupId),
-    enabled: !!activeGroupId,
-  });
-
-  const users = (groupData?.members || []) as Member[];
-  const expenses = (groupData?.expenses || []) as Expense[];
 
   const deleteMutation = useMutation({
     mutationFn: (expense: Expense) => {
@@ -74,7 +72,7 @@ export default function Expenses() {
     }
   });
 
-  const getUserById = (id: string) => users.find(u => u.userId === id);
+  const getUserById = (id: string) => members.find(u => u.userId === id);
 
   const getExpenseIcon = (category: string) => {
     switch (category?.toLowerCase()) {
@@ -99,109 +97,104 @@ export default function Expenses() {
   };
 
   if (isLoading) {
-    return <div className="p-4 text-center">Loading expenses...</div>;
+    return (
+      <div className="space-y-4 p-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-24 bg-muted animate-pulse rounded-lg" />
+        ))}
+      </div>
+    );
+  }
+
+  if (expenses.length === 0) {
+    return (
+      <div className="p-4">
+        <Card>
+          <CardContent className="p-8 text-center">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <Wallet className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <h3 className="font-semibold text-foreground mb-2">No expenses yet</h3>
+            <p className="text-sm text-muted-foreground">
+              Start by adding your first expense to track group spending
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
-    <div className="mx-4 mt-4 pb-4" data-testid="expenses-view">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold">All Expenses</h2>
-        <div className="flex space-x-2">
-          <Button variant="outline" size="icon" data-testid="button-filter-expenses">
-            <Filter className="w-4 h-4" />
-          </Button>
-          <Button variant="outline" size="icon" data-testid="button-sort-expenses">
-            <ArrowUpDown className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
+    <div className="px-4 pb-4 space-y-3">
+      {expenses.map((expense) => {
+        const paidByUser = getUserById(expense.paidBy);
+        // const userSplit = expense.splits?.find((s: any) => s.userId === currentUserId);
+        // const yourShare = userSplit?.amount || 0;
+        const Icon = getExpenseIcon(expense.category);
 
-      <div className="space-y-3">
-        {expenses.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                <Utensils className="w-8 h-8 text-muted-foreground" />
-              </div>
-              <h3 className="font-semibold text-foreground mb-2">No expenses yet</h3>
-              <p className="text-sm text-muted-foreground">
-                Start by adding your first expense to track group spending
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          expenses.slice().reverse().map((expense) => {
-            const paidByUser = getUserById(expense.paidBy);
-            const userSplit = expense.splits?.find((s: any) => s.userId === currentUserId);
-            const yourShare = userSplit?.amount || 0;
-            const Icon = getExpenseIcon(expense.category);
+        const status = getExpenseUserStatus(expense, currentUserId);
 
-            // Use centralized logic
-            const status = getExpenseUserStatus(expense, currentUserId);
-
-            return (
-              <Card key={expense.id} data-testid={`card-expense-${expense.id}`}>
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start space-x-3">
-                      <div className="w-12 h-12 bg-secondary rounded-lg flex items-center justify-center border border-border">
-                        <Icon className="w-6 h-6 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-foreground">{expense.description}</h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Paid by <span className="font-medium">{paidByUser?.name || 'Unknown'}</span> • {new Date(expense.date).toLocaleDateString()}
-                        </p>
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          <Badge variant="secondary" className={`font-normal ${getCategoryColor(expense.category)}`}>
-                            {expense.category}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end">
-                      <div className="font-bold text-lg text-foreground">
-                        ${Number(expense.amount).toFixed(2)}
-                      </div>
-
-                      {status.status === 'payer' && (
-                        <div className="text-xs expense-positive mb-2">You paid</div>
-                      )}
-                      {status.status === 'debtor' && (
-                        <div className="text-xs expense-negative mb-2">You owe ${status.amountOwed.toFixed(2)}</div>
-                      )}
-                      {status.status === 'none' && (
-                        <div className="text-xs text-muted-foreground mb-2">Not involved</div>
-                      )}
-
-                      <div className="flex gap-1">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => navigate(`/edit-expense/${expense.id}`)}
-                          data-testid={`button-edit-expense-${expense.id}`}
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => setExpenseToDelete(expense)}
-                          data-testid={`button-delete-expense-${expense.id}`}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
+        return (
+          <Card key={expense.id} data-testid={`card-expense-${expense.id}`}>
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex items-start space-x-3">
+                  <div className="w-12 h-12 bg-secondary rounded-lg flex items-center justify-center border border-border">
+                    <Icon className="w-6 h-6 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground line-clamp-1">{expense.description}</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {paidByUser?.name || 'Unknown'} • {new Date(expense.date).toLocaleDateString()}
+                    </p>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      <Badge variant="secondary" className={`font-normal text-[10px] px-1.5 py-0 ${getCategoryColor(expense.category)}`}>
+                        {expense.category}
+                      </Badge>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })
-        )}
-      </div>
+                </div>
+                <div className="flex flex-col items-end">
+                  <div className="font-bold text-lg text-foreground">
+                    ${Number(expense.amount).toFixed(2)}
+                  </div>
+
+                  {status.status === 'payer' && (
+                    <div className="text-xs expense-positive mb-2 font-medium">You paid</div>
+                  )}
+                  {status.status === 'debtor' && (
+                    <div className="text-xs expense-negative mb-2 font-medium">You owe ${status.amountOwed.toFixed(2)}</div>
+                  )}
+                  {status.status === 'none' && (
+                    <div className="text-xs text-muted-foreground mb-2">Not involved</div>
+                  )}
+
+                  <div className="flex gap-1">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => navigate(`/edit-expense/${expense.id}`)}
+                      data-testid={`button-edit-expense-${expense.id}`}
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setExpenseToDelete(expense)}
+                      data-testid={`button-delete-expense-${expense.id}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
 
       <AlertDialog open={!!expenseToDelete} onOpenChange={(open) => !open && setExpenseToDelete(null)}>
         <AlertDialogContent>

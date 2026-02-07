@@ -1,4 +1,3 @@
-
 import {
     IStorageProvider, Group, User, GroupData, UserSettings, CachedGroup,
     MemberInput, Expense, Settlement, Member, SchemaType,
@@ -417,25 +416,9 @@ export class StorageService implements IStorageProvider {
     }
 
     async updateExpense(spreadsheetId: string, rowIndex: number, expenseData: Partial<Expense>, expectedLastModified?: string): Promise<void> {
-        // Here we implement the optimistic concurrency logic locally using a read-check-write pattern.
-        // Protected by local mutex, but still vulnerable to race with other clients.
-        // The Adapter could potentially offer a CAS operation, but Sheets API makes that hard.
-        // So we do it here.
-
         return this._runExclusive(async () => {
             const currentRow = await this.adapter.readRow(spreadsheetId, "Expenses", rowIndex);
             if (!currentRow) throw new NotFoundError();
-
-            // Map row array to object? OR Schema-aware readRow?
-            // Adapter.readRow returns 'any'. 
-            // If Adapter returns raw array, we need to parse it.
-            // If Adapter return parsed object, good.
-            // GoogleDriveProvider returned JSON from `getGroupData` parsed.
-            // `updateExpense` in GoogleDriveProvider retrieved raw values and parsed them.
-
-            // I will assume `readRow` returns a parsed object (like getGroupData does).
-            // If Adapter is dumb, it might return array. 
-            // Let's assume Adapter handles schema mapping.
 
             const currentId = currentRow.id;
             if (currentId !== expenseData.id) throw new ConflictError("ID Mismatch");
@@ -471,6 +454,26 @@ export class StorageService implements IStorageProvider {
             date: settlementData.date || new Date().toISOString()
         };
         await this.adapter.appendRow(spreadsheetId, "Settlements", settlement);
+    }
+
+    async updateSettlement(spreadsheetId: string, rowIndex: number, settlementData: Partial<Settlement>): Promise<void> {
+        return this._runExclusive(async () => {
+            const currentRow = await this.adapter.readRow(spreadsheetId, "Settlements", rowIndex);
+            if (!currentRow) throw new NotFoundError();
+
+            if (currentRow.id !== settlementData.id) throw new ConflictError("ID Mismatch or row shifted");
+
+            const updates = { ...currentRow, ...settlementData };
+            await this.adapter.updateRow(spreadsheetId, "Settlements", rowIndex, updates);
+        });
+    }
+
+    async deleteSettlement(spreadsheetId: string, rowIndex: number, settlementId: string): Promise<void> {
+        return this._runExclusive(async () => {
+            const currentRow = await this.adapter.readRow(spreadsheetId, "Settlements", rowIndex);
+            if (!currentRow || currentRow.id !== settlementId) throw new ConflictError("ID Mismatch or row shifted");
+            await this.adapter.deleteRow(spreadsheetId, "Settlements", rowIndex);
+        });
     }
 
     async updateRow(spreadsheetId: string, sheetName: SchemaType, rowIndex: number, data: any): Promise<void> {

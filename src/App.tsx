@@ -5,7 +5,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
 import Dashboard from "@/pages/dashboard";
-import Expenses from "@/pages/expenses";
+// import Expenses from "@/pages/expenses"; // <-- Replaced
+import ActivityHub from "@/pages/activity-hub"; // <-- New Import
 import AddExpense from "@/pages/add-expense";
 import EditExpense from "@/pages/edit-expense";
 import Groups from "@/pages/groups";
@@ -136,7 +137,7 @@ export function AuthenticatedApp() {
         />
         <Route
           path="/expenses"
-          element={<ProtectedRoute><AppLayout><Expenses /></AppLayout></ProtectedRoute>}
+          element={<ProtectedRoute><AppLayout><ActivityHub /></AppLayout></ProtectedRoute>}
         />
         <Route
           path="/add-expense"
