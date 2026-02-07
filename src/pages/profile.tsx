@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/auth-provider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { User as UserIcon, Settings, HelpCircle, LogOut, Mail, RefreshCw, AlertCircle, Coins } from "lucide-react";
+import { User as UserIcon, Settings, HelpCircle, LogOut, Mail, RefreshCw, AlertCircle, Coins, Globe } from "lucide-react";
 import { googleApi } from "@/lib/drive";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/use-settings";
@@ -10,6 +10,7 @@ import { useGroups } from "@/hooks/use-groups";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { useTranslation } from "react-i18next";
 
 export default function Profile() {
   const { user, logout } = useAuth();
@@ -17,6 +18,7 @@ export default function Profile() {
   const queryClient = useQueryClient();
   const { settings, updateSettings } = useSettings();
   const { groups } = useGroups();
+  const { t } = useTranslation();
 
   const reconcileMutation = useMutation({
     mutationFn: async () => {
@@ -24,12 +26,10 @@ export default function Profile() {
       return await googleApi.reconcileGroups(user.email);
     },
     onSuccess: (newSettings) => {
-      // Invalidate settings query to trigger re-render of groups via derived hook
       queryClient.setQueryData(["drive", "settings", user?.email], newSettings);
-
       toast({
-        title: "Scan Complete",
-        description: `Found ${newSettings.groupCache.length} groups in your Drive.`,
+        title: t("common.save"), // Using generic success message or we could add specific key
+        description: t("profile.reconcileDesc"), // Reusing desc as success placeholder or just standard toast
       });
     },
     onError: (error) => {
@@ -50,7 +50,24 @@ export default function Profile() {
           defaultCurrency: currency
         }
       });
-      toast({ title: "Currency updated" });
+      toast({ title: t("common.save") });
+    }
+  };
+
+  const handleLanguageChange = (locale: string) => {
+    if (settings) {
+      // cast to expected union type
+      const validLocale = (locale === "en" || locale === "es" || locale === "system") ? locale : "system";
+
+      updateSettings({
+        ...settings,
+        preferences: {
+          ...settings.preferences,
+          locale: validLocale
+        }
+      });
+      // Side effect handled by useSettings hook
+      toast({ title: t("common.save") });
     }
   };
 
@@ -63,7 +80,7 @@ export default function Profile() {
       <div className="mx-4 mt-4" data-testid="profile-loading">
         <div className="text-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground mt-2">Loading profile...</p>
+          <p className="text-muted-foreground mt-2">{t("common.loading")}</p>
         </div>
       </div>
     );
@@ -101,7 +118,7 @@ export default function Profile() {
             <div className="text-2xl font-bold text-foreground" data-testid="text-group-count">
               {groups.length}
             </div>
-            <p className="text-sm text-muted-foreground">Active Groups</p>
+            <p className="text-sm text-muted-foreground">{t("profile.activeGroups")}</p>
           </CardContent>
         </Card>
         <Card>
@@ -109,7 +126,7 @@ export default function Profile() {
             <div className="text-2xl font-bold text-foreground">
               {settings?.preferences?.defaultCurrency || "USD"}
             </div>
-            <p className="text-sm text-muted-foreground">Currency</p>
+            <p className="text-sm text-muted-foreground">{t("profile.currency")}</p>
           </CardContent>
         </Card>
       </div>
@@ -119,7 +136,7 @@ export default function Profile() {
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center">
             <Settings className="w-5 h-5 mr-2" />
-            Preferences & Data
+            {t("profile.preferences")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -128,7 +145,7 @@ export default function Profile() {
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
               <Coins className="w-4 h-4 text-muted-foreground" />
-              Default Currency
+              {t("profile.currency")}
             </Label>
             <Select
               value={settings?.preferences?.defaultCurrency || "USD"}
@@ -148,13 +165,34 @@ export default function Profile() {
             </Select>
           </div>
 
+          {/* Language */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Globe className="w-4 h-4 text-muted-foreground" />
+              {t("profile.language")}
+            </Label>
+            <Select
+              value={settings?.preferences?.locale || "system"}
+              onValueChange={handleLanguageChange}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={t("profile.selectLanguage")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="system">System (Auto)</SelectItem>
+                <SelectItem value="en">English (US)</SelectItem>
+                <SelectItem value="es">Español (LatAm)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <Separator />
 
           {/* Sync */}
           <div className="space-y-2">
-            <h4 className="text-sm font-medium">Reconcile Groups</h4>
+            <h4 className="text-sm font-medium">{t("profile.reconcile")}</h4>
             <p className="text-xs text-muted-foreground">
-              Scan your Google Drive to find groups created on other devices.
+              {t("profile.reconcileDesc")}
             </p>
             <Button
               variant="outline"
@@ -164,14 +202,14 @@ export default function Profile() {
               data-testid="button-reconcile"
             >
               <RefreshCw className={`w-4 h-4 mr-3 ${reconcileMutation.isPending ? 'animate-spin' : ''}`} />
-              {reconcileMutation.isPending ? "Scanning Drive..." : "Scan for missing groups"}
+              {reconcileMutation.isPending ? t("profile.scanning") : t("profile.scan")}
             </Button>
           </div>
 
           <Separator />
 
           <div className="space-y-2">
-            <h4 className="text-sm font-medium">Troubleshooting</h4>
+            <h4 className="text-sm font-medium">{t("profile.troubleshoot")}</h4>
             <Button
               variant="ghost"
               className="w-full justify-start text-destructive hover:text-destructive"
@@ -181,7 +219,7 @@ export default function Profile() {
               }}
             >
               <AlertCircle className="w-4 h-4 mr-3" />
-              Force Re-login
+              {t("profile.forceLogin")}
             </Button>
           </div>
 
@@ -191,7 +229,7 @@ export default function Profile() {
       {/* Support */}
       <Card>
         <CardContent className="p-4">
-          <h3 className="font-semibold text-foreground mb-4">Support</h3>
+          <h3 className="font-semibold text-foreground mb-4">{t("profile.support")}</h3>
           <div className="space-y-2">
             <Button
               variant="ghost"
@@ -199,7 +237,7 @@ export default function Profile() {
               data-testid="button-help"
             >
               <HelpCircle className="w-4 h-4 mr-3" />
-              Help & FAQ
+              {t("profile.help")}
             </Button>
             <Button
               variant="ghost"
@@ -207,7 +245,7 @@ export default function Profile() {
               data-testid="button-contact"
             >
               <Mail className="w-4 h-4 mr-3" />
-              Contact Support
+              {t("profile.contact")}
             </Button>
           </div>
         </CardContent>
@@ -223,7 +261,7 @@ export default function Profile() {
             onClick={handleLogout}
           >
             <LogOut className="w-4 h-4 mr-3" />
-            Sign Out
+            {t("profile.signOut")}
           </Button>
         </CardContent>
       </Card>
