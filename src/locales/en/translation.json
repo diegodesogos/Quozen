@@ -42,6 +42,36 @@
         "paid": "You paid",
         "notInvolved": "Not involved"
     },
+    "activity": {
+        "title": "Group Activity",
+        "expensesTab": "Expenses",
+        "transfersTab": "Transfers",
+        "myExpenses": "My Expenses",
+        "allExpenses": "All Expenses",
+        "myTransfers": "My Transfers",
+        "allTransfers": "All Transfers",
+        "sortBy": "Sort by",
+        "dateNewest": "Date (Newest)",
+        "dateOldest": "Date (Oldest)",
+        "amountHigh": "Amount (High to Low)",
+        "amountLow": "Amount (Low to High)",
+        "me": "Me",
+        "all": "All",
+        "noTransfers": "No transfers found",
+        "noExpenses": "No expenses yet",
+        "startAdding": "Start by adding your first expense to track group spending"
+    },
+    "expenseItem": {
+        "paid": "You paid",
+        "owe": "You owe {{amount}}",
+        "notInvolved": "Not involved",
+        "deleteTitle": "Delete Expense?",
+        "deleteDesc": "This will permanently remove \"{{description}}\" from your Google Sheet.",
+        "syncError": "Sync Error",
+        "syncErrorDesc": "Expense list is out of date. Refreshing...",
+        "deleteError": "Error",
+        "deleteErrorDesc": "Failed to delete expense. Please try again."
+    },
     "groups": {
         "title": "Your Groups",
         "new": "New Group",
@@ -115,6 +145,12 @@
     "notFound": {
         "title": "404 Page Not Found",
         "message": "Did you forget to add the page to the router?"
+    },
+    "errorBoundary": {
+        "title": "Something went wrong",
+        "defaultMessage": "An unexpected error occurred while communicating with Google Drive.",
+        "reload": "Reload Application",
+        "hint": "If this persists, try clearing your browser cookies or signing in again."
     },
     "profile": {
         "title": "Profile",

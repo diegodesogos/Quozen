@@ -42,6 +42,36 @@
         "paid": "Pagaste",
         "notInvolved": "No participas"
     },
+    "activity": {
+        "title": "Actividad del Grupo",
+        "expensesTab": "Gastos",
+        "transfersTab": "Transferencias",
+        "myExpenses": "Mis Gastos",
+        "allExpenses": "Todos los Gastos",
+        "myTransfers": "Mis Transferencias",
+        "allTransfers": "Todas las Transferencias",
+        "sortBy": "Ordenar por",
+        "dateNewest": "Fecha (Más reciente)",
+        "dateOldest": "Fecha (Más antiguo)",
+        "amountHigh": "Monto (Mayor a Menor)",
+        "amountLow": "Monto (Menor a Mayor)",
+        "me": "Yo",
+        "all": "Todos",
+        "noTransfers": "No se encontraron transferencias",
+        "noExpenses": "Aún no hay gastos",
+        "startAdding": "Comienza añadiendo tu primer gasto para rastrear los costos del grupo"
+    },
+    "expenseItem": {
+        "paid": "Pagaste",
+        "owe": "Debes {{amount}}",
+        "notInvolved": "No participas",
+        "deleteTitle": "¿Eliminar Gasto?",
+        "deleteDesc": "Esto eliminará permanentemente \"{{description}}\" de tu hoja de cálculo.",
+        "syncError": "Error de Sincronización",
+        "syncErrorDesc": "La lista de gastos está desactualizada. Actualizando...",
+        "deleteError": "Error",
+        "deleteErrorDesc": "No se pudo eliminar el gasto. Inténtalo de nuevo."
+    },
     "groups": {
         "title": "Tus Grupos",
         "new": "Nuevo Grupo",
@@ -115,6 +145,12 @@
     "notFound": {
         "title": "404 Página No Encontrada",
         "message": "¿Olvidaste agregar la página al router?"
+    },
+    "errorBoundary": {
+        "title": "Algo salió mal",
+        "defaultMessage": "Ocurrió un error inesperado al comunicarse con Google Drive.",
+        "reload": "Recargar Aplicación",
+        "hint": "Si esto persiste, intenta borrar las cookies de tu navegador o iniciar sesión nuevamente."
     },
     "profile": {
         "title": "Perfil",
