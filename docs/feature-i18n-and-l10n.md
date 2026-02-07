@@ -1,6 +1,6 @@
 # **Feature Internationalization (i18n) and Localization (l10n) Support**
 
-**Status**: Not Started.
+**Status**: ✅ **Completed**
 
 **Title:** Internationalization (i18n) & Localization (l10n) Support
 
@@ -48,17 +48,16 @@
 # **3\. USER STORIES**
 
 ### **US-101: i18n Infrastructure & Detection Strategy**
+**Status**: ✅ **Completed**
 
 **Narrative:** As a Developer, I want to establish the translation engine and detection logic, So that the app knows which language to serve based on user preference or system defaults.
 
 **Acceptance Criteria:**
 
-* **Scenario 1 (System Default):**  
-  * **Given** a user with browser language set to "es-ES" (Spain).  
+* **Scenario 1 (System Default):** * **Given** a user with browser language set to "es-ES" (Spain).  
   * **When** they load the app for the first time.  
   * **Then** the app initializes with `es-419` (LatAm Spanish) resources.  
-* **Scenario 2 (Fallback):**  
-  * **Given** a user with browser language set to "fr-FR" (French).  
+* **Scenario 2 (Fallback):** * **Given** a user with browser language set to "fr-FR" (French).  
   * **When** they load the app.  
   * **Then** the app defaults to `en-US`.
 
@@ -73,18 +72,17 @@
 ---
 
 ### **US-102: Profile Language Setting & Persistence**
+**Status**: ✅ **Completed**
 
 **Narrative:** As a User, I want to explicitly select my preferred language in my profile, So that the app uses that language regardless of my device settings.
 
 **Acceptance Criteria:**
 
-* **Scenario 1 (Update Preference):**  
-  * **Given** I am on the Profile page.  
+* **Scenario 1 (Update Preference):** * **Given** I am on the Profile page.  
   * **When** I select "Español" from the "Language" dropdown.  
   * **Then** the UI immediately updates to Spanish.  
   * **And** the setting `preferences.locale = 'es'` is saved to `quozen-settings.json`.  
-* **Scenario 2 (Select System):**  
-  * **Given** my manual preference is "English".  
+* **Scenario 2 (Select System):** * **Given** my manual preference is "English".  
   * **When** I switch back to "System".  
   * **Then** the app reverts to detecting the language from the browser.
 
@@ -98,20 +96,19 @@ preferences: {
   locale?: "en" | "es" | "system"; // New Field  
 };
 
-*   
-* Update `src/pages/profile.tsx`: Add the `Select` component for Language below Currency.  
+* * Update `src/pages/profile.tsx`: Add the `Select` component for Language below Currency.  
 * Update `useSettings` hook to apply the language change via `i18next.changeLanguage()`.
 
 ---
 
 ### **US-103: Localized Date Formatting Wrapper**
+**Status**: ✅ **Completed**
 
 **Narrative:** As a Developer, I want a centralized hook for date formatting, So that all dates (e.g., "Jan 12") automatically display in the correct language (e.g., "12 ene").
 
 **Acceptance Criteria:**
 
-* **Scenario 1 (Spanish Date):**  
-  * **Given** the app is in Spanish mode.  
+* **Scenario 1 (Spanish Date):** * **Given** the app is in Spanish mode.  
   * **When** the Dashboard displays an expense date.  
   * **Then** it renders as "12 ene" (lowercase month is standard in Spanish) instead of "Jan 12".
 
@@ -126,17 +123,16 @@ preferences: {
 ---
 
 ### **US-104: Localized Currency & Number Formatting**
+**Status**: ✅ **Completed**
 
 **Narrative:** As a User, I want to see numbers formatted according to my region (e.g., decimal commas vs points), So that financial data is familiar and easy to read.
 
 **Acceptance Criteria:**
 
-* **Scenario 1 (Spanish Number Format):**  
-  * **Given** the app is in Spanish mode (LatAm often uses dots/commas differently depending on specific country, but we will standardize to the locale `es-419`).  
+* **Scenario 1 (Spanish Number Format):** * **Given** the app is in Spanish mode (LatAm often uses dots/commas differently depending on specific country, but we will standardize to the locale `es-419`).  
   * **When** I view an expense amount of 1200.50.  
   * **Then** it displays according to `Intl.NumberFormat('es-419')` (likely `1,200.50` or `1.200,50` depending on browser implementation of that locale tag).  
-* **Scenario 2 (Currency Symbol):**  
-  * **Given** my preferred currency is "EUR" and language is English.  
+* **Scenario 2 (Currency Symbol):** * **Given** my preferred currency is "EUR" and language is English.  
   * **When** I view the balance.  
   * **Then** it displays as "€50.00" (Symbol from Currency, Formatting from English Locale).
 
@@ -149,17 +145,16 @@ preferences: {
 ---
 
 ### **US-105: UI Text Extraction & Translation**
+**Status**: ✅ **Completed**
 
 **Narrative:** As a User, I want to see all navigation, buttons, and headers in my selected language, So that I can navigate the app comfortably.
 
 **Acceptance Criteria:**
 
-* **Scenario 1 (Navigation):**  
-  * **Given** Spanish is selected.  
+* **Scenario 1 (Navigation):** * **Given** Spanish is selected.  
   * **When** I look at the Bottom Navigation.  
   * **Then** "Activity" reads "Actividad" and "Groups" reads "Grupos".  
-* **Scenario 2 (General Toasts):**  
-  * **Given** Spanish is selected.  
+* **Scenario 2 (General Toasts):** * **Given** Spanish is selected.  
   * **When** I create a group successfully.  
   * **Then** the toast notification reads "Grupo creado" instead of "Group created".
 
@@ -172,4 +167,3 @@ preferences: {
   * `src/pages/dashboard.tsx` ("Your Balance", "Settle Up", "You owe").  
   * `src/pages/profile.tsx` (Labels, Buttons).  
   * `src/hooks/use-toast.ts` (Requires passing translated strings *into* the toast call, not translating inside the toast component).
-
