@@ -44,7 +44,7 @@ export default function Groups() {
       const editableMembers = data.members.filter(m => m.role !== 'owner').map(m => m.email || m.userId).join(", ");
       setDialogState({ open: true, mode: "edit", groupId: group.id, initialName: group.name, initialMembers: editableMembers });
     } catch (err) {
-      toast({ title: t("common.error"), description: "Failed to load group details", variant: "destructive" });
+      toast({ title: t("common.error"), description: t("groups.loadError"), variant: "destructive" });
     }
   };
 
@@ -71,7 +71,7 @@ export default function Groups() {
       setDialogState(prev => ({ ...prev, open: false }));
       if (newGroup?.id) setActiveGroupId(newGroup.id);
     },
-    onError: () => toast({ title: t("common.error"), description: "Failed to create group.", variant: "destructive" }),
+    onError: () => toast({ title: t("common.error"), description: t("groups.createError"), variant: "destructive" }),
   });
 
   const updateGroupMutation = useMutation({
@@ -93,7 +93,7 @@ export default function Groups() {
       toast({ title: t("common.success") });
       setDialogState(prev => ({ ...prev, open: false }));
     },
-    onError: (error) => toast({ title: t("common.error"), description: error instanceof Error ? error.message : "Error", variant: "destructive" })
+    onError: (error) => toast({ title: t("common.error"), description: error instanceof Error ? error.message : t("common.genericError"), variant: "destructive" })
   });
 
   const deleteGroupMutation = useMutation({
@@ -107,7 +107,7 @@ export default function Groups() {
       setAlertState({ open: false, type: "delete" });
       if (groupId === activeGroupId) setActiveGroupId("");
     },
-    onError: () => toast({ title: t("common.error"), description: "Failed to delete group", variant: "destructive" })
+    onError: () => toast({ title: t("common.error"), description: t("groups.deleteError"), variant: "destructive" })
   });
 
   const leaveGroupMutation = useMutation({
@@ -121,7 +121,7 @@ export default function Groups() {
       setAlertState({ open: false, type: "leave" });
       if (groupId === activeGroupId) setActiveGroupId("");
     },
-    onError: (error) => toast({ title: t("common.error"), description: error instanceof Error ? error.message : "Error", variant: "destructive" })
+    onError: (error) => toast({ title: t("common.error"), description: error instanceof Error ? error.message : t("common.genericError"), variant: "destructive" })
   });
 
   return (

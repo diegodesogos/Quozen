@@ -3,10 +3,16 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import Dashboard from "../dashboard";
 import { useAppContext } from "@/context/app-context";
 import { useQuery } from "@tanstack/react-query";
+import { useSettings } from "@/hooks/use-settings";
+import en from "@/locales/en/translation.json";
+import { formatCurrency } from "@/lib/format-currency";
 
-// Mock the context and query hooks
 vi.mock("@/context/app-context", () => ({
   useAppContext: vi.fn(),
+}));
+
+vi.mock("@/hooks/use-settings", () => ({
+  useSettings: vi.fn(),
 }));
 
 vi.mock("@tanstack/react-query", async (importOriginal) => {
@@ -14,14 +20,13 @@ vi.mock("@tanstack/react-query", async (importOriginal) => {
   return {
     ...actual,
     useQuery: vi.fn(),
-    useMutation: vi.fn(() => ({ mutate: vi.fn() })), // Mock mutation
+    useMutation: vi.fn(() => ({ mutate: vi.fn() })),
     useQueryClient: vi.fn(() => ({
       invalidateQueries: vi.fn(),
     })),
   };
 });
 
-// Mock navigate
 const mockNavigate = vi.fn();
 vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual("react-router-dom");
@@ -31,7 +36,6 @@ vi.mock("react-router-dom", async () => {
   };
 });
 
-// Mock the SettlementModal
 vi.mock("@/components/settlement-modal", () => ({
   default: ({ isOpen, onClose, fromUser, toUser, suggestedAmount }: any) => {
     if (!isOpen) return null;
@@ -46,7 +50,6 @@ vi.mock("@/components/settlement-modal", () => ({
   },
 }));
 
-// Mock googleApi
 vi.mock("@/lib/drive", () => ({
   googleApi: {
     getGroupData: vi.fn(),
@@ -55,7 +58,6 @@ vi.mock("@/lib/drive", () => ({
 }));
 
 describe("Dashboard Page", () => {
-  // Mock Data conforming to Google Sheet structure
   const mockMembers = [
     { userId: "user1", name: "Alice", email: "alice@example.com" },
     { userId: "user2", name: "Bob", email: "bob@example.com" },
@@ -73,21 +75,16 @@ describe("Dashboard Page", () => {
     },
   ];
 
-  // Bob paid 20. Split 10/10.
-  // Alice owes 10 to Bob.
-  // Alice Balance: -10
-  // Bob Balance: +10
-
   beforeEach(() => {
     vi.clearAllMocks();
-
     (useAppContext as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       activeGroupId: "group1",
       currentUserId: "user1",
     });
-
+    (useSettings as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      settings: { preferences: { defaultCurrency: "USD" } }
+    });
     (useQuery as unknown as ReturnType<typeof vi.fn>).mockImplementation(({ queryKey }) => {
-      // Check for the Drive query
       if (Array.isArray(queryKey) && queryKey[0] === "drive" && queryKey[1] === "group") {
         return {
           data: {
@@ -98,51 +95,34 @@ describe("Dashboard Page", () => {
           isLoading: false
         };
       }
-
       return { data: undefined, isLoading: false };
     });
   });
 
   it("renders dashboard with calculated user balance", () => {
     render(<Dashboard />);
-
-    // Alice (user1) owes 10. Dashboard displays absolute value with correct wording.
-    // userBalance = -10
     expect(screen.getByTestId("dashboard-view")).toBeInTheDocument();
-
-    // Check specific test ID for main balance to avoid confusion with "Total Spent" or other elements
-    expect(screen.getByTestId("text-user-balance")).toHaveTextContent("$10.00");
-    expect(screen.getByText("You owe overall")).toBeInTheDocument();
+    expect(screen.getByTestId("text-user-balance")).toHaveTextContent(formatCurrency(10));
+    expect(screen.getByText(en.dashboard.owe)).toBeInTheDocument();
   });
 
   it("renders calculated group balances correctly", () => {
     render(<Dashboard />);
-
-    // Bob (user2) is owed 10.
-    // We check specifically for Bob in the list
-    expect(screen.getByTestId("text-balance-user2")).toHaveTextContent("+$10.00");
+    expect(screen.getByTestId("text-balance-user2")).toHaveTextContent("+" + formatCurrency(10));
   });
 
   it("renders recent expenses", () => {
     render(<Dashboard />);
-
-    expect(screen.getByText("Recent Activity")).toBeInTheDocument();
+    expect(screen.getByText(en.dashboard.recentActivity)).toBeInTheDocument();
     expect(screen.getByText("Lunch")).toBeInTheDocument();
-
-    // Check for the specific format "Bob • [Date]" to avoid matching Bob in the balance list
-    // Using regex to match "Bob" followed by the bullet point
     expect(screen.getByText(/Bob\s*•/)).toBeInTheDocument();
   });
 
   it("opens settlement modal with correct suggestion when 'Settle Up' is clicked", () => {
     render(<Dashboard />);
-
     const settleUpBtn = screen.getByTestId("button-settle-up");
     fireEvent.click(settleUpBtn);
-
     expect(screen.getByTestId("mock-settlement-modal")).toBeInTheDocument();
-
-    // Alice (-10) should pay Bob (+10). Amount 10.
     expect(screen.getByText("From: Alice")).toBeInTheDocument();
     expect(screen.getByText("To: Bob")).toBeInTheDocument();
     expect(screen.getByText("Amount: 10")).toBeInTheDocument();

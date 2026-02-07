@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Login from "../login";
 import { useAuth } from "@/context/auth-provider";
+import en from "@/locales/en/translation.json";
 
 // Mock the auth provider hook
 vi.mock("@/context/auth-provider", () => ({
@@ -16,7 +17,6 @@ vi.mock("react-router-dom", async () => {
   return {
     ...actual,
     useNavigate: () => mockNavigate,
-    // Explicitly mock Navigate to trigger our spy when rendered
     Navigate: ({ to, replace }: { to: string, replace?: boolean }) => {
       mockNavigate(to, { replace });
       return null;
@@ -29,7 +29,6 @@ describe("Login Page", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default mock implementation
     (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       login: mockLogin,
       isAuthenticated: false,
@@ -44,15 +43,13 @@ describe("Login Page", () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText("Welcome to Quozen")).toBeInTheDocument();
-    // Updated text matcher
-    expect(screen.getByText(/Connect your Google account to access your groups/i)).toBeInTheDocument();
-    // Check for the Google button with updated text
-    expect(screen.getByRole("button", { name: /continue with google/i })).toBeInTheDocument();
+    expect(screen.getByText(en.login.welcome)).toBeInTheDocument();
+    expect(screen.getByText(en.login.connect)).toBeInTheDocument();
 
-    // Ensure old fields are gone
-    expect(screen.queryByPlaceholderText("Username")).not.toBeInTheDocument();
-    expect(screen.queryByPlaceholderText("Password")).not.toBeInTheDocument();
+    // The button contains an image with alt="Google" and the text "Continue with Google".
+    // RTL computes the accessible name as "Google Continue with Google".
+    // We use a regex to be flexible.
+    expect(screen.getByRole("button", { name: /continue with google/i })).toBeInTheDocument();
   });
 
   it("triggers login on button click", async () => {
@@ -81,7 +78,6 @@ describe("Login Page", () => {
       </MemoryRouter>
     );
 
-    // Should redirect to dashboard (default)
     expect(mockNavigate).toHaveBeenCalledWith("/dashboard", { replace: true });
   });
 });

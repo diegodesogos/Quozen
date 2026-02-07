@@ -159,7 +159,7 @@ export default function Dashboard() {
   }
 
   if (!groupData) {
-    return <div className="p-4 text-center">Group not found.</div>;
+    return <div className="p-4 text-center">{t("dashboard.groupNotFound")}</div>;
   }
 
   return (

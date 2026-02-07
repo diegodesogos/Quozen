@@ -59,7 +59,7 @@ export default function EditExpense() {
       } else {
         toast({
           title: t("common.error"),
-          description: "Failed to update expense. Please check your connection.",
+          description: t("expenseForm.updateError"),
           variant: "destructive"
         });
       }
@@ -90,13 +90,13 @@ export default function EditExpense() {
       <AlertDialog open={true}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Expense Not Found</AlertDialogTitle>
+            <AlertDialogTitle>{t("expenseForm.notFoundTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This expense seems to have been deleted by another user.
+              {t("expenseForm.notFoundDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction onClick={handleBack}>Go Back to List</AlertDialogAction>
+            <AlertDialogAction onClick={handleBack}>{t("expenseForm.goBack")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -119,16 +119,16 @@ export default function EditExpense() {
       <AlertDialog open={!!conflictError}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Data Conflict</AlertDialogTitle>
+            <AlertDialogTitle>{t("expenseForm.conflictTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
               {conflictError}
               <br /><br />
-              Someone else has modified this expense. Please refresh to see the latest changes.
+              {t("expenseForm.conflictDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setConflictError(null)}>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRefresh}>Refresh Data</AlertDialogAction>
+            <AlertDialogAction onClick={handleRefresh}>{t("expenseForm.refreshData")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

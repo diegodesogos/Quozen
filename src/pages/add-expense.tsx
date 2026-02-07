@@ -39,7 +39,7 @@ export default function AddExpense() {
       console.error(error);
       toast({
         title: t("common.error"),
-        description: "Failed to add expense. Please try again.",
+        description: t("expenseForm.addError"),
         variant: "destructive",
       });
     },

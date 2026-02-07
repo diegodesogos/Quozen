@@ -99,7 +99,7 @@ export default function SettlementModal({
       console.error(error);
       toast({
         title: t("common.error"),
-        description: "Failed to save settlement.",
+        description: t("settlement.saveError"),
         variant: "destructive",
       });
     },
@@ -117,7 +117,7 @@ export default function SettlementModal({
       onClose();
     },
     onError: (error) => {
-      toast({ title: t("common.error"), description: "Failed to delete.", variant: "destructive" });
+      toast({ title: t("common.error"), description: t("settlement.deleteError"), variant: "destructive" });
     }
   });
 

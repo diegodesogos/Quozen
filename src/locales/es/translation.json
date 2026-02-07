@@ -19,7 +19,8 @@
         "edit": "Editar",
         "back": "Volver",
         "error": "Error",
-        "success": "Éxito"
+        "success": "Éxito",
+        "genericError": "Ocurrió un error inesperado."
     },
     "roles": {
         "owner": "Dueño",
@@ -40,7 +41,8 @@
         "you": "Tú",
         "transfer": "Transferencia",
         "paid": "Pagaste",
-        "notInvolved": "No participas"
+        "notInvolved": "No participas",
+        "groupNotFound": "Grupo no encontrado."
     },
     "activity": {
         "title": "Actividad del Grupo",
@@ -93,7 +95,10 @@
         "nameLabel": "Nombre del Grupo",
         "membersLabel": "Miembros (Opcional)",
         "membersHint": "Ingresa correos o usuarios, separados por comas (ej. ana@gmail.com, beto123)",
-        "membersHint2": "Los correos recibirán una invitación de Google Drive. Los usuarios son solo para seguimiento."
+        "membersHint2": "Los correos recibirán una invitación de Google Drive. Los usuarios son solo para seguimiento.",
+        "loadError": "Error al cargar detalles del grupo.",
+        "createError": "Error al crear el grupo.",
+        "deleteError": "Error al eliminar el grupo."
     },
     "expenseForm": {
         "addTitle": "Añadir Gasto",
@@ -113,7 +118,15 @@
         "invalidSplitDesc": "Al menos una persona debe ser seleccionada.",
         "splitMismatch": "Error en división",
         "splitMismatchDesc": "Los montos divididos no coinciden con el total.",
-        "you": "Tú"
+        "you": "Tú",
+        "addError": "No se pudo añadir el gasto. Inténtalo de nuevo.",
+        "updateError": "No se pudo actualizar el gasto. Revisa tu conexión.",
+        "notFoundTitle": "Gasto No Encontrado",
+        "notFoundDesc": "Este gasto parece haber sido eliminado por otro usuario.",
+        "goBack": "Volver a la Lista",
+        "conflictTitle": "Conflicto de Datos",
+        "conflictDesc": "Alguien más ha modificado este gasto. Por favor actualiza para ver los cambios.",
+        "refreshData": "Actualizar Datos"
     },
     "settlement": {
         "title": "Saldar Balance",
@@ -132,7 +145,9 @@
         "update": "Actualizar",
         "deleteTitle": "¿Eliminar Pago?",
         "deleteDesc": "Esto eliminará permanentemente el registro. No se puede deshacer.",
-        "sameUser": "El pagador y el receptor no pueden ser el mismo."
+        "sameUser": "El pagador y el receptor no pueden ser el mismo.",
+        "saveError": "Error al guardar el pago.",
+        "deleteError": "Error al eliminar el pago."
     },
     "login": {
         "welcome": "Bienvenido a Quozen",
@@ -181,6 +196,8 @@
         "help": "Ayuda y Preguntas Frecuentes",
         "contact": "Contactar Soporte",
         "signOut": "Cerrar Sesión",
-        "activeGroups": "Grupos Activos"
+        "activeGroups": "Grupos Activos",
+        "scanFailed": "Error de Escaneo",
+        "scanFailedDesc": "No se pudo escanear Drive"
     }
 }

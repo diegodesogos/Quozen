@@ -19,7 +19,8 @@
         "edit": "Edit",
         "back": "Back",
         "error": "Error",
-        "success": "Success"
+        "success": "Success",
+        "genericError": "An unexpected error occurred."
     },
     "roles": {
         "owner": "Owner",
@@ -40,7 +41,8 @@
         "you": "You",
         "transfer": "Transfer",
         "paid": "You paid",
-        "notInvolved": "Not involved"
+        "notInvolved": "Not involved",
+        "groupNotFound": "Group not found."
     },
     "activity": {
         "title": "Group Activity",
@@ -93,7 +95,10 @@
         "nameLabel": "Group Name",
         "membersLabel": "Members (Optional)",
         "membersHint": "Enter emails or usernames, separated by commas (e.g., alice@gmail.com, bob123)",
-        "membersHint2": "Emails will receive a Google Drive share invite. Usernames are for tracking only."
+        "membersHint2": "Emails will receive a Google Drive share invite. Usernames are for tracking only.",
+        "loadError": "Failed to load group details.",
+        "createError": "Failed to create group.",
+        "deleteError": "Failed to delete group."
     },
     "expenseForm": {
         "addTitle": "Add Expense",
@@ -113,7 +118,15 @@
         "invalidSplitDesc": "At least one person must be selected for the split.",
         "splitMismatch": "Split mismatch",
         "splitMismatchDesc": "Split amounts don't match expense amount.",
-        "you": "You"
+        "you": "You",
+        "addError": "Failed to add expense. Please try again.",
+        "updateError": "Failed to update expense. Please check your connection.",
+        "notFoundTitle": "Expense Not Found",
+        "notFoundDesc": "This expense seems to have been deleted by another user.",
+        "goBack": "Go Back to List",
+        "conflictTitle": "Data Conflict",
+        "conflictDesc": "Someone else has modified this expense. Please refresh to see the latest changes.",
+        "refreshData": "Refresh Data"
     },
     "settlement": {
         "title": "Settle Balance",
@@ -132,7 +145,9 @@
         "update": "Update",
         "deleteTitle": "Delete Settlement?",
         "deleteDesc": "This will permanently remove this record. This action cannot be undone.",
-        "sameUser": "Payer and receiver cannot be the same."
+        "sameUser": "Payer and receiver cannot be the same.",
+        "saveError": "Failed to save settlement.",
+        "deleteError": "Failed to delete settlement."
     },
     "login": {
         "welcome": "Welcome to Quozen",
@@ -181,6 +196,8 @@
         "help": "Help & FAQ",
         "contact": "Contact Support",
         "signOut": "Sign Out",
-        "activeGroups": "Active Groups"
+        "activeGroups": "Active Groups",
+        "scanFailed": "Scan Failed",
+        "scanFailedDesc": "Could not scan Drive"
     }
 }

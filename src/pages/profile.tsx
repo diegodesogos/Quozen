@@ -28,14 +28,14 @@ export default function Profile() {
     onSuccess: (newSettings) => {
       queryClient.setQueryData(["drive", "settings", user?.email], newSettings);
       toast({
-        title: t("common.save"), // Using generic success message or we could add specific key
-        description: t("profile.reconcileDesc"), // Reusing desc as success placeholder or just standard toast
+        title: t("common.success"),
+        description: t("profile.reconcileDesc"),
       });
     },
     onError: (error) => {
       toast({
-        title: "Scan Failed",
-        description: error instanceof Error ? error.message : "Could not scan Drive",
+        title: t("profile.scanFailed"),
+        description: t("profile.scanFailedDesc"),
         variant: "destructive"
       });
     }
