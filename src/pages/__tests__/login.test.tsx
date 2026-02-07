@@ -45,10 +45,11 @@ describe("Login Page", () => {
     );
 
     expect(screen.getByText("Welcome to Quozen")).toBeInTheDocument();
-    expect(screen.getByText(/Sign in to access your shared expenses/i)).toBeInTheDocument();
-    // Check for the Google button
-    expect(screen.getByRole("button", { name: /sign in with google/i })).toBeInTheDocument();
-    
+    // Updated text matcher
+    expect(screen.getByText(/Connect your Google account to access your groups/i)).toBeInTheDocument();
+    // Check for the Google button with updated text
+    expect(screen.getByRole("button", { name: /continue with google/i })).toBeInTheDocument();
+
     // Ensure old fields are gone
     expect(screen.queryByPlaceholderText("Username")).not.toBeInTheDocument();
     expect(screen.queryByPlaceholderText("Password")).not.toBeInTheDocument();
@@ -61,7 +62,7 @@ describe("Login Page", () => {
       </MemoryRouter>
     );
 
-    const loginBtn = screen.getByRole("button", { name: /sign in with google/i });
+    const loginBtn = screen.getByRole("button", { name: /continue with google/i });
     fireEvent.click(loginBtn);
 
     expect(mockLogin).toHaveBeenCalledTimes(1);
