@@ -60,7 +60,7 @@ describe("useSettings Hook", () => {
     result.current.updateSettings(newSettings as any);
 
     await waitFor(() => {
-      expect(googleApi.saveSettings).toHaveBeenCalledWith(newSettings);
+      expect(googleApi.saveSettings).toHaveBeenCalledWith("test@example.com", newSettings);
     });
 
     expect(invalidateSpy).toHaveBeenCalled();

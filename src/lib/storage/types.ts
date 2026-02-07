@@ -4,6 +4,10 @@ export const SCHEMAS = {
   Members: ["userId", "email", "name", "role", "joinedAt"]
 } as const;
 
+export const QUOZEN_PREFIX = "Quozen - ";
+export const SETTINGS_FILE_NAME = "quozen-settings.json";
+export const REQUIRED_SHEETS = ["Expenses", "Settlements", "Members"] as const;
+
 export type SchemaType = keyof typeof SCHEMAS;
 
 export interface Group {
@@ -101,8 +105,9 @@ export interface IStorageProvider {
   /**
    * Import an existing spreadsheet into the user's settings.
    * Validates structure and adds to settings file.
+   * Requires the full User object to ensure ID consistency.
    */
-  importGroup(spreadsheetId: string, userEmail: string): Promise<Group>;
+  importGroup(spreadsheetId: string, user: User): Promise<Group>;
 
   /**
    * Update an existing group (rename and/or update members).
@@ -185,7 +190,7 @@ export interface IStorageProvider {
   /**
    * Persists changes to settings.
    */
-  saveSettings(settings: UserSettings): Promise<void>;
+  saveSettings(userEmail: string, settings: UserSettings): Promise<void>;
 
   /**
    * Atomically updates the activeGroupId in settings.

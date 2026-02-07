@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { InMemoryProvider } from './memory-provider';
+import { StorageService, InMemoryAdapter, IStorageProvider } from './index';
 import { User, Expense } from './types';
 import { ConflictError, NotFoundError } from '../errors';
 
-describe('InMemoryProvider', () => {
-    let provider: InMemoryProvider;
+describe('StorageService (with InMemoryAdapter)', () => {
+    let provider: IStorageProvider;
     const mockUser: User = {
         id: 'user1',
         username: 'testuser',
@@ -13,7 +13,7 @@ describe('InMemoryProvider', () => {
     };
 
     beforeEach(() => {
-        provider = new InMemoryProvider();
+        provider = new StorageService(new InMemoryAdapter());
     });
 
     it('createGroupSheet creates a new group and updates settings', async () => {
@@ -78,5 +78,16 @@ describe('InMemoryProvider', () => {
         expect(settings.groupCache).toHaveLength(1);
         expect(settings.groupCache[0].name).toBe("Group Initial");
         expect(settings.preferences.defaultCurrency).toBe("USD");
+    });
+
+    it('saveSettings updates settings for specific user', async () => {
+        // Initial reconcile
+        let settings = await provider.getSettings(mockUser.email);
+        settings.preferences.theme = "dark";
+
+        await provider.saveSettings(mockUser.email, settings);
+
+        settings = await provider.getSettings(mockUser.email);
+        expect(settings.preferences.theme).toBe("dark");
     });
 });

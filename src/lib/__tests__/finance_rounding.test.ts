@@ -1,0 +1,92 @@
+import { describe, it, expect } from "vitest";
+import { calculateBalances, calculateTotalSpent } from "../finance";
+import { Member, Expense } from "../storage/types";
+
+describe("Finance Rounding Consistency", () => {
+  const users: Member[] = [
+    { userId: "u1", name: "Alice", email: "", role: "member", joinedAt: "" },
+    { userId: "u2", name: "Bob", email: "", role: "member", joinedAt: "" },
+    { userId: "u3", name: "Charlie", email: "", role: "member", joinedAt: "" }
+  ];
+
+  // Helper to create an expense with specific float values that might cause drift
+  const createFloatExpense = (amount: number, split1: number, split2: number) => ({
+    id: "e1",
+    description: "Float Test",
+    amount: amount,
+    paidBy: "u1",
+    category: "Test",
+    date: new Date().toISOString(),
+    splits: [
+      { userId: "u1", amount: split1 },
+      { userId: "u2", amount: split2 }
+    ],
+    meta: { createdAt: "" }
+  } as Expense);
+
+  it("ensures balances sum to exactly zero (Fixing the 11.29 vs 11.30 issue)", () => {
+    // ... (Existing test code) ...
+    const amount = 100;
+    const split1 = 33.333333333333336; // 100/3
+    const split2 = 66.66666666666667;  // 200/3
+    
+    const expense = createFloatExpense(amount, split1, split2);
+    
+    const balances = calculateBalances(users, [expense], []);
+    
+    expect(balances["u1"]).toBe(66.67);
+    expect(balances["u2"]).toBe(-66.67);
+    expect(balances["u1"] + balances["u2"]).toBe(0);
+  });
+
+  it("calculates total spent with rounding to avoid 11.2999999 displayed as 11.30 vs 11.29 elsewhere", () => {
+    // ... (Existing test code) ...
+    const splitAmount = 11.294;
+    const expense1 = createFloatExpense(100, splitAmount, 0);
+    const total = calculateTotalSpent("u1", [expense1]);
+    expect(total).toBe(11.29);
+  });
+
+  it("Scenario 9: User Report Reproduction (11.29 vs 11.30)", () => {
+    // Simulating the user's specific case:
+    // Payer (u1) Balance +11.29.
+    // Debtor (u2) Balance -11.30.
+    // This happens if Payer's balance is derived from (Amount - SelfSplit) and Debtor from (-OtherSplit),
+    // and Amount != Sum(Splits).
+    
+    // Expense Amount: 22.59
+    // u1 Split: 11.30
+    // u2 Split: 11.30
+    // Sum Splits: 22.60 (Diff 0.01)
+    
+    const expense = {
+        id: "e_repro",
+        description: "Repro",
+        amount: 22.59,
+        paidBy: "u1",
+        splits: [
+            { userId: "u1", amount: 11.30 }, // Payer consumes 11.30
+            { userId: "u2", amount: 11.30 }  // Bob consumes 11.30
+        ]
+    } as any;
+
+    // OLD Logic would do:
+    // u1 += 22.59. u1 -= 11.30. Net u1 = +11.29.
+    // u2 -= 11.30. Net u2 = -11.30.
+    // Sum = -0.01. ERROR.
+
+    // NEW Logic should do:
+    // Iterate splits.
+    // Skip u1 (self).
+    // Process u2: u2 -= 11.30. u1 += 11.30.
+    // Net u1 = +11.30.
+    // Net u2 = -11.30.
+    // Sum = 0. FIXED.
+    
+    const balances = calculateBalances(users, [expense], []);
+    
+    expect(balances["u1"]).toBe(11.30);
+    expect(balances["u2"]).toBe(-11.30);
+    expect(balances["u1"] + balances["u2"]).toBe(0);
+  });
+});

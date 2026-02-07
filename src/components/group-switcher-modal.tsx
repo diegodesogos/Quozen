@@ -27,21 +27,28 @@ export default function GroupSwitcherModal({ isOpen, onClose }: { isOpen: boolea
   const { openPicker, error: pickerError } = useGooglePicker({
     onPick: async (doc) => {
       toast({ title: "Importing group..." });
-      if (!user?.email) return;
+      if (!user) return; // Need full user object
 
       try {
         // Use the provider's atomic import method
-        const group = await googleApi.importGroup(doc.id, user.email);
+        // FIX: Pass the full user object to ensure ID consistency
+        const group = await googleApi.importGroup(doc.id, user);
 
         await queryClient.invalidateQueries({ queryKey: ["drive", "settings"] });
+        await queryClient.invalidateQueries({ queryKey: ["drive", "group", group.id] });
+
         setActiveGroupId(group.id);
         toast({ title: "Group imported successfully!" });
-        onClose();
       } catch (e: any) {
         toast({ title: "Import Failed", description: e.message, variant: "destructive" });
       }
     }
   });
+
+  const handleImportClick = () => {
+    onClose();
+    setTimeout(() => openPicker(), 100);
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -67,7 +74,7 @@ export default function GroupSwitcherModal({ isOpen, onClose }: { isOpen: boolea
         </div>
 
         <div className="flex flex-col gap-2 mt-6">
-          <Button onClick={openPicker} variant="secondary" className="w-full"><Download className="w-4 h-4 mr-2" />Import Shared Group</Button>
+          <Button onClick={handleImportClick} variant="secondary" className="w-full"><Download className="w-4 h-4 mr-2" />Import Shared Group</Button>
           <Button onClick={() => { onClose(); navigate("/groups"); }} className="w-full"><Plus className="w-4 h-4 mr-2" />Create New Group</Button>
         </div>
       </DialogContent>

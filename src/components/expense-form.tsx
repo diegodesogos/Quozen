@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Expense, Member } from "@/lib/storage/types";
+import { distributeAmount } from "@/lib/finance";
 
 interface ExpenseSplit {
   userId: string;
@@ -58,7 +59,9 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
   // Helper to recalculate splits equally among selected users
   const updateSplitEqually = (currentAmount: string, currentSplits: ExpenseSplit[]) => {
     const selectedSplits = currentSplits.filter(s => s.selected);
-    if (selectedSplits.length === 0) {
+    const count = selectedSplits.length;
+    
+    if (count === 0) {
         // If no one selected, just update state without amounts
         setSplits(currentSplits.map(s => ({ ...s, amount: 0 })));
         return;
@@ -69,8 +72,21 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
     const totalAmount = parseFloat(currentAmount);
     if (isNaN(totalAmount)) return;
 
-    const splitAmount = totalAmount / selectedSplits.length;
-    setSplits(currentSplits.map(s => ({ ...s, amount: s.selected ? splitAmount : 0 })));
+    // Use centralized distribution logic to handle pennies
+    const distributedAmounts = distributeAmount(totalAmount, count);
+
+    // Map the distributed amounts back to the selected users
+    let distIndex = 0;
+    const newSplits = currentSplits.map(s => {
+      if (s.selected) {
+        const amt = distributedAmounts[distIndex];
+        distIndex++;
+        return { ...s, amount: amt };
+      }
+      return { ...s, amount: 0 };
+    });
+    
+    setSplits(newSplits);
   };
 
   const handleAmountChange = (value: string) => {
@@ -118,6 +134,7 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
     const totalSplit = splits.reduce((sum, s) => sum + (s.selected ? s.amount : 0), 0);
     
     // Validation: Check if splits sum up to total amount (allow small floating point margin)
+    // Now that we use distributeAmount, this should nearly always be exact, but manual edits might drift
     if (Math.abs(totalSplit - expenseAmount) > 0.05) {
       toast({
         title: "Split mismatch",

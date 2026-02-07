@@ -18,7 +18,10 @@ export function useSettings() {
   });
 
   const mutation = useMutation({
-    mutationFn: (newSettings: UserSettings) => googleApi.saveSettings(newSettings),
+    mutationFn: (newSettings: UserSettings) => {
+      if (!user?.email) throw new Error("User email required to save settings");
+      return googleApi.saveSettings(user.email, newSettings);
+    },
     onSuccess: (data, variables) => {
       queryClient.setQueryData(queryKey, variables);
       queryClient.invalidateQueries({ queryKey: ["drive", "groups", user?.email] });
