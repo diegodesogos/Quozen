@@ -11,6 +11,6 @@ test('homepage redirects to login and has correct title', async ({ page }) => {
   await expect(page).toHaveURL(/.*login/);
 
   // 3. Check for an element that is unique to the login page
-  const googleLoginButton = page.getByRole('button', { name: /Sign In with Google/i });
+  const googleLoginButton = page.getByRole('button', { name: /Continue with Google/i });
   await expect(googleLoginButton).toBeVisible();
 });
