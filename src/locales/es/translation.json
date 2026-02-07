@@ -142,6 +142,19 @@
         "continue": "Continuar con Google",
         "disclaimer": "Al continuar, aceptas que Quozen opera del lado del cliente y guarda datos directamente en tu Google Drive personal."
     },
+    "register": {
+        "title": "Crear una Cuenta",
+        "desc": "Regístrate para empezar a usar Quozen",
+        "username": "Usuario",
+        "email": "Correo",
+        "fullName": "Nombre Completo",
+        "password": "Contraseña",
+        "signUp": "Registrarse",
+        "hasAccount": "¿Ya tienes una cuenta?",
+        "logIn": "Iniciar Sesión",
+        "success": "Registro exitoso",
+        "failed": "Error en el registro. Inténtalo de nuevo."
+    },
     "notFound": {
         "title": "404 Página No Encontrada",
         "message": "¿Olvidaste agregar la página al router?"

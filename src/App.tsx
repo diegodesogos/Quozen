@@ -5,8 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
 import Dashboard from "@/pages/dashboard";
-// import Expenses from "@/pages/expenses"; // <-- Replaced
-import ActivityHub from "@/pages/activity-hub"; // <-- New Import
+import ActivityHub from "@/pages/activity-hub";
 import AddExpense from "@/pages/add-expense";
 import EditExpense from "@/pages/edit-expense";
 import Groups from "@/pages/groups";
@@ -19,15 +18,17 @@ import { AppContext } from "@/context/app-context";
 import { AuthProvider, useAuth } from "@/context/auth-provider";
 import { useSettings } from "@/hooks/use-settings";
 import { useGroups } from "@/hooks/use-groups";
+import { useTranslation } from "react-i18next";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
+  const { t } = useTranslation();
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="text-xl">Loading...</div>
+        <div className="text-xl">{t("common.loading")}</div>
       </div>
     );
   }
@@ -54,6 +55,7 @@ export function AuthenticatedApp() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
 
   // Use the new atomic updater
   const { settings, updateActiveGroup, isLoading: settingsLoading, error: settingsError } = useSettings();
@@ -121,7 +123,7 @@ export function AuthenticatedApp() {
       <div className="flex items-center justify-center h-screen bg-background">
         <div className="flex flex-col items-center gap-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          <p className="text-muted-foreground">Loading settings...</p>
+          <p className="text-muted-foreground">{t("common.loading")}</p>
         </div>
       </div>
     );
@@ -158,7 +160,7 @@ export function AuthenticatedApp() {
         <Route
           path="/"
           element={
-            authLoading ? <div>Loading...</div> :
+            authLoading ? <div>{t("common.loading")}</div> :
               isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
           }
         />

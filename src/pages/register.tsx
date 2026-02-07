@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../co
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Alert, AlertDescription } from "../components/ui/alert";
+import { useTranslation } from "react-i18next";
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -18,6 +19,7 @@ export default function Register() {
   // Stub register for now as it is not in AuthContext
   const register = async (data: any) => { throw new Error("Registration not supported"); };
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -39,7 +41,7 @@ export default function Register() {
       });
       navigate('/dashboard');
     } catch (err) {
-      setError('Registration failed. Please try again.');
+      setError(t("register.failed"));
     }
   };
 
@@ -51,8 +53,8 @@ export default function Register() {
     <div className="container mx-auto p-4 flex items-center justify-center min-h-screen">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Create an Account</CardTitle>
-          <CardDescription>Sign up to start using Quozen</CardDescription>
+          <CardTitle>{t("register.title")}</CardTitle>
+          <CardDescription>{t("register.desc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -65,7 +67,7 @@ export default function Register() {
               <Input
                 type="text"
                 name="username"
-                placeholder="Username"
+                placeholder={t("register.username")}
                 value={formData.username}
                 onChange={handleChange}
                 required
@@ -75,7 +77,7 @@ export default function Register() {
               <Input
                 type="email"
                 name="email"
-                placeholder="Email"
+                placeholder={t("register.email")}
                 value={formData.email}
                 onChange={handleChange}
                 required
@@ -85,7 +87,7 @@ export default function Register() {
               <Input
                 type="text"
                 name="name"
-                placeholder="Full Name"
+                placeholder={t("register.fullName")}
                 value={formData.name}
                 onChange={handleChange}
                 required
@@ -95,7 +97,7 @@ export default function Register() {
               <Input
                 type="password"
                 name="password"
-                placeholder="Password"
+                placeholder={t("register.password")}
                 value={formData.password}
                 onChange={handleChange}
                 required
@@ -103,16 +105,16 @@ export default function Register() {
               />
             </div>
             <Button type="submit" className="w-full">
-              Sign Up
+              {t("register.signUp")}
             </Button>
             <div className="text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
+              {t("register.hasAccount")}{" "}
               <Button
                 variant="link"
                 className="p-0 font-normal"
                 onClick={() => navigate("/login")}
               >
-                Log in
+                {t("register.logIn")}
               </Button>
             </div>
           </form>
