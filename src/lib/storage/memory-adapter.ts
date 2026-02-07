@@ -1,4 +1,3 @@
-
 import { IStorageAdapter } from "./adapter";
 import { UserSettings, GroupData, SchemaType, Expense, Settlement, Member } from "./types";
 
@@ -9,6 +8,8 @@ interface MockSheet {
     members: Member[];
     createdTime: string;
     content?: any;
+    // New property for sharing test
+    isPublic?: boolean;
 }
 
 export class InMemoryAdapter implements IStorageAdapter {
@@ -32,7 +33,6 @@ export class InMemoryAdapter implements IStorageAdapter {
         }
         this.userSettings.set(userEmail, settings);
 
-        // Also ensure a file exists for "quozen-settings.json" to support listFiles/reconciliation tests
         const settingsName = "quozen-settings.json";
         let existingId = Array.from(this.sheets.entries()).find(([_, s]) => s.name === settingsName)?.[0];
         if (!existingId) {
@@ -75,14 +75,18 @@ export class InMemoryAdapter implements IStorageAdapter {
     }
 
     async shareFile(fileId: string, email: string, role: "writer" | "reader"): Promise<string | null> {
-        // Mocking behavior: verification not needed
         return email;
+    }
+
+    async setFilePermissions(fileId: string, access: 'public' | 'restricted'): Promise<void> {
+        const sheet = this.sheets.get(fileId);
+        if (sheet) {
+            sheet.isPublic = (access === 'public');
+        }
     }
 
     async listFiles(queryPrefix: string): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any }>> {
         const files: any[] = [];
-
-        // Improve query parsing implementation
         let nameFilter = "";
         let exact = false;
 
@@ -95,7 +99,6 @@ export class InMemoryAdapter implements IStorageAdapter {
         } else if (matchContains) {
             nameFilter = matchContains[1];
         } else {
-            // Fallback to naive remove
             nameFilter = queryPrefix.replace("name contains '", "").replace("'", "");
         }
 
@@ -109,7 +112,7 @@ export class InMemoryAdapter implements IStorageAdapter {
                     id,
                     name: sheet.name,
                     createdTime: sheet.createdTime,
-                    owners: [], // Mock doesn't track owners
+                    owners: [],
                     capabilities: { canDelete: true }
                 });
             }
@@ -131,7 +134,6 @@ export class InMemoryAdapter implements IStorageAdapter {
     async readGroupData(fileId: string): Promise<GroupData | null> {
         const sheet = this.sheets.get(fileId);
         if (!sheet) return null;
-        // Search needs deep copy to simulate network fetch?
         return JSON.parse(JSON.stringify(sheet));
     }
 
@@ -151,14 +153,7 @@ export class InMemoryAdapter implements IStorageAdapter {
         if (!sheet) throw new Error("Sheet not found");
 
         const collection = this.getCollection(sheet, sheetName);
-        const rowIndex = collection.length + 2; // +2 for Header + 1-based index?
-        // Actually, rowIndex should be collection.length + 2 (Header row is 1).
-
-        // Ensure meta/rowIndex are set?
-        // Google Drive implementation doesn't return the row. The caller sets ID/Meta.
-        // But _rowIndex needs to be derived.
-        // Wait, `readGroupData` assigns `_rowIndex`.
-        // So here we should push the data.
+        const rowIndex = collection.length + 2;
         collection.push({ ...data, _rowIndex: rowIndex });
     }
 
@@ -167,14 +162,6 @@ export class InMemoryAdapter implements IStorageAdapter {
         if (!sheet) throw new Error("Sheet not found");
 
         const collection = this.getCollection(sheet, sheetName);
-        // We find by rowIndex? Memory provider implementation mapped 1-to-1.
-        // But if we deleted rows, indices shift.
-        // Google Sheets API handles shifting.
-        // Our Mock should allow random access by index if it simulates Sheets?
-        // If we use `splice` for delete, indices shift.
-        // `readGroupData` recalculates indices based on position.
-
-        // So `rowIndex` argument means "Position in array + 2".
         const arrayIndex = rowIndex - 2;
         if (arrayIndex >= 0 && arrayIndex < collection.length) {
             collection[arrayIndex] = { ...collection[arrayIndex], ...data };
