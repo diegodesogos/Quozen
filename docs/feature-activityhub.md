@@ -1,8 +1,8 @@
 # **Technical Design Spec: Activity Hub & Transfers**
 
-**Epic:** UI Refactor \- Activity Hub **Role:** Product Designer (Aura) **Status:** Ready for Development
+**Epic:** UI Refactor \- Activity Hub **Role:** Product Designer (Aura) **Status:** Completed
 
-**Status**: Not Started
+**Status**: ✅ **Completed**
 
 ## **1\. Design Philosophy**
 
@@ -26,8 +26,7 @@ The **Activity Hub** acts as the central ledger for the group. It is a "Read/Man
 **1\. Header Area (Sticky)**
 
 * **Title:** "Group Activity" (Centered/Left aligned).  
-* **Right Actions:**  
-  * `[Filter Icon]`: Existing filter modal (Category/Date).  
+* **Right Actions:** * `[Filter Icon]`: Existing filter modal (Category/Date).  
   * `[Sort Icon]`: Existing sort logic.  
   * *Removed:* "New" buttons (handled in Bottom Nav/Dashboard).
 
@@ -53,16 +52,14 @@ This is the core innovation. It visualizes the `settlements` array from `groupDa
 
 * **Layout:** Flex row, Justify Between, Padding `py-4`.  
 * **Label:** "My Transfers" (Heading style).  
-* **Control:**  
-  * **Text:** "My Transfers" or "Show All" (Small, Muted).  
+* **Control:** * **Text:** "My Transfers" or "Show All" (Small, Muted).  
   * **Element:** `Switch` (Toggle).  
   * **Interaction:** Toggles visibility of "Grey" (Third-party) transactions.
 
 **2\. The Transfer Feed (List)**
 
 * **Sorting:** Date Descending (Newest first).  
-* **Empty State:**  
-  * **Icon:** `Handshake` (Lucide).  
+* **Empty State:** * **Icon:** `Handshake` (Lucide).  
   * **Text:** "No transfers recorded yet."  
   * **Subtext:** "Settle debts from the Dashboard." The Dashboard text shows as hyperlink, when clicked the user is moved to Dashboard.
 
@@ -136,14 +133,12 @@ const filteredSettlements \= useMemo(() \=\> {
 
 Since the user needs to **Edit/Remove** settlements:
 
-1. **Refactor `SettlementModal`:**  
-   * Update `src/components/settlement-modal.tsx` to accept an optional `initialData` prop (type `Settlement`).  
+1. **Refactor `SettlementModal`:** * Update `src/components/settlement-modal.tsx` to accept an optional `initialData` prop (type `Settlement`).  
    * If `initialData` exists:  
      * Title changes to "Edit Settlement".  
      * Button changes to "Update".  
      * Add a secondary "Delete" button (Destructive variant) to the footer.  
-2. **Add Delete Mutation:**  
-   * The engineer needs to create `deleteSettlement` in `google-drive.ts` (similar to `deleteExpense`) handling the specific row index logic.
+2. **Add Delete Mutation:** * The engineer needs to create `deleteSettlement` in `google-drive.ts` (similar to `deleteExpense`) handling the specific row index logic.
 
 ### **5\. Accessibility Notes (WCAG 2.2)**
 
@@ -153,4 +148,3 @@ Since the user needs to **Edit/Remove** settlements:
   * *Good (aria-label):* "Alice paid Bob 50 dollars on October 12th."
 
 This spec aligns with your request to keep the UI clean, "Me-Centric", and focused on utility while allowing full group transparency when needed.
-
