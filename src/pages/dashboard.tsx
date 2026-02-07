@@ -1,31 +1,42 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
 import { Button } from "@/components/ui/button";
 import SettlementModal from "@/components/settlement-modal";
 import { useState, useMemo } from "react";
-import { Utensils, Car, Bed, ShoppingBag, Gamepad2, MoreHorizontal, Wallet } from "lucide-react";
+import {
+  Utensils, Car, Bed, ShoppingBag, Gamepad2, MoreHorizontal,
+  Wallet, Handshake, ChevronDown, ChevronRight, ArrowRight
+} from "lucide-react";
 import { googleApi } from "@/lib/drive";
 import { useNavigate } from "react-router-dom";
-import { 
-  calculateBalances, 
-  suggestSettlementStrategy, 
-  calculateTotalSpent, 
+import {
+  calculateBalances,
+  suggestSettlementStrategy,
+  calculateTotalSpent,
   getExpenseUserStatus,
-  getDirectSettlementDetails 
+  getDirectSettlementDetails
 } from "@/lib/finance";
 import { Expense, Settlement, Member } from "@/lib/storage/types";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 export default function Dashboard() {
   const { activeGroupId, currentUserId } = useAppContext();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
+  // Unified state for Create/Edit settlement
   const [settlementModal, setSettlementModal] = useState<{
     isOpen: boolean;
-    fromUser?: { userId: string; name: string };
-    toUser?: { userId: string; name: string };
-    suggestedAmount?: number;
+    fromUser?: { userId: string; name: string }; // For creating new
+    toUser?: { userId: string; name: string };   // For creating new
+    suggestedAmount?: number;                    // For creating new
+    initialData?: Settlement;                    // For editing existing
   }>({ isOpen: false });
+
+  // Collapsible states
+  const [isBalancesOpen, setIsBalancesOpen] = useState(true);
+  const [isActivityOpen, setIsActivityOpen] = useState(true);
 
   // Fetch all group data from Drive
   const { data: groupData, isLoading } = useQuery({
@@ -47,6 +58,11 @@ export default function Dashboard() {
     return u ? { userId: u.userId, name: u.name, email: u.email } : undefined;
   };
 
+  const getMemberName = (id: string) => {
+    const u = users.find(u => u.userId === id);
+    return u ? u.name : "Unknown";
+  };
+
   // Client-side Balance Calculation
   const balances = useMemo(() => {
     return calculateBalances(users, expenses, settlements);
@@ -58,7 +74,19 @@ export default function Dashboard() {
   }, [expenses, currentUserId]);
 
   const userBalance = balances[currentUserId] || 0;
-  const recentExpenses = [...expenses].reverse().slice(0, 3);
+
+  // --- Mix Expenses and Settlements for Recent Activity ---
+  const recentActivity = useMemo(() => {
+    const combined = [
+      ...expenses.map(e => ({ ...e, type: 'expense' as const })),
+      ...settlements.map(s => ({ ...s, type: 'settlement' as const }))
+    ];
+
+    // Sort Descending by Date
+    return combined
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5); // Show top 5
+  }, [expenses, settlements]);
 
   const getExpenseIcon = (category: string) => {
     switch (category?.toLowerCase()) {
@@ -88,7 +116,8 @@ export default function Dashboard() {
         isOpen: true,
         fromUser,
         toUser,
-        suggestedAmount: settlementSuggestion.amount
+        suggestedAmount: settlementSuggestion.amount,
+        initialData: undefined // Ensure we are in create mode
       });
     }
   };
@@ -98,18 +127,12 @@ export default function Dashboard() {
     const targetUser = getUserById(targetUserId);
     if (!targetUser) return;
 
-    // Feature Update: Intelligent Selection
-    // Try to find the best settlement strategy for the SELECTED user first.
-    // This allows settling debts between two other people (e.g. Bob owes Charlie, I click Settle on Bob).
     const smartStrategy = suggestSettlementStrategy(targetUserId, balances, users);
-
     let settlement;
 
     if (smartStrategy) {
       settlement = smartStrategy;
     } else {
-      // Fallback: Default to direct settlement between Current User and Target User
-      // (Used when balance is 0 or strategy returns null)
       const otherBalance = balances[targetUserId] || 0;
       settlement = getDirectSettlementDetails(
         currentUser.userId,
@@ -127,7 +150,8 @@ export default function Dashboard() {
         isOpen: true,
         fromUser,
         toUser,
-        suggestedAmount: settlement.amount, 
+        suggestedAmount: settlement.amount,
+        initialData: undefined // Ensure we are in create mode
       });
     }
   };
@@ -178,116 +202,181 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Participants & Balances */}
-        <div className="mx-4 bg-card rounded-lg border border-border">
-          <div className="p-4 border-b border-border bg-muted/30">
-            <h3 className="font-semibold text-foreground text-sm uppercase tracking-wide">Group Balances</h3>
-          </div>
-          <div className="divide-y divide-border">
-            {users
-              .filter(u => u.userId !== currentUserId)
-              .map((u) => {
-                const balance = balances[u.userId] || 0;
+        {/* Participants & Balances (Collapsible) */}
+        <div className="mx-4 bg-card rounded-lg border border-border overflow-hidden">
+          <Collapsible open={isBalancesOpen} onOpenChange={setIsBalancesOpen}>
+            <CollapsibleTrigger className="w-full flex items-center justify-between p-4 border-b border-border bg-muted/30 hover:bg-muted/50 transition-colors">
+              <h3 className="font-semibold text-foreground text-sm uppercase tracking-wide">Group Balances</h3>
+              <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform duration-200", !isBalancesOpen && "-rotate-90")} />
+            </CollapsibleTrigger>
 
-                return (
-                  <div key={u.userId} className="p-4 flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-secondary rounded-full flex items-center justify-center border border-border">
-                        <span className="text-foreground font-medium text-sm">
-                          {u.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-                        </span>
+            <CollapsibleContent>
+              <div className="divide-y divide-border">
+                {users
+                  .filter(u => u.userId !== currentUserId)
+                  .map((u) => {
+                    const balance = balances[u.userId] || 0;
+
+                    return (
+                      <div key={u.userId} className="p-4 flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-secondary rounded-full flex items-center justify-center border border-border">
+                            <span className="text-foreground font-medium text-sm">
+                              {u.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">{u.name}</p>
+                            {u.role === 'owner' && <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">Owner</span>}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div
+                            className={`font-semibold ${balance >= 0 ? 'expense-positive' : 'expense-negative'}`}
+                            data-testid={`text-balance-${u.userId}`}
+                          >
+                            {balance >= 0 ? '+' : ''}${Math.abs(balance).toFixed(2)}
+                          </div>
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="text-xs text-muted-foreground h-auto p-0 hover:text-primary"
+                            onClick={() => handleSettleWith(u.userId)}
+                            data-testid={`button-settle-with-${u.userId}`}
+                          >
+                            Settle
+                          </Button>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-foreground">{u.name}</p>
-                        {u.role === 'owner' && <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">Owner</span>}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div
-                        className={`font-semibold ${balance >= 0 ? 'expense-positive' : 'expense-negative'}`}
-                        data-testid={`text-balance-${u.userId}`}
-                      >
-                        {balance >= 0 ? '+' : ''}${Math.abs(balance).toFixed(2)}
-                      </div>
-                      <Button
-                        variant="link"
-                        size="sm"
-                        className="text-xs text-muted-foreground h-auto p-0 hover:text-primary"
-                        onClick={() => handleSettleWith(u.userId)}
-                        data-testid={`button-settle-with-${u.userId}`}
-                      >
-                        Settle
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
+                    );
+                  })}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
 
-        {/* Recent Expenses */}
-        <div className="mx-4 bg-card rounded-lg border border-border">
-          <div className="p-4 border-b border-border bg-muted/30">
-            <div className="flex items-center justify-between">
+        {/* Recent Activity (Collapsible) */}
+        <div className="mx-4 bg-card rounded-lg border border-border overflow-hidden">
+          <Collapsible open={isActivityOpen} onOpenChange={setIsActivityOpen}>
+            <CollapsibleTrigger className="w-full flex items-center justify-between p-4 border-b border-border bg-muted/30 hover:bg-muted/50 transition-colors">
               <h3 className="font-semibold text-foreground text-sm uppercase tracking-wide">Recent Activity</h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs text-primary h-8"
-                data-testid="button-view-all-expenses"
-                onClick={() => navigate('/expenses')}
-              >
-                View All
-              </Button>
-            </div>
-          </div>
-          <div className="divide-y divide-border">
-            {recentExpenses.length === 0 ? (
-              <div className="p-8 text-center">
-                <p className="text-muted-foreground text-sm">No expenses yet</p>
-                <Button variant="link" onClick={() => navigate('/add-expense')} className="mt-2">Add your first expense</Button>
+              <div className="flex items-center gap-2">
+                <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform duration-200", !isActivityOpen && "-rotate-90")} />
               </div>
-            ) : (
-              recentExpenses.map((expense) => {
-                const paidByUser = getUserById(expense.paidBy);
-                const Icon = getExpenseIcon(expense.category);
+            </CollapsibleTrigger>
 
-                // Use centralized logic for status
-                const status = getExpenseUserStatus(expense, currentUserId);
-
-                return (
-                  <div key={expense.id} className="p-4 hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => navigate(`/edit-expense/${expense.id}`)} data-testid={`expense-item-${expense.id}`}>
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-secondary rounded-full flex items-center justify-center border border-border">
-                          <Icon className="w-5 h-5 text-muted-foreground" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground text-sm">{expense.description}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {paidByUser?.name || 'Unknown'} • {new Date(expense.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-semibold text-foreground text-sm">${Number(expense.amount).toFixed(2)}</div>
-
-                        {status.status === 'payer' && (
-                          <div className="text-xs expense-positive">You paid</div>
-                        )}
-                        {status.status === 'debtor' && (
-                          <div className="text-xs expense-negative">Owe ${status.amountOwed.toFixed(2)}</div>
-                        )}
-                        {status.status === 'none' && (
-                          <div className="text-xs text-muted-foreground">Not involved</div>
-                        )}
-                      </div>
+            <CollapsibleContent>
+              {isActivityOpen && (
+                <div className="divide-y divide-border">
+                  {recentActivity.length === 0 ? (
+                    <div className="p-8 text-center">
+                      <p className="text-muted-foreground text-sm">No activity yet</p>
+                      <Button variant="link" onClick={() => navigate('/add-expense')} className="mt-2">Add your first expense</Button>
                     </div>
+                  ) : (
+                    recentActivity.map((item) => {
+                      // ---------------------------
+                      // RENDER SETTLEMENT
+                      // ---------------------------
+                      if (item.type === 'settlement') {
+                        const s = item as Settlement;
+                        const fromName = s.fromUserId === currentUserId ? "You" : getMemberName(s.fromUserId).split(' ')[0];
+                        const toName = s.toUserId === currentUserId ? "You" : getMemberName(s.toUserId).split(' ')[0];
+                        const isMeSender = s.fromUserId === currentUserId;
+                        const isMeReceiver = s.toUserId === currentUserId;
+
+                        let colorClass = "text-muted-foreground";
+                        if (isMeSender) colorClass = "text-orange-600 dark:text-orange-400";
+                        if (isMeReceiver) colorClass = "text-green-600 dark:text-green-400";
+
+                        return (
+                          <div
+                            key={s.id}
+                            className="p-4 hover:bg-muted/50 transition-colors cursor-pointer"
+                            onClick={() => setSettlementModal({ isOpen: true, initialData: s })} // Open Edit Modal
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 bg-secondary/50 rounded-full flex items-center justify-center border border-border">
+                                  <Handshake className="w-5 h-5 text-muted-foreground" />
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-1 font-medium text-foreground text-sm">
+                                    <span>{fromName}</span>
+                                    <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                                    <span>{toName}</span>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">
+                                    Transfer • {format(new Date(s.date), "MMM d")}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className={cn("font-bold text-sm", colorClass)}>
+                                  ${Number(s.amount).toFixed(2)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // ---------------------------
+                      // RENDER EXPENSE
+                      // ---------------------------
+                      const e = item as Expense;
+                      const paidByUser = getUserById(e.paidBy);
+                      const Icon = getExpenseIcon(e.category);
+                      const status = getExpenseUserStatus(e, currentUserId);
+
+                      return (
+                        <div key={e.id} className="p-4 hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => navigate(`/edit-expense/${e.id}`)} data-testid={`expense-item-${e.id}`}>
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-10 h-10 bg-secondary rounded-full flex items-center justify-center border border-border">
+                                <Icon className="w-5 h-5 text-muted-foreground" />
+                              </div>
+                              <div>
+                                <p className="font-medium text-foreground text-sm">{e.description}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {paidByUser?.name || 'Unknown'} • {format(new Date(e.date), "MMM d")}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-semibold text-foreground text-sm">${Number(e.amount).toFixed(2)}</div>
+
+                              {status.status === 'payer' && (
+                                <div className="text-xs expense-positive">You paid</div>
+                              )}
+                              {status.status === 'debtor' && (
+                                <div className="text-xs expense-negative">Owe ${status.amountOwed.toFixed(2)}</div>
+                              )}
+                              {status.status === 'none' && (
+                                <div className="text-xs text-muted-foreground">Not involved</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                  {/* Footer Link */}
+                  <div className="p-2 text-center bg-muted/10">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs text-primary h-8 w-full"
+                      data-testid="button-view-all-expenses"
+                      onClick={() => navigate('/expenses')}
+                    >
+                      View Full History
+                    </Button>
                   </div>
-                );
-              })
-            )}
-          </div>
+                </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
         </div>
       </div>
 
@@ -297,6 +386,7 @@ export default function Dashboard() {
         fromUser={settlementModal.fromUser as any}
         toUser={settlementModal.toUser as any}
         suggestedAmount={settlementModal.suggestedAmount}
+        initialData={settlementModal.initialData}
         users={users}
       />
     </>

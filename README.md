@@ -11,6 +11,7 @@ Quozen operates entirely within your browser (Single Page Application). It uses 
 * **Collaborative Groups**: 
     * **Share via Email**: Invite friends by email to give them access to the group. They will see it in their "Shared with me" list and can edit expenses.
     * **Offline Members**: Add members by username (e.g., "Bob") to track expenses for people who don't use the app.
+* **Activity Hub**: A unified view to track all group expenses and internal money transfers (settlements) in one place.
 * **Role-Based Access**:
     * **Owners**: Can edit group settings, manage members, and delete the group.
     * **Members**: Can add/edit expenses, view balances, and leave the group.
