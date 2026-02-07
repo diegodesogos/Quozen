@@ -1,0 +1,43 @@
+{
+    "nav": {
+        "home": "Home",
+        "activity": "Activity",
+        "groups": "Groups",
+        "profile": "Profile"
+    },
+    "common": {
+        "loading": "Loading...",
+        "save": "Save",
+        "cancel": "Cancel",
+        "delete": "Delete",
+        "edit": "Edit",
+        "back": "Back"
+    },
+    "dashboard": {
+        "balance": "Your Balance",
+        "owe": "You owe overall",
+        "owed": "You are owed overall",
+        "settleUp": "Settle Up",
+        "totalSpent": "Total Spent",
+        "recentActivity": "Recent Activity",
+        "noActivity": "No activity yet"
+    },
+    "profile": {
+        "title": "Profile",
+        "preferences": "Preferences & Data",
+        "currency": "Default Currency",
+        "language": "Language",
+        "selectLanguage": "Select language",
+        "reconcile": "Reconcile Groups",
+        "reconcileDesc": "Scan your Google Drive to find groups created on other devices.",
+        "scan": "Scan for missing groups",
+        "scanning": "Scanning Drive...",
+        "troubleshoot": "Troubleshooting",
+        "forceLogin": "Force Re-login",
+        "support": "Support",
+        "help": "Help & FAQ",
+        "contact": "Contact Support",
+        "signOut": "Sign Out",
+        "activeGroups": "Active Groups"
+    }
+}
