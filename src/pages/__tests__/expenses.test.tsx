@@ -51,8 +51,8 @@ vi.mock("@/lib/drive", () => ({
 describe("Expenses Page", () => {
   // Mock Data
   const mockUsers = [
-    { userId: "user1", name: "Alice", email: "alice@example.com" },
-    { userId: "user2", name: "Bob", email: "bob@example.com" },
+    { userId: "user1", name: "Alice", email: "alice@example.com", role: "member", joinedAt: new Date().toISOString() },
+    { userId: "user2", name: "Bob", email: "bob@example.com", role: "member", joinedAt: new Date().toISOString() },
   ];
 
   const mockExpenses = [
@@ -64,6 +64,7 @@ describe("Expenses Page", () => {
       category: "Food",
       date: new Date().toISOString(),
       splits: [{ userId: "user1", amount: 25 }, { userId: "user2", amount: 25 }],
+      meta: { createdAt: new Date().toISOString() },
       _rowIndex: 2,
     },
     {
@@ -74,6 +75,7 @@ describe("Expenses Page", () => {
       category: "Transportation",
       date: new Date().toISOString(),
       splits: [{ userId: "user1", amount: 7.5 }, { userId: "user2", amount: 7.5 }],
+      meta: { createdAt: new Date().toISOString() },
       _rowIndex: 3,
     },
   ];
@@ -86,31 +88,15 @@ describe("Expenses Page", () => {
       activeGroupId: "group1",
       currentUserId: "user1",
     });
-
-    // Mock useQuery to return Drive data
-    (useQuery as unknown as ReturnType<typeof vi.fn>).mockImplementation(({ queryKey }) => {
-      if (Array.isArray(queryKey) && queryKey[0] === "drive" && queryKey[1] === "group") {
-        return { 
-          data: {
-            members: mockUsers,
-            expenses: mockExpenses,
-            settlements: []
-          }, 
-          isLoading: false 
-        };
-      }
-      return { data: undefined, isLoading: false };
-    });
   });
 
   it("renders the list of expenses", () => {
     render(
       <MemoryRouter>
-        <Expenses />
+        <Expenses expenses={mockExpenses} members={mockUsers} />
       </MemoryRouter>
     );
-    
-    expect(screen.getByText("All Expenses")).toBeInTheDocument();
+
     expect(screen.getByText("Grocery Run")).toBeInTheDocument();
     expect(screen.getByText("Uber")).toBeInTheDocument();
     expect(screen.getByText("$50.00")).toBeInTheDocument();
@@ -120,10 +106,10 @@ describe("Expenses Page", () => {
   it("calculates 'You paid' and 'You owe' correctly", () => {
     render(
       <MemoryRouter>
-        <Expenses />
+        <Expenses expenses={mockExpenses} members={mockUsers} />
       </MemoryRouter>
     );
-    
+
     // User1 (Alice) paid for Grocery Run ($50)
     const groceryCard = screen.getByTestId("card-expense-exp1");
     expect(groceryCard).toHaveTextContent("You paid");
@@ -136,12 +122,12 @@ describe("Expenses Page", () => {
   it("shows placeholder for delete button click", () => {
     render(
       <MemoryRouter>
-        <Expenses />
+        <Expenses expenses={mockExpenses} members={mockUsers} />
       </MemoryRouter>
     );
     const deleteBtn = screen.getByTestId("button-delete-expense-exp1");
     fireEvent.click(deleteBtn);
-    
+
     // Check that AlertDialog appears
     expect(screen.getByText(/Delete Expense\?/i)).toBeInTheDocument();
   });
@@ -149,12 +135,12 @@ describe("Expenses Page", () => {
   it("triggers navigation when edit button is clicked", () => {
     render(
       <MemoryRouter>
-        <Expenses />
+        <Expenses expenses={mockExpenses} members={mockUsers} />
       </MemoryRouter>
     );
     const editBtn = screen.getByTestId("button-edit-expense-exp1");
     fireEvent.click(editBtn);
-    
+
     expect(mockNavigate).toHaveBeenCalledWith("/edit-expense/exp1");
   });
 });
