@@ -17,7 +17,13 @@
         "cancel": "Cancel",
         "delete": "Delete",
         "edit": "Edit",
-        "back": "Back"
+        "back": "Back",
+        "error": "Error",
+        "success": "Success"
+    },
+    "roles": {
+        "owner": "Owner",
+        "member": "Member"
     },
     "dashboard": {
         "balance": "Your Balance",
@@ -35,6 +41,80 @@
         "transfer": "Transfer",
         "paid": "You paid",
         "notInvolved": "Not involved"
+    },
+    "groups": {
+        "title": "Your Groups",
+        "new": "New Group",
+        "create": "Create Group",
+        "update": "Update Group",
+        "edit": "Edit Group",
+        "delete": "Delete Group",
+        "leave": "Leave Group",
+        "switchTo": "Switch To",
+        "noGroups": "No groups yet.",
+        "confirmDelete": "Are you sure you want to delete \"{{name}}\"?",
+        "confirmDeleteDesc": "This will permanently delete the spreadsheet from your Drive.",
+        "confirmLeave": "Are you sure you want to leave \"{{name}}\"?",
+        "deleteAction": "Delete",
+        "leaveAction": "Leave",
+        "import": "Import Shared Group",
+        "switchModalTitle": "Switch Group",
+        "switchModalDesc": "Select a group or create/import new.",
+        "nameLabel": "Group Name",
+        "membersLabel": "Members (Optional)",
+        "membersHint": "Enter emails or usernames, separated by commas (e.g., alice@gmail.com, bob123)",
+        "membersHint2": "Emails will receive a Google Drive share invite. Usernames are for tracking only."
+    },
+    "expenseForm": {
+        "addTitle": "Add Expense",
+        "editTitle": "Edit Expense",
+        "description": "Description",
+        "amount": "Amount",
+        "paidBy": "Paid by",
+        "category": "Category",
+        "date": "Date",
+        "splitBetween": "Split Between",
+        "selectCategory": "Select category",
+        "save": "Save Expense",
+        "saving": "Saving...",
+        "missingInfo": "Missing information",
+        "missingInfoDesc": "Please fill in all required fields.",
+        "invalidSplit": "Invalid split",
+        "invalidSplitDesc": "At least one person must be selected for the split.",
+        "splitMismatch": "Split mismatch",
+        "splitMismatchDesc": "Split amounts don't match expense amount.",
+        "you": "You"
+    },
+    "settlement": {
+        "title": "Settle Balance",
+        "editTitle": "Edit Settlement",
+        "desc": "Record a payment between group members.",
+        "editDesc": "Update payment details.",
+        "payer": "Payer (From)",
+        "receiver": "Receiver (To)",
+        "whoPaid": "Who paid?",
+        "whoReceived": "Who got paid?",
+        "method": "Payment Method",
+        "notes": "Notes (Optional)",
+        "notesPlaceholder": "Add any notes about this payment...",
+        "suggested": "Suggested",
+        "record": "Record Payment",
+        "update": "Update",
+        "deleteTitle": "Delete Settlement?",
+        "deleteDesc": "This will permanently remove this record. This action cannot be undone.",
+        "sameUser": "Payer and receiver cannot be the same."
+    },
+    "login": {
+        "welcome": "Welcome to Quozen",
+        "subtitle": "Decentralized expense sharing powered by your Google Drive.",
+        "signIn": "Sign In",
+        "connect": "Connect your Google account to access your groups securely.",
+        "continue": "Continue with Google",
+        "disclaimer": "By continuing, you acknowledge that Quozen operates client-side and stores data directly in your personal Google Drive."
+    },
+    "notFound": {
+        "title": "404 Page Not Found",
+        "message": "Did you forget to add the page to the router?"
     },
     "profile": {
         "title": "Profile",

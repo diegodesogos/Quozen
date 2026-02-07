@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-provider";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useGroups } from "@/hooks/use-groups";
+import { useTranslation } from "react-i18next";
 
 export default function GroupSwitcherModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { activeGroupId, setActiveGroupId } = useAppContext();
@@ -18,6 +19,7 @@ export default function GroupSwitcherModal({ isOpen, onClose }: { isOpen: boolea
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { groups } = useGroups();
+  const { t } = useTranslation();
 
   const handleSelectGroup = (groupId: string) => {
     setActiveGroupId(groupId);
@@ -26,21 +28,19 @@ export default function GroupSwitcherModal({ isOpen, onClose }: { isOpen: boolea
 
   const { openPicker, error: pickerError } = useGooglePicker({
     onPick: async (doc) => {
-      toast({ title: "Importing group..." });
-      if (!user) return; // Need full user object
+      toast({ title: t("common.loading") });
+      if (!user) return;
 
       try {
-        // Use the provider's atomic import method
-        // FIX: Pass the full user object to ensure ID consistency
         const group = await googleApi.importGroup(doc.id, user);
 
         await queryClient.invalidateQueries({ queryKey: ["drive", "settings"] });
         await queryClient.invalidateQueries({ queryKey: ["drive", "group", group.id] });
 
         setActiveGroupId(group.id);
-        toast({ title: "Group imported successfully!" });
+        toast({ title: t("common.success") });
       } catch (e: any) {
-        toast({ title: "Import Failed", description: e.message, variant: "destructive" });
+        toast({ title: t("common.error"), description: e.message, variant: "destructive" });
       }
     }
   });
@@ -54,8 +54,8 @@ export default function GroupSwitcherModal({ isOpen, onClose }: { isOpen: boolea
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-center">Switch Group</DialogTitle>
-          <DialogDescription>Select a group or create/import new.</DialogDescription>
+          <DialogTitle className="text-center">{t("groups.switchModalTitle")}</DialogTitle>
+          <DialogDescription>{t("groups.switchModalDesc")}</DialogDescription>
         </DialogHeader>
         {pickerError && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{pickerError}</AlertDescription></Alert>}
 
@@ -74,8 +74,8 @@ export default function GroupSwitcherModal({ isOpen, onClose }: { isOpen: boolea
         </div>
 
         <div className="flex flex-col gap-2 mt-6">
-          <Button onClick={handleImportClick} variant="secondary" className="w-full"><Download className="w-4 h-4 mr-2" />Import Shared Group</Button>
-          <Button onClick={() => { onClose(); navigate("/groups"); }} className="w-full"><Plus className="w-4 h-4 mr-2" />Create New Group</Button>
+          <Button onClick={handleImportClick} variant="secondary" className="w-full"><Download className="w-4 h-4 mr-2" />{t("groups.import")}</Button>
+          <Button onClick={() => { onClose(); navigate("/groups"); }} className="w-full"><Plus className="w-4 h-4 mr-2" />{t("groups.new")}</Button>
         </div>
       </DialogContent>
     </Dialog>

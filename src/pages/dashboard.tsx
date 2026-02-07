@@ -19,7 +19,6 @@ import {
 import { Expense, Settlement, Member } from "@/lib/storage/types";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-// Removed direct date-fns import
 import { useTranslation } from "react-i18next";
 import { useDateFormatter } from "@/hooks/use-date-formatter";
 import { formatCurrency } from "@/lib/format-currency";
@@ -34,20 +33,17 @@ export default function Dashboard() {
 
   const currencyCode = settings?.preferences?.defaultCurrency || "USD";
 
-  // Unified state for Create/Edit settlement
   const [settlementModal, setSettlementModal] = useState<{
     isOpen: boolean;
-    fromUser?: { userId: string; name: string }; // For creating new
-    toUser?: { userId: string; name: string };   // For creating new
-    suggestedAmount?: number;                    // For creating new
-    initialData?: Settlement;                    // For editing existing
+    fromUser?: { userId: string; name: string };
+    toUser?: { userId: string; name: string };
+    suggestedAmount?: number;
+    initialData?: Settlement;
   }>({ isOpen: false });
 
-  // Collapsible states
   const [isBalancesOpen, setIsBalancesOpen] = useState(true);
   const [isActivityOpen, setIsActivityOpen] = useState(true);
 
-  // Fetch all group data from Drive
   const { data: groupData, isLoading } = useQuery({
     queryKey: ["drive", "group", activeGroupId],
     queryFn: () => googleApi.getGroupData(activeGroupId),
@@ -58,10 +54,8 @@ export default function Dashboard() {
   const settlements = (groupData?.settlements || []) as Settlement[];
   const users = (groupData?.members || []) as Member[];
 
-  // Derived state: Current User Object
   const currentUser = users.find(u => u.userId === currentUserId);
 
-  // Helper to finding users
   const getUserById = (id: string) => {
     const u = users.find(u => u.userId === id);
     return u ? { userId: u.userId, name: u.name, email: u.email } : undefined;
@@ -72,29 +66,25 @@ export default function Dashboard() {
     return u ? u.name : "Unknown";
   };
 
-  // Client-side Balance Calculation
   const balances = useMemo(() => {
     return calculateBalances(users, expenses, settlements);
   }, [expenses, settlements, users]);
 
-  // Use Centralized Finance Logic for Total Spent
   const totalSpent = useMemo(() => {
     return calculateTotalSpent(currentUserId, expenses);
   }, [expenses, currentUserId]);
 
   const userBalance = balances[currentUserId] || 0;
 
-  // --- Mix Expenses and Settlements for Recent Activity ---
   const recentActivity = useMemo(() => {
     const combined = [
       ...expenses.map(e => ({ ...e, type: 'expense' as const })),
       ...settlements.map(s => ({ ...s, type: 'settlement' as const }))
     ];
 
-    // Sort Descending by Date
     return combined
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 5); // Show top 5
+      .slice(0, 5);
   }, [expenses, settlements]);
 
   const getExpenseIcon = (category: string) => {
@@ -108,7 +98,6 @@ export default function Dashboard() {
     }
   };
 
-  // Determine if settlement is needed for "Settle Up" button state
   const settlementSuggestion = useMemo(() => {
     if (!users.length) return null;
     return suggestSettlementStrategy(currentUserId, balances, users);
@@ -126,7 +115,7 @@ export default function Dashboard() {
         fromUser,
         toUser,
         suggestedAmount: settlementSuggestion.amount,
-        initialData: undefined // Ensure we are in create mode
+        initialData: undefined
       });
     }
   };
@@ -160,7 +149,7 @@ export default function Dashboard() {
         fromUser,
         toUser,
         suggestedAmount: settlement.amount,
-        initialData: undefined // Ensure we are in create mode
+        initialData: undefined
       });
     }
   };
@@ -176,7 +165,6 @@ export default function Dashboard() {
   return (
     <>
       <div className="space-y-4" data-testid="dashboard-view">
-        {/* Balance Overview Card */}
         <div className="mx-4 mt-4 bg-card rounded-lg border border-border p-4 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -211,7 +199,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Participants & Balances (Collapsible) */}
         <div className="mx-4 bg-card rounded-lg border border-border overflow-hidden">
           <Collapsible open={isBalancesOpen} onOpenChange={setIsBalancesOpen}>
             <CollapsibleTrigger className="w-full flex items-center justify-between p-4 border-b border-border bg-muted/30 hover:bg-muted/50 transition-colors">
@@ -236,7 +223,11 @@ export default function Dashboard() {
                           </div>
                           <div>
                             <p className="font-medium text-foreground">{u.name}</p>
-                            {u.role === 'owner' && <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">Owner</span>}
+                            {u.role === 'owner' && (
+                              <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                                {t("roles.owner")}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div className="text-right">
@@ -264,7 +255,6 @@ export default function Dashboard() {
           </Collapsible>
         </div>
 
-        {/* Recent Activity (Collapsible) */}
         <div className="mx-4 bg-card rounded-lg border border-border overflow-hidden">
           <Collapsible open={isActivityOpen} onOpenChange={setIsActivityOpen}>
             <CollapsibleTrigger className="w-full flex items-center justify-between p-4 border-b border-border bg-muted/30 hover:bg-muted/50 transition-colors">
@@ -284,9 +274,6 @@ export default function Dashboard() {
                     </div>
                   ) : (
                     recentActivity.map((item) => {
-                      // ---------------------------
-                      // RENDER SETTLEMENT
-                      // ---------------------------
                       if (item.type === 'settlement') {
                         const s = item as Settlement;
                         const fromName = s.fromUserId === currentUserId ? t("dashboard.you") : getMemberName(s.fromUserId).split(' ')[0];
@@ -302,7 +289,7 @@ export default function Dashboard() {
                           <div
                             key={s.id}
                             className="p-4 hover:bg-muted/50 transition-colors cursor-pointer"
-                            onClick={() => setSettlementModal({ isOpen: true, initialData: s })} // Open Edit Modal
+                            onClick={() => setSettlementModal({ isOpen: true, initialData: s })}
                           >
                             <div className="flex items-center justify-between mb-1">
                               <div className="flex items-center space-x-3">
@@ -330,9 +317,6 @@ export default function Dashboard() {
                         );
                       }
 
-                      // ---------------------------
-                      // RENDER EXPENSE
-                      // ---------------------------
                       const e = item as Expense;
                       const paidByUser = getUserById(e.paidBy);
                       const Icon = getExpenseIcon(e.category);
@@ -370,7 +354,6 @@ export default function Dashboard() {
                       );
                     })
                   )}
-                  {/* Footer Link */}
                   <div className="p-2 text-center bg-muted/10">
                     <Button
                       variant="ghost"

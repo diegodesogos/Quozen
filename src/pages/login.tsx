@@ -3,11 +3,13 @@ import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/auth-provider";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "react-i18next";
 
 export default function Login() {
   const { login, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
 
   // Clear message on component mount
   useEffect(() => {
@@ -20,7 +22,7 @@ export default function Login() {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
         <img src="/logo.svg" alt="Quozen" className="w-16 h-16 animate-pulse mb-4" />
-        <div className="text-muted-foreground font-medium">Loading Quozen...</div>
+        <div className="text-muted-foreground font-medium">{t("common.loading")}</div>
       </div>
     );
   }
@@ -49,10 +51,10 @@ export default function Login() {
 
           <div className="space-y-2">
             <h1 className="text-3xl font-bold tracking-tight text-foreground">
-              Welcome to Quozen
+              {t("login.welcome")}
             </h1>
             <p className="text-muted-foreground text-base max-w-xs mx-auto">
-              Decentralized expense sharing powered by your Google Drive.
+              {t("login.subtitle")}
             </p>
           </div>
         </div>
@@ -62,9 +64,9 @@ export default function Login() {
           <CardContent className="pt-8 pb-8 px-8">
             <div className="space-y-6">
               <div className="space-y-2 text-center">
-                <h2 className="text-lg font-semibold text-foreground">Sign In</h2>
+                <h2 className="text-lg font-semibold text-foreground">{t("login.signIn")}</h2>
                 <p className="text-sm text-muted-foreground">
-                  Connect your Google account to access your groups securely.
+                  {t("login.connect")}
                 </p>
               </div>
 
@@ -81,12 +83,12 @@ export default function Login() {
                     alt="Google"
                     className="w-5 h-5 mr-3 relative z-10"
                   />
-                  <span className="relative z-10">Continue with Google</span>
+                  <span className="relative z-10">{t("login.continue")}</span>
                 </Button>
               </div>
 
               <div className="text-[10px] text-center text-muted-foreground/60 px-4 leading-relaxed">
-                By continuing, you acknowledge that Quozen operates client-side and stores data directly in your personal Google Drive.
+                {t("login.disclaimer")}
               </div>
             </div>
           </CardContent>

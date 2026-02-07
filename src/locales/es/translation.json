@@ -17,7 +17,13 @@
         "cancel": "Cancelar",
         "delete": "Eliminar",
         "edit": "Editar",
-        "back": "Volver"
+        "back": "Volver",
+        "error": "Error",
+        "success": "Éxito"
+    },
+    "roles": {
+        "owner": "Dueño",
+        "member": "Miembro"
     },
     "dashboard": {
         "balance": "Tu Balance",
@@ -35,6 +41,80 @@
         "transfer": "Transferencia",
         "paid": "Pagaste",
         "notInvolved": "No participas"
+    },
+    "groups": {
+        "title": "Tus Grupos",
+        "new": "Nuevo Grupo",
+        "create": "Crear Grupo",
+        "update": "Actualizar Grupo",
+        "edit": "Editar Grupo",
+        "delete": "Eliminar Grupo",
+        "leave": "Salir del Grupo",
+        "switchTo": "Cambiar a",
+        "noGroups": "Aún no hay grupos.",
+        "confirmDelete": "¿Seguro que quieres eliminar \"{{name}}\"?",
+        "confirmDeleteDesc": "Esto eliminará permanentemente la hoja de cálculo de tu Drive.",
+        "confirmLeave": "¿Seguro que quieres salir de \"{{name}}\"?",
+        "deleteAction": "Eliminar",
+        "leaveAction": "Salir",
+        "import": "Importar Grupo Compartido",
+        "switchModalTitle": "Cambiar Grupo",
+        "switchModalDesc": "Selecciona un grupo o crea/importa uno nuevo.",
+        "nameLabel": "Nombre del Grupo",
+        "membersLabel": "Miembros (Opcional)",
+        "membersHint": "Ingresa correos o usuarios, separados por comas (ej. ana@gmail.com, beto123)",
+        "membersHint2": "Los correos recibirán una invitación de Google Drive. Los usuarios son solo para seguimiento."
+    },
+    "expenseForm": {
+        "addTitle": "Añadir Gasto",
+        "editTitle": "Editar Gasto",
+        "description": "Descripción",
+        "amount": "Monto",
+        "paidBy": "Pagado por",
+        "category": "Categoría",
+        "date": "Fecha",
+        "splitBetween": "Dividir Entre",
+        "selectCategory": "Seleccionar categoría",
+        "save": "Guardar Gasto",
+        "saving": "Guardando...",
+        "missingInfo": "Información faltante",
+        "missingInfoDesc": "Por favor completa todos los campos requeridos.",
+        "invalidSplit": "División inválida",
+        "invalidSplitDesc": "Al menos una persona debe ser seleccionada.",
+        "splitMismatch": "Error en división",
+        "splitMismatchDesc": "Los montos divididos no coinciden con el total.",
+        "you": "Tú"
+    },
+    "settlement": {
+        "title": "Saldar Balance",
+        "editTitle": "Editar Pago",
+        "desc": "Registrar un pago entre miembros.",
+        "editDesc": "Actualizar detalles del pago.",
+        "payer": "Pagador (Desde)",
+        "receiver": "Receptor (Para)",
+        "whoPaid": "¿Quién pagó?",
+        "whoReceived": "¿Quién recibió?",
+        "method": "Método de Pago",
+        "notes": "Notas (Opcional)",
+        "notesPlaceholder": "Añadir notas sobre este pago...",
+        "suggested": "Sugerido",
+        "record": "Registrar Pago",
+        "update": "Actualizar",
+        "deleteTitle": "¿Eliminar Pago?",
+        "deleteDesc": "Esto eliminará permanentemente el registro. No se puede deshacer.",
+        "sameUser": "El pagador y el receptor no pueden ser el mismo."
+    },
+    "login": {
+        "welcome": "Bienvenido a Quozen",
+        "subtitle": "Gestión de gastos descentralizada en tu Google Drive.",
+        "signIn": "Iniciar Sesión",
+        "connect": "Conecta tu cuenta de Google para acceder a tus grupos.",
+        "continue": "Continuar con Google",
+        "disclaimer": "Al continuar, aceptas que Quozen opera del lado del cliente y guarda datos directamente en tu Google Drive personal."
+    },
+    "notFound": {
+        "title": "404 Página No Encontrada",
+        "message": "¿Olvidaste agregar la página al router?"
     },
     "profile": {
         "title": "Perfil",
