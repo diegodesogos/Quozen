@@ -244,6 +244,13 @@ export class StorageService implements IStorageProvider {
         const validation = await this.validateQuozenSpreadsheet(spreadsheetId, user.email);
         if (!validation.valid) throw new Error(validation.error || "Invalid group file");
 
+        // Fix: Determine role from group data
+        let role: "owner" | "member" = "member";
+        if (validation.data) {
+            const member = validation.data.members.find(m => m.email === user.email || m.userId === user.id);
+            if (member?.role === "owner") role = "owner";
+        }
+
         try {
             const currentGoogleId = user.id;
             const currentDisplayName = user.name;
@@ -278,20 +285,22 @@ export class StorageService implements IStorageProvider {
         const groupName = validation.name || "Imported Group";
         const cleanName = groupName.startsWith(QUOZEN_PREFIX) ? groupName.slice(QUOZEN_PREFIX.length) : groupName;
 
-        if (!settings.groupCache.some(g => g.id === spreadsheetId)) {
+        const cachedGroup = settings.groupCache.find(g => g.id === spreadsheetId);
+
+        if (!cachedGroup) {
             settings.groupCache.unshift({
                 id: spreadsheetId,
                 name: cleanName,
-                role: "member",
+                role: role,
                 lastAccessed: new Date().toISOString()
             });
-            settings.activeGroupId = spreadsheetId;
-            await this.adapter.saveSettings(user.email, settings);
         } else {
-            // If already in cache, just set active
-            settings.activeGroupId = spreadsheetId;
-            await this.adapter.saveSettings(user.email, settings);
+            cachedGroup.role = role;
+            cachedGroup.lastAccessed = new Date().toISOString();
         }
+
+        settings.activeGroupId = spreadsheetId;
+        await this.adapter.saveSettings(user.email, settings);
 
         return {
             id: spreadsheetId,
@@ -300,7 +309,7 @@ export class StorageService implements IStorageProvider {
             createdBy: "Unknown",
             participants: [],
             createdAt: new Date().toISOString(),
-            isOwner: false
+            isOwner: role === "owner"
         };
     }
 

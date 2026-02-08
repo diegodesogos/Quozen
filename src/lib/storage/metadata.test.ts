@@ -61,6 +61,11 @@ describe('StorageService Metadata & Reconciliation', () => {
         const meta = await adapter.getFileMeta(fileId);
         expect(meta.properties?.['quozen_type']).toBe('group');
         expect(importedGroup.name).toBe("Legacy Group");
+
+        // 4. Verify correct role assignment (US-Fix)
+        expect(importedGroup.isOwner).toBe(true);
+        const settings = await service.getSettings(user.email);
+        expect(settings.groupCache.find(g => g.id === fileId)?.role).toBe("owner");
     });
 
     it('US-203: Import fails for invalid files (Wrong Structure)', async () => {
