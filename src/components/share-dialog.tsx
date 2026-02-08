@@ -42,7 +42,8 @@ export default function ShareDialog({ isOpen, onClose, groupId, groupName }: Sha
             queryClient.invalidateQueries({ queryKey: ["drive", "group", groupId] });
         },
         onError: () => {
-            setIsPublic(!isPublic);
+            // Fix: Use functional update to avoid stale closure state
+            setIsPublic((prev) => !prev);
             toast({
                 title: t("common.error"),
                 description: t("share.updateError"),
