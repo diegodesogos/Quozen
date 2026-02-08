@@ -1,5 +1,17 @@
 # Feature Group Sharing
 
+## **Implementation Status**
+
+| ID | Title | Status | Notes |
+| :--- | :--- | :--- | :--- |
+| **US-101** | Share Group Modal & Logic | ✅ **Completed** | Implemented `ShareDialog` with permission toggle and copy link. |
+| **US-102** | Storage Adapter Update | ✅ **Completed** | Added `setFilePermissions` to Adapter and `joinGroup` logic to Service. |
+| **US-103** | Deep Link Route & Auth | ✅ **Completed** | Added `/join/:id` route, `JoinPage`, and login redirection handling. |
+| **US-104** | Join Logic | ✅ **Completed** | Implemented atomic `appendRow` for members and local settings sync. |
+| **US-105** | Post-Creation Prompt | ⏳ **Pending** | `createGroupMutation` success callback needs to trigger `ShareDialog`. |
+
+---
+
 # Implementation Requirements
 
 **Title:** Expense Group Share Improvements ("Magic Link")
@@ -53,17 +65,14 @@ This Epic introduces a "Magic Link" sharing flow similar to Google Docs or Notio
 
 **Acceptance Criteria:**
 
-* **Scenario 1 (Open Modal):**  
-  * **Given** I am on the Dashboard or Groups page.  
+* **Scenario 1 (Open Modal):** * **Given** I am on the Dashboard or Groups page.  
   * **When** I click the "Share" icon on a group I own.  
   * **Then** a modal opens showing the existing "Add by email" field AND a new "General Access" section.  
-* **Scenario 2 (Toggle Public Access):**  
-  * **Given** the group is currently "Restricted" (default).  
+* **Scenario 2 (Toggle Public Access):** * **Given** the group is currently "Restricted" (default).  
   * **When** I switch the toggle to "Anyone with the link".  
   * **Then** the app calls the Drive API to set `role: writer, type: anyone`.  
   * **And** the "Copy Link" button becomes enabled/primary.  
-* **Scenario 3 (Copy Link):**  
-  * **When** I click "Copy Link".  
+* **Scenario 3 (Copy Link):** * **When** I click "Copy Link".  
   * **Then** `https://[app-url]/join/[spreadsheetId]` is copied to my clipboard.  
   * **And** a toast confirms "Link copied".
 
@@ -80,11 +89,9 @@ This Epic introduces a "Magic Link" sharing flow similar to Google Docs or Notio
 
 **Acceptance Criteria:**
 
-* **Scenario 1 (Set Public):**  
-  * **When** `setFilePermissions(fileId, 'public')` is called.  
+* **Scenario 1 (Set Public):** * **When** `setFilePermissions(fileId, 'public')` is called.  
   * **Then** it makes a POST to `drive/v3/files/{fileId}/permissions` with `{ role: 'writer', type: 'anyone' }`.  
-* **Scenario 2 (Set Restricted):**  
-  * **When** `setFilePermissions(fileId, 'restricted')` is called.  
+* **Scenario 2 (Set Restricted):** * **When** `setFilePermissions(fileId, 'restricted')` is called.  
   * **Then** it first lists existing permissions to find the one where `type === 'anyone'`.  
   * **And** calls DELETE on that specific permission ID.
 
@@ -101,13 +108,11 @@ This Epic introduces a "Magic Link" sharing flow similar to Google Docs or Notio
 
 **Acceptance Criteria:**
 
-* **Scenario 1 (Unauthenticated User):**  
-  * **Given** I am not logged in.  
+* **Scenario 1 (Unauthenticated User):** * **Given** I am not logged in.  
   * **When** I visit `/join/12345`.  
   * **Then** I am redirected to `/login`.  
   * **And** the target group ID (`12345`) is stored (e.g., in `location.state` or `sessionStorage`) to be resumed after login.  
-* **Scenario 2 (Authenticated User):**  
-  * **Given** I am logged in.  
+* **Scenario 2 (Authenticated User):** * **Given** I am logged in.  
   * **When** I visit `/join/12345`.  
   * **Then** I see a loading screen ("Joining Group...").  
   * **And** the system proceeds to US-104 (Join Logic).
@@ -126,16 +131,14 @@ This Epic introduces a "Magic Link" sharing flow similar to Google Docs or Notio
 
 **Acceptance Criteria:**
 
-* **Scenario 1 (New Member):**  
-  * **Given** I am authenticated and have clicked the join link.  
+* **Scenario 1 (New Member):** * **Given** I am authenticated and have clicked the join link.  
   * **When** the page loads.  
   * **Then** the app fetches the spreadsheet metadata (to confirm existence and get the Name).  
   * **And** checks if I am already in the `Members` tab.  
   * **And** if not, calls `appendRow` on the "Members" sheet with my `userId`, `email`, `name`, and `role: "member"`.  
   * **And** adds the group to my `quozen-settings.json`.  
   * **And** redirects me to the Dashboard for that group.  
-* **Scenario 2 (Already Member):**  
-  * **Given** I am already in the group.  
+* **Scenario 2 (Already Member):** * **Given** I am already in the group.  
   * **When** I visit the join link.  
   * **Then** the app detects my ID in the `Members` list.  
   * **And** immediately redirects me to the Dashboard without writing to the sheet.
@@ -153,8 +156,7 @@ This Epic introduces a "Magic Link" sharing flow similar to Google Docs or Notio
 
 **Acceptance Criteria:**
 
-* **Scenario 1 (Success Flow):**  
-  * **Given** I just successfully created a group via the "New Group" dialog.  
+* **Scenario 1 (Success Flow):** * **Given** I just successfully created a group via the "New Group" dialog.  
   * **When** the creation success toast appears.  
   * **Then** a new Dialog appears: "Group Created\! Invite others?".  
   * **And** it displays the Share options (defined in US-101).
@@ -163,4 +165,3 @@ This Epic introduces a "Magic Link" sharing flow similar to Google Docs or Notio
 
 * Modify `src/pages/groups.tsx`.  
 * Trigger the "Share Modal" state upon success of the `createGroupMutation`.
-

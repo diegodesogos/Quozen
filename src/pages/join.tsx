@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { googleApi } from "@/lib/drive";
 import { useAuth } from "@/context/auth-provider";
@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 export default function JoinPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const location = useLocation(); // Use this instead of window.location
     const { user, isAuthenticated, isLoading: authLoading } = useAuth();
     const { setActiveGroupId } = useAppContext();
     const { toast } = useToast();
@@ -37,6 +38,7 @@ export default function JoinPage() {
                 description: t("join.successDesc", { name: group.name }),
             });
 
+            // Short delay for user to see success state
             setTimeout(() => navigate("/dashboard"), 1000);
         },
         onError: (err: any) => {
@@ -54,7 +56,8 @@ export default function JoinPage() {
 
         if (!isAuthenticated) {
             navigate("/login", {
-                state: { from: { pathname: window.location.pathname }, message: t("join.signIn") }
+                // Pass the location object directly
+                state: { from: location, message: t("join.signIn") }
             });
             return;
         }
@@ -62,7 +65,7 @@ export default function JoinPage() {
         if (id && user && !joinMutation.isPending && !joinMutation.isSuccess && !error) {
             joinMutation.mutate();
         }
-    }, [id, user, isAuthenticated, authLoading, navigate, t]);
+    }, [id, user, isAuthenticated, authLoading, navigate, t, location]);
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-background p-4">
