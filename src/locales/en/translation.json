@@ -20,7 +20,8 @@
         "back": "Back",
         "error": "Error",
         "success": "Success",
-        "genericError": "An unexpected error occurred."
+        "genericError": "An unexpected error occurred.",
+        "share": "Share"
     },
     "roles": {
         "owner": "Owner",
@@ -199,5 +200,31 @@
         "activeGroups": "Active Groups",
         "scanFailed": "Scan Failed",
         "scanFailedDesc": "Could not scan Drive"
+    },
+    "share": {
+        "title": "Share \"{{name}}\"",
+        "description": "Invite others to join this group to track expenses together.",
+        "accessLabel": "General Access",
+        "public": "Anyone with the link can join and edit",
+        "restricted": "Restricted to added members only",
+        "magicLink": "Magic Link",
+        "copy": "Copy Link",
+        "copied": "Link copied to clipboard",
+        "note": "Note: Users must have a Google account to join.",
+        "successPublic": "Group is now public via link.",
+        "successRestricted": "Group is now restricted.",
+        "updateError": "Failed to update permissions."
+    },
+    "join": {
+        "loadingTitle": "Joining Group...",
+        "loadingDesc": "Verifying permissions and syncing data.",
+        "successTitle": "Welcome!",
+        "successDesc": "You are now a member of \"{{name}}\". Redirecting...",
+        "errorTitle": "Unable to Join",
+        "accessDenied": "Access Denied. This group might be restricted or deleted.",
+        "genericError": "Failed to join group.",
+        "goHome": "Go Home",
+        "tryAgain": "Try Again",
+        "signIn": "Please sign in to join the group."
     }
 }

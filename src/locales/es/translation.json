@@ -20,7 +20,8 @@
         "back": "Volver",
         "error": "Error",
         "success": "Éxito",
-        "genericError": "Ocurrió un error inesperado."
+        "genericError": "Ocurrió un error inesperado.",
+        "share": "Compartir"
     },
     "roles": {
         "owner": "Dueño",
@@ -199,5 +200,31 @@
         "activeGroups": "Grupos Activos",
         "scanFailed": "Error de Escaneo",
         "scanFailedDesc": "No se pudo escanear Drive"
+    },
+    "share": {
+        "title": "Compartir \"{{name}}\"",
+        "description": "Invita a otros a unirse a este grupo para compartir gastos.",
+        "accessLabel": "Acceso General",
+        "public": "Cualquiera con el enlace puede unirse y editar",
+        "restricted": "Restringido solo a miembros añadidos",
+        "magicLink": "Enlace Mágico",
+        "copy": "Copiar Enlace",
+        "copied": "Enlace copiado al portapapeles",
+        "note": "Nota: Los usuarios deben tener cuenta de Google para unirse.",
+        "successPublic": "El grupo es público mediante enlace.",
+        "successRestricted": "El grupo ahora es restringido.",
+        "updateError": "Error al actualizar permisos."
+    },
+    "join": {
+        "loadingTitle": "Uniéndote al Grupo...",
+        "loadingDesc": "Verificando permisos y sincronizando datos.",
+        "successTitle": "¡Bienvenido!",
+        "successDesc": "Ahora eres miembro de \"{{name}}\". Redirigiendo...",
+        "errorTitle": "No se pudo unir",
+        "accessDenied": "Acceso denegado. El grupo puede estar restringido o eliminado.",
+        "genericError": "Error al unirse al grupo.",
+        "goHome": "Ir al Inicio",
+        "tryAgain": "Intentar de nuevo",
+        "signIn": "Por favor inicia sesión para unirte al grupo."
     }
 }
