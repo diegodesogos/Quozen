@@ -83,7 +83,12 @@ export default function Groups() {
       setDialogState(prev => ({ ...prev, open: false }));
       if (newGroup?.id) {
         setActiveGroupId(newGroup.id);
-        // We could prompt share here, but user can click button
+        // Automatically prompt to share the new group
+        setShareDialog({
+          open: true,
+          groupId: newGroup.id,
+          groupName: newGroup.name
+        });
       }
     },
     onError: () => toast({ title: t("common.error"), description: t("groups.createError"), variant: "destructive" }),

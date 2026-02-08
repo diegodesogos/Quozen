@@ -1,4 +1,3 @@
-
 import { IStorageAdapter } from "./adapter";
 import { UserSettings, GroupData, SchemaType } from "./types";
 import { getAuthToken } from "../tokenStore";
@@ -69,6 +68,19 @@ export class RemoteMockAdapter implements IStorageAdapter {
         });
         const data = await res.json();
         return data.displayName || null;
+    }
+
+    async setFilePermissions(fileId: string, access: 'public' | 'restricted'): Promise<void> {
+        await this.fetch(`/files/${fileId}/permissions`, {
+            method: "POST",
+            body: JSON.stringify({ access })
+        });
+    }
+
+    async getFilePermissions(fileId: string): Promise<'public' | 'restricted'> {
+        const res = await this.fetch(`/files/${fileId}/permissions`, { method: "GET" });
+        const data = await res.json();
+        return data.access;
     }
 
     async listFiles(queryPrefix: string): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any }>> {

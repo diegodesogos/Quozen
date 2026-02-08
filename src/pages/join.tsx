@@ -13,7 +13,7 @@ import { useTranslation } from "react-i18next";
 export default function JoinPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const location = useLocation(); // Use this instead of window.location
+    const location = useLocation();
     const { user, isAuthenticated, isLoading: authLoading } = useAuth();
     const { setActiveGroupId } = useAppContext();
     const { toast } = useToast();
@@ -38,15 +38,16 @@ export default function JoinPage() {
                 description: t("join.successDesc", { name: group.name }),
             });
 
-            // Short delay for user to see success state
             setTimeout(() => navigate("/dashboard"), 1000);
         },
         onError: (err: any) => {
             console.error("Join failed", err);
-            if (err.message.includes("403") || err.message.includes("permission")) {
+            // Handle specific Google API error codes
+            const errMsg = err.message || "";
+            if (errMsg.includes("403") || errMsg.includes("permission") || errMsg.includes("Forbidden") || errMsg.includes("404")) {
                 setError(t("join.accessDenied"));
             } else {
-                setError(err.message || t("join.genericError"));
+                setError(errMsg || t("join.genericError"));
             }
         }
     });
@@ -56,12 +57,12 @@ export default function JoinPage() {
 
         if (!isAuthenticated) {
             navigate("/login", {
-                // Pass the location object directly
                 state: { from: location, message: t("join.signIn") }
             });
             return;
         }
 
+        // Only mutate if we haven't already succeeded, failed, or started
         if (id && user && !joinMutation.isPending && !joinMutation.isSuccess && !error) {
             joinMutation.mutate();
         }
@@ -87,7 +88,7 @@ export default function JoinPage() {
                             <CheckCircle2 className="w-12 h-12 text-green-500" />
                             <div>
                                 <h2 className="text-xl font-semibold">{t("join.successTitle")}</h2>
-                                <p className="text-muted-foreground text-sm">{t("join.successDesc", { name: "" })}</p>
+                                <p className="text-muted-foreground text-sm">{t("join.successDesc", { name: joinMutation.data?.name || "" })}</p>
                             </div>
                         </>
                     )}
@@ -101,10 +102,12 @@ export default function JoinPage() {
                                 <h2 className="text-xl font-semibold">{t("join.errorTitle")}</h2>
                                 <p className="text-muted-foreground text-sm mt-2">{error}</p>
                             </div>
+
                             <div className="flex gap-2 w-full pt-4">
                                 <Button variant="outline" className="flex-1" onClick={() => navigate("/dashboard")}>
                                     {t("join.goHome")}
                                 </Button>
+                                {/* If access denied (403/404), allow Retry which triggers re-fetch (maybe permission propagated) */}
                                 <Button className="flex-1" onClick={() => window.location.reload()}>
                                     {t("join.tryAgain")}
                                 </Button>

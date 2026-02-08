@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -22,10 +22,23 @@ export default function ShareDialog({ isOpen, onClose, groupId, groupName }: Sha
     const { t } = useTranslation();
     const queryClient = useQueryClient();
 
-    const [isPublic, setIsPublic] = useState(false); // Optimistic state
+    const [isPublic, setIsPublic] = useState(false);
     const [copied, setCopied] = useState(false);
 
     const joinLink = `${window.location.origin}/join/${groupId}`;
+
+    // Fetch permission status when dialog opens
+    const { data: permissionStatus } = useQuery({
+        queryKey: ["drive", "permissions", groupId],
+        queryFn: () => googleApi.getGroupPermissions(groupId),
+        enabled: isOpen && !!groupId,
+    });
+
+    useEffect(() => {
+        if (permissionStatus) {
+            setIsPublic(permissionStatus === 'public');
+        }
+    }, [permissionStatus]);
 
     const permissionMutation = useMutation({
         mutationFn: async (makePublic: boolean) => {
@@ -35,14 +48,14 @@ export default function ShareDialog({ isOpen, onClose, groupId, groupName }: Sha
         },
         onSuccess: (makePublic) => {
             setIsPublic(makePublic);
+            queryClient.setQueryData(["drive", "permissions", groupId], makePublic ? 'public' : 'restricted');
             toast({
                 title: t("common.success"),
                 description: makePublic ? t("share.successPublic") : t("share.successRestricted")
             });
-            queryClient.invalidateQueries({ queryKey: ["drive", "group", groupId] });
         },
         onError: () => {
-            // Fix: Use functional update to avoid stale closure state
+            // Revert state on error
             setIsPublic((prev) => !prev);
             toast({
                 title: t("common.error"),

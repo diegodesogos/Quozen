@@ -85,6 +85,11 @@ export class InMemoryAdapter implements IStorageAdapter {
         }
     }
 
+    async getFilePermissions(fileId: string): Promise<'public' | 'restricted'> {
+        const sheet = this.sheets.get(fileId);
+        return sheet?.isPublic ? 'public' : 'restricted';
+    }
+
     async listFiles(queryPrefix: string): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any }>> {
         const files: any[] = [];
         let nameFilter = "";

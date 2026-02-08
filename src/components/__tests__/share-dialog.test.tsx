@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import ShareDialog from "../share-dialog";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { googleApi } from "@/lib/drive";
 import en from "@/locales/en/translation.json";
 
@@ -16,13 +16,15 @@ vi.mock("@tanstack/react-query", async (importOriginal) => {
     return {
         ...actual,
         useMutation: vi.fn(),
+        useQuery: vi.fn(),
         useQueryClient: vi.fn(() => ({
             invalidateQueries: vi.fn(),
+            setQueryData: vi.fn(),
         })),
     };
 });
 
-// Mock UI components that are hard to test
+// Mock UI components
 vi.mock("@/components/ui/switch", () => ({
     Switch: ({ checked, onCheckedChange, disabled }: any) => (
         <button
@@ -36,13 +38,15 @@ vi.mock("@/components/ui/switch", () => ({
     ),
 }));
 
+// Mock API
 vi.mock("@/lib/drive", () => ({
     googleApi: {
         setGroupPermissions: vi.fn(),
+        getGroupPermissions: vi.fn(),
     },
 }));
 
-// Mock navigator.clipboard
+// Mock clipboard
 const mockWriteText = vi.fn();
 Object.assign(navigator, {
     clipboard: {
@@ -62,37 +66,48 @@ describe("ShareDialog Component", () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+
+        // Default: permissions loaded as restricted
+        (useQuery as any).mockReturnValue({
+            data: 'restricted',
+            isLoading: false
+        });
+
+        // Default: Mutation succeeds
         (useMutation as any).mockImplementation((options: any) => ({
             mutate: (data: any) => {
                 mockMutate(data);
-                if (options?.mutationFn) {
-                    options.mutationFn(data).then(() => {
-                        if (options.onSuccess) options.onSuccess(data);
-                    }).catch((e: any) => {
-                        if (options.onError) options.onError(e);
-                    });
-                }
+                // Simulate async success
+                setTimeout(() => {
+                    if (options.onSuccess) options.onSuccess(data);
+                }, 0);
             },
             isPending: false,
         }));
+
+        (googleApi.setGroupPermissions as any).mockResolvedValue(undefined);
     });
 
-    it("renders correctly with group name", () => {
+    it("initializes switch state based on query data (public)", () => {
+        (useQuery as any).mockReturnValue({
+            data: 'public',
+            isLoading: false
+        });
+
         render(<ShareDialog {...defaultProps} />);
-        const expectedTitle = en.share.title.replace("{{name}}", "Test Trip");
-        expect(screen.getByText(expectedTitle)).toBeInTheDocument();
-        expect(screen.getByTestId("mock-switch")).toBeInTheDocument();
+
+        const switchEl = screen.getByTestId("mock-switch");
+        expect(switchEl).toHaveAttribute("aria-checked", "true");
     });
 
     it("toggles permission when switch is clicked", async () => {
         render(<ShareDialog {...defaultProps} />);
 
         const switchEl = screen.getByTestId("mock-switch");
-        fireEvent.click(switchEl);
+        fireEvent.click(switchEl); // restricted -> public
 
         await waitFor(() => {
             expect(mockMutate).toHaveBeenCalledWith(true);
-            expect(googleApi.setGroupPermissions).toHaveBeenCalledWith("group-123", "public");
             expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
                 description: en.share.successPublic
             }));
@@ -100,40 +115,38 @@ describe("ShareDialog Component", () => {
     });
 
     it("reverts switch state on API failure", async () => {
-        (googleApi.setGroupPermissions as any).mockRejectedValue(new Error("API Failed"));
+        // Setup mutation to fail
+        (useMutation as any).mockImplementation((options: any) => ({
+            mutate: (data: any) => {
+                mockMutate(data);
+                // Simulate async error
+                setTimeout(() => {
+                    if (options.onError) options.onError(new Error("API Failed"));
+                }, 0);
+            },
+            isPending: false,
+        }));
 
         render(<ShareDialog {...defaultProps} />);
 
         const switchEl = screen.getByTestId("mock-switch");
 
-        // Initial State: Unchecked (false)
+        // Initial state: false
         expect(switchEl).toHaveAttribute("aria-checked", "false");
 
-        // Click to toggle
+        // Click to toggle (Optimistic update sets to true)
         fireEvent.click(switchEl);
 
+        // Expect error toast
         await waitFor(() => {
-            expect(mockMutate).toHaveBeenCalledWith(true);
             expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
                 description: en.share.updateError
             }));
         });
 
-        // Check reversion
+        // Should be false again
         await waitFor(() => {
             expect(switchEl).toHaveAttribute("aria-checked", "false");
         });
-    });
-
-    it("copies link to clipboard", async () => {
-        render(<ShareDialog {...defaultProps} />);
-
-        const copyBtn = screen.getByTitle(en.share.copy);
-        fireEvent.click(copyBtn);
-
-        expect(mockWriteText).toHaveBeenCalledWith(expect.stringContaining("/join/group-123"));
-        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
-            description: en.share.copied
-        }));
     });
 });

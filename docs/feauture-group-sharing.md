@@ -8,7 +8,7 @@
 | **US-102** | Storage Adapter Update | ✅ **Completed** | Added `setFilePermissions` to Adapter and `joinGroup` logic to Service. |
 | **US-103** | Deep Link Route & Auth | ✅ **Completed** | Added `/join/:id` route, `JoinPage`, and login redirection handling. |
 | **US-104** | Join Logic | ✅ **Completed** | Implemented atomic `appendRow` for members and local settings sync. |
-| **US-105** | Post-Creation Prompt | ⏳ **Pending** | `createGroupMutation` success callback needs to trigger `ShareDialog`. |
+| **US-105** | Post-Creation Prompt | ✅ **Completed** | `createGroupMutation` now triggers `ShareDialog` on success. |
 
 ---
 

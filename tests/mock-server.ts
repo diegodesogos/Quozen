@@ -1,4 +1,3 @@
-
 import { Route, Request } from '@playwright/test';
 import { InMemoryAdapter } from '../src/lib/storage/memory-adapter';
 
@@ -79,6 +78,16 @@ class MockServer {
             const id = path.split('/')[2];
             const displayName = await this.adapter.shareFile(id, body.email, body.role);
             result = { displayName };
+        }
+        else if (path.match(/\/files\/[^\/]+\/permissions$/)) {
+            const id = path.split('/')[2];
+            if (method === 'GET') {
+                const access = await this.adapter.getFilePermissions(id);
+                result = { access };
+            } else if (method === 'POST') {
+                await this.adapter.setFilePermissions(id, body.access);
+                result = { success: true };
+            }
         }
         else if (path.match(/\/files\/[^\/]+\/meta$/)) {
             const id = path.split('/')[2];

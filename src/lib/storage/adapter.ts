@@ -33,6 +33,11 @@ export interface IStorageAdapter {
     setFilePermissions(fileId: string, access: 'public' | 'restricted'): Promise<void>;
 
     /**
+     * Gets current file permissions to check if public.
+     */
+    getFilePermissions(fileId: string): Promise<'public' | 'restricted'>;
+
+    /**
      * Generic search for files (used for reconciliation).
      * Returns minimal metadata.
      */

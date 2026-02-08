@@ -141,6 +141,12 @@ export interface IStorageProvider {
   setGroupPermissions(groupId: string, access: 'public' | 'restricted'): Promise<void>;
 
   /**
+   * Check current permissions of the group.
+   * Returns 'public' if anyone with link can write, 'restricted' otherwise.
+   */
+  getGroupPermissions(groupId: string): Promise<'public' | 'restricted'>;
+
+  /**
    * Check if a member has any associated expenses (paidBy or in splits)
    */
   checkMemberHasExpenses(groupId: string, userId: string): Promise<boolean>;

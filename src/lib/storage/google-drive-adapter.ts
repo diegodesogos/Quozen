@@ -177,6 +177,18 @@ export class GoogleDriveAdapter implements IStorageAdapter {
         }
     }
 
+    async getFilePermissions(fileId: string): Promise<'public' | 'restricted'> {
+        try {
+            const res = await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}/permissions`);
+            const data = await res.json();
+            const publicPerm = data.permissions?.find((p: any) => p.type === 'anyone');
+            return publicPerm ? 'public' : 'restricted';
+        } catch (e) {
+            console.error("Failed to get permissions", e);
+            return 'restricted'; // Default safe fallback
+        }
+    }
+
     async listFiles(queryPrefix: string): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any }>> {
         const query = `mimeType = 'application/vnd.google-apps.spreadsheet' and name contains '${queryPrefix}' and trashed = false`;
         const fields = "files(id, name, createdTime, owners, capabilities)";

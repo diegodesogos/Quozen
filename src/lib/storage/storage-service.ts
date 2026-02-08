@@ -175,6 +175,10 @@ export class StorageService implements IStorageProvider {
         await this.adapter.setFilePermissions(groupId, access);
     }
 
+    async getGroupPermissions(groupId: string): Promise<'public' | 'restricted'> {
+        return await this.adapter.getFilePermissions(groupId);
+    }
+
     async joinGroup(spreadsheetId: string, user: User): Promise<Group> {
         // 1. Verify existence (basic check)
         const meta = await this.adapter.getFileMeta(spreadsheetId);
@@ -204,14 +208,6 @@ export class StorageService implements IStorageProvider {
     }
 
     async importGroup(spreadsheetId: string, user: User): Promise<Group> {
-        // Validation in importGroup is tricky because joinGroup calls it *after* adding permission?
-        // Actually, joinGroup adds the row.
-        // We can skip deep validation here or rely on readGroupData inside.
-        // The Spec says `importGroup` uses validateQuozenSpreadsheet.
-
-        // However, `validateQuozenSpreadsheet` enforces email membership.
-        // If `joinGroup` just added the row, `validate` should pass.
-
         const validation = await this.validateQuozenSpreadsheet(spreadsheetId, user.email);
         if (!validation.valid) throw new Error(validation.error || "Invalid group file");
 
