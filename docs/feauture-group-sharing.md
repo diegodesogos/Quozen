@@ -9,6 +9,11 @@
 | **US-103** | Deep Link Route & Auth | ✅ **Completed** | Added `/join/:id` route, `JoinPage`, and login redirection handling. |
 | **US-104** | Join Logic | ✅ **Completed** | Implemented atomic `appendRow` for members and local settings sync. |
 | **US-105** | Post-Creation Prompt | ✅ **Completed** | `createGroupMutation` now triggers `ShareDialog` on success. |
+| **US-201** | Metadata Stamping on Creation | Not Started ||
+| **US-202** | Strict Reconciliation (Metadata Scan) |Not Started | |
+| **US-203** | Manual Import & Validation (The "Blessing" Flow) | Not Started | |
+| **US-204** | Join via Link (Metadata Guard) | Not Started  | |
+
 
 ---
 
@@ -165,3 +170,145 @@ This Epic introduces a "Magic Link" sharing flow similar to Google Docs or Notio
 
 * Modify `src/pages/groups.tsx`.  
 * Trigger the "Share Modal" state upon success of the `createGroupMutation`.
+
+
+
+# **Epic Extension: Robust File Discovery & Validation**
+
+**Epic:** Data Integrity & Discovery Refactor **Status:** 📝 **Proposed**
+
+**Description:** Currently, the application relies on filename prefixes (`Quozen - ...`) to discover and sync groups. This leads to "ghost" groups (corrupted files) appearing in the dashboard and prevents users from renaming their files freely.
+
+We will transition to a **Metadata-First** architecture using Google Drive `properties`. We will strictly trust files stamped with Quozen metadata. To support legacy files or external imports, the Manual Import flow will perform deep structure validation and "bless" valid files by applying the missing metadata.
+
+**Success Metrics:**
+
+* **Error Reduction:** 0 reports of "Invalid Content" errors appearing in the Dashboard list (since invalid files won't be imported).  
+* **Discovery Accuracy:** 100% of valid Quozen groups are found via "Reconcile" regardless of their filename.  
+* **Migration Rate:** % of legacy groups successfully migrated (stamped) via the Manual Import flow.
+
+---
+
+## **2\. SCOPE & CONSTRAINTS (Extension)**
+
+**In-Scope:**
+
+* **Storage Layer:** Updating `GoogleDriveAdapter` to read/write custom file properties.  
+* **Creation:** Adding metadata stamp during `createGroupSheet`.  
+* **Reconciliation:** Updating the search query to filter by `properties`.  
+* **Import Logic:** Implementing a `validateAndStamp` routine for the Google Picker callback.  
+* **Join Logic:** Updating `joinGroup` to check metadata before writing member data.
+
+**Out-of-Scope:**
+
+* **Batch Migration:** We will not run a background script to migrate all files at once. Migration happens lazily via Manual Import or whenever a user interacts with a legacy file successfully.
+
+**Technical Dependencies:**
+
+* Google Drive API v3 `files.update` (for adding properties).  
+* Google Sheets API v4 (for validating structure).
+
+**Non-Functional Requirements:**
+
+* **Performance:** Metadata checks (`files.get`) are significantly faster than reading spreadsheet values (`spreadsheets.values.get`). This should improve the speed of the "Join" flow.  
+* **Visibility:** Properties must be set to `PUBLIC` visibility so that when User A shares a file with User B, User B's app instance can see the metadata.
+
+---
+
+## **3\. USER STORIES**
+
+### **US-201: Metadata Stamping on Creation**
+
+**Narrative:** As a System, I want to tag all newly created groups with specific metadata, So that they can be unambiguously identified as Quozen files regardless of their filename.
+
+**Acceptance Criteria:**
+
+* **Scenario 1 (Create Group):**  
+  * **When** `createGroupSheet` is called.  
+  * **Then** the Drive API creation request includes `properties: { 'quozen_type': 'group', 'version': '1.0' }`.  
+* **Scenario 2 (Verify):**  
+  * **When** I inspect the file via API.  
+  * **Then** the properties are visible.
+
+**Dev Notes:**
+
+* Use the `properties` field (not `appProperties`) to ensure visibility across different user accounts sharing the file.  
+* Key: `quozen_type`, Value: `group`.
+
+---
+
+### **US-202: Strict Reconciliation (Metadata Scan)**
+
+**Narrative:** As a User, I want the "Scan for missing groups" feature to only import valid Quozen groups, So that my dashboard isn't cluttered with corrupted or unrelated spreadsheets.
+
+**Acceptance Criteria:**
+
+* **Scenario 1 (Scanning):**  
+  * **Given** I have a file named "Quozen \- Random Excel" (invalid) and "My Budget" (Valid Quozen Group with metadata).  
+  * **When** I trigger "Reconcile Groups".  
+  * **Then** the system queries Drive for `properties has { key='quozen_type' and value='group' }` (and `trashed=false`).  
+  * **And** "My Budget" is added to the list.  
+  * **And** "Quozen \- Random Excel" is IGNORED completely.  
+* **Scenario 2 (Missing Settings Reconstruction):**  
+  * **Given** `quozen-settings.json` is missing.  
+  * **When** the app reconstructs the settings.  
+  * **Then** it uses the same metadata-based query.
+
+**Dev Notes:**
+
+* Update `src/lib/storage/google-drive-adapter.ts` method `listFiles`.  
+* New Query format: `properties has { key='quozen_type' and value='group' } and trashed = false`.  
+* Remove the `name contains 'Quozen - '` filter.
+
+---
+
+### **US-203: Manual Import & Validation (The "Blessing" Flow)**
+
+**Narrative:** As a User, I want to manually select a spreadsheet via the Google Picker, have it validated, and automatically fixed (tagged) if it's a valid Quozen group, So that I can restore access to older files or renamed files.
+
+**Acceptance Criteria:**
+
+* **Scenario 1 (Import Legacy/Unstamped File):**  
+  * **Given** I select a spreadsheet via Google Picker that has the correct tabs ("Expenses", "Members") but NO metadata.  
+  * **When** the app processes the selection.  
+  * **Then** it fetches the spreadsheet structure (sheet titles and header rows).  
+  * **If** structure matches the schema:  
+    * The app calls `files.update` to add `quozen_type: 'group'`.  
+    * The group is added to the user's settings cache.  
+    * Success toast: "Group imported and verified."  
+* **Scenario 2 (Import Invalid File):**  
+  * **Given** I select a random spreadsheet.  
+  * **When** the structure check fails (missing "Expenses" tab).  
+  * **Then** the app shows an error: "Invalid Quozen Group. Missing required sheets."  
+  * **And** NO metadata is added to the file.
+
+**Dev Notes:**
+
+* Modify `src/lib/storage/storage-service.ts`:  
+  * Create `validateAndStampGroup(fileId)` method.  
+  * Validation logic:  
+    1. Check if tabs `Expenses`, `Settlements`, `Members` exist.  
+    2. (Optional but recommended) Check if A1 cell on each matches expected headers.  
+  * If valid: call `adapter.addFileProperties(fileId, { quozen_type: 'group' })`.
+
+---
+
+### **US-204: Join via Link (Metadata Guard)**
+
+**Narrative:** As a User clicking an invite link, I want the system to quickly verify the file is a valid group before attempting to join, So that I get immediate feedback if the link is bad.
+
+**Acceptance Criteria:**
+
+* **Scenario 1 (Valid Join):**  
+  * **When** I visit `/join/:id`.  
+  * **Then** the app fetches file metadata first.  
+  * **If** property `quozen_type === 'group'` exists \-\> Proceed to add member logic.  
+* **Scenario 2 (Invalid Target):**  
+  * **When** I visit a link to a non-Quozen file.  
+  * **Then** the app sees missing metadata.  
+  * **And** halts execution with error: "This file is not a valid Quozen Group." (Does not attempt to write to the sheet).
+
+**Dev Notes:**
+
+* This prevents the app from accidentally writing "Member" rows into a random spreadsheet that a user might have pasted the ID for.
+
