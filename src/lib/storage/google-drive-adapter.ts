@@ -113,7 +113,8 @@ export class GoogleDriveAdapter implements IStorageAdapter {
 
     // --- File Operations ---
 
-    async createFile(name: string, sheetNames: string[]): Promise<string> {
+    async createFile(name: string, sheetNames: string[], properties?: Record<string, string>): Promise<string> {
+        // 1. Create Spreadsheet via Sheets API
         const createRes = await this.fetchWithAuth(SHEETS_API_URL, {
             method: "POST",
             body: JSON.stringify({
@@ -122,7 +123,14 @@ export class GoogleDriveAdapter implements IStorageAdapter {
             })
         });
         const sheetFile = await createRes.json();
-        return sheetFile.spreadsheetId;
+        const fileId = sheetFile.spreadsheetId;
+
+        // 2. Add properties via Drive API if provided (Sheets API create doesn't support 'properties' field directly on Drive file)
+        if (properties && fileId) {
+            await this.addFileProperties(fileId, properties);
+        }
+
+        return fileId;
     }
 
     async deleteFile(fileId: string): Promise<void> {
@@ -159,12 +167,11 @@ export class GoogleDriveAdapter implements IStorageAdapter {
             await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}/permissions`, {
                 method: "POST",
                 body: JSON.stringify({
-                    role: "writer", // Must be writer for expense sharing
+                    role: "writer",
                     type: "anyone"
                 })
             });
         } else {
-            // To set restricted, we must find the "anyone" permission and delete it
             const res = await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}/permissions`);
             const data = await res.json();
             const publicPerm = data.permissions?.find((p: any) => p.type === 'anyone');
@@ -185,23 +192,63 @@ export class GoogleDriveAdapter implements IStorageAdapter {
             return publicPerm ? 'public' : 'restricted';
         } catch (e) {
             console.error("Failed to get permissions", e);
-            return 'restricted'; // Default safe fallback
+            return 'restricted';
         }
     }
 
-    async listFiles(queryPrefix: string): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any }>> {
-        const query = `mimeType = 'application/vnd.google-apps.spreadsheet' and name contains '${queryPrefix}' and trashed = false`;
-        const fields = "files(id, name, createdTime, owners, capabilities)";
-        const response = await this.fetchWithAuth(`${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}`);
-        const data = await response.json();
-        return data.files || [];
+    async addFileProperties(fileId: string, properties: Record<string, string>): Promise<void> {
+        await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}`, {
+            method: "PATCH",
+            body: JSON.stringify({ properties })
+        });
     }
 
-    async getFileMeta(fileId: string): Promise<{ title: string; sheetNames: string[] }> {
-        const metaRes = await this.fetchWithAuth(`${SHEETS_API_URL}/${fileId}?fields=properties.title,sheets.properties.title`);
-        const meta = await metaRes.json();
-        const titles = meta.sheets?.map((s: any) => s.properties.title) || [];
-        return { title: meta.properties?.title || "", sheetNames: titles };
+    async listFiles(options: { nameContains?: string; properties?: Record<string, string> } = {}): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any, properties?: Record<string, string> }>> {
+        const clauses: string[] = ["mimeType = 'application/vnd.google-apps.spreadsheet'", "trashed = false"];
+
+        if (options.properties) {
+            Object.entries(options.properties).forEach(([key, value]) => {
+                clauses.push(`properties has { key='${key}' and value='${value}' }`);
+            });
+        }
+
+        // Only use name filter if properties not provided OR if strictly required
+        // The implementation strategy for US-202 is to rely on properties if available.
+        if (options.nameContains && !options.properties) {
+            clauses.push(`name contains '${options.nameContains}'`);
+        }
+
+        const query = clauses.join(" and ");
+        const fields = "files(id, name, createdTime, owners, capabilities, properties)";
+
+        try {
+            const response = await this.fetchWithAuth(`${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}`);
+            const data = await response.json();
+            return data.files || [];
+        } catch (e) {
+            console.error("List files error", e);
+            return [];
+        }
+    }
+
+    async getFileMeta(fileId: string): Promise<{ title: string; sheetNames: string[]; properties?: Record<string, string> }> {
+        // Fetch properties from Drive API
+        const driveResPromise = this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}?fields=name,properties`);
+        // Fetch sheets from Sheets API
+        const sheetsResPromise = this.fetchWithAuth(`${SHEETS_API_URL}/${fileId}?fields=properties.title,sheets.properties.title`);
+
+        const [driveRes, sheetsRes] = await Promise.all([driveResPromise, sheetsResPromise]);
+
+        const driveData = await driveRes.json();
+        const sheetsData = await sheetsRes.json();
+
+        const titles = sheetsData.sheets?.map((s: any) => s.properties.title) || [];
+
+        return {
+            title: driveData.name || sheetsData.properties?.title || "",
+            sheetNames: titles,
+            properties: driveData.properties
+        };
     }
 
     // --- Data Operations ---

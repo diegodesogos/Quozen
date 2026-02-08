@@ -9,10 +9,10 @@
 | **US-103** | Deep Link Route & Auth | ✅ **Completed** | Added `/join/:id` route, `JoinPage`, and login redirection handling. |
 | **US-104** | Join Logic | ✅ **Completed** | Implemented atomic `appendRow` for members and local settings sync. |
 | **US-105** | Post-Creation Prompt | ✅ **Completed** | `createGroupMutation` now triggers `ShareDialog` on success. |
-| **US-201** | Metadata Stamping on Creation | Not Started ||
-| **US-202** | Strict Reconciliation (Metadata Scan) |Not Started | |
-| **US-203** | Manual Import & Validation (The "Blessing" Flow) | Not Started | |
-| **US-204** | Join via Link (Metadata Guard) | Not Started  | |
+| **US-201** | Metadata Stamping on Creation | ✅ **Completed** | Groups created are now stamped with `quozen_type: 'group'`. |
+| **US-202** | Strict Reconciliation (Metadata Scan) | ✅ **Completed** | `reconcileGroups` now strictly filters by metadata properties. |
+| **US-203** | Manual Import & Validation (The "Blessing" Flow) | ✅ **Completed** | Import validates legacy files and stamps them if valid. |
+| **US-204** | Join via Link (Metadata Guard) | ✅ **Completed** | Join link checks metadata before attempting to write to sheet. |
 
 IMPORTANT: For all stories make sure i18n is used for all strings, add any new missing keys to the i18n files.
 
@@ -176,7 +176,7 @@ This Epic introduces a "Magic Link" sharing flow similar to Google Docs or Notio
 
 # **Epic Extension: Robust File Discovery & Validation**
 
-**Epic:** Data Integrity & Discovery Refactor **Status:** 📝 **Proposed**
+**Epic:** Data Integrity & Discovery Refactor **Status:** ✅ **Completed**
 
 **Description:** Currently, the application relies on filename prefixes (`Quozen - ...`) to discover and sync groups. This leads to "ghost" groups (corrupted files) appearing in the dashboard and prevents users from renaming their files freely.
 
@@ -224,11 +224,9 @@ We will transition to a **Metadata-First** architecture using Google Drive `prop
 
 **Acceptance Criteria:**
 
-* **Scenario 1 (Create Group):**  
-  * **When** `createGroupSheet` is called.  
+* **Scenario 1 (Create Group):** * **When** `createGroupSheet` is called.  
   * **Then** the Drive API creation request includes `properties: { 'quozen_type': 'group', 'version': '1.0' }`.  
-* **Scenario 2 (Verify):**  
-  * **When** I inspect the file via API.  
+* **Scenario 2 (Verify):** * **When** I inspect the file via API.  
   * **Then** the properties are visible.
 
 **Dev Notes:**
@@ -244,14 +242,12 @@ We will transition to a **Metadata-First** architecture using Google Drive `prop
 
 **Acceptance Criteria:**
 
-* **Scenario 1 (Scanning):**  
-  * **Given** I have a file named "Quozen \- Random Excel" (invalid) and "My Budget" (Valid Quozen Group with metadata).  
+* **Scenario 1 (Scanning):** * **Given** I have a file named "Quozen \- Random Excel" (invalid) and "My Budget" (Valid Quozen Group with metadata).  
   * **When** I trigger "Reconcile Groups".  
   * **Then** the system queries Drive for `properties has { key='quozen_type' and value='group' }` (and `trashed=false`).  
   * **And** "My Budget" is added to the list.  
   * **And** "Quozen \- Random Excel" is IGNORED completely.  
-* **Scenario 2 (Missing Settings Reconstruction):**  
-  * **Given** `quozen-settings.json` is missing.  
+* **Scenario 2 (Missing Settings Reconstruction):** * **Given** `quozen-settings.json` is missing.  
   * **When** the app reconstructs the settings.  
   * **Then** it uses the same metadata-based query.
 
@@ -269,16 +265,14 @@ We will transition to a **Metadata-First** architecture using Google Drive `prop
 
 **Acceptance Criteria:**
 
-* **Scenario 1 (Import Legacy/Unstamped File):**  
-  * **Given** I select a spreadsheet via Google Picker that has the correct tabs ("Expenses", "Members") but NO metadata.  
+* **Scenario 1 (Import Legacy/Unstamped File):** * **Given** I select a spreadsheet via Google Picker that has the correct tabs ("Expenses", "Members") but NO metadata.  
   * **When** the app processes the selection.  
   * **Then** it fetches the spreadsheet structure (sheet titles and header rows).  
   * **If** structure matches the schema:  
     * The app calls `files.update` to add `quozen_type: 'group'`.  
     * The group is added to the user's settings cache.  
     * Success toast: "Group imported and verified."  
-* **Scenario 2 (Import Invalid File):**  
-  * **Given** I select a random spreadsheet.  
+* **Scenario 2 (Import Invalid File):** * **Given** I select a random spreadsheet.  
   * **When** the structure check fails (missing "Expenses" tab).  
   * **Then** the app shows an error: "Invalid Quozen Group. Missing required sheets."  
   * **And** NO metadata is added to the file.
@@ -300,16 +294,13 @@ We will transition to a **Metadata-First** architecture using Google Drive `prop
 
 **Acceptance Criteria:**
 
-* **Scenario 1 (Valid Join):**  
-  * **When** I visit `/join/:id`.  
+* **Scenario 1 (Valid Join):** * **When** I visit `/join/:id`.  
   * **Then** the app fetches file metadata first.  
   * **If** property `quozen_type === 'group'` exists \-\> Proceed to add member logic.  
-* **Scenario 2 (Invalid Target):**  
-  * **When** I visit a link to a non-Quozen file.  
+* **Scenario 2 (Invalid Target):** * **When** I visit a link to a non-Quozen file.  
   * **Then** the app sees missing metadata.  
   * **And** halts execution with error: "This file is not a valid Quozen Group." (Does not attempt to write to the sheet).
 
 **Dev Notes:**
 
 * This prevents the app from accidentally writing "Member" rows into a random spreadsheet that a user might have pasted the ID for.
-

@@ -99,7 +99,9 @@
         "membersHint2": "Emails will receive a Google Drive share invite. Usernames are for tracking only.",
         "loadError": "Failed to load group details.",
         "createError": "Failed to create group.",
-        "deleteError": "Failed to delete group."
+        "deleteError": "Failed to delete group.",
+        "invalidGroup": "Invalid Group File",
+        "validationError": "The selected file is not a valid Quozen group or is missing required metadata."
     },
     "expenseForm": {
         "addTitle": "Add Expense",

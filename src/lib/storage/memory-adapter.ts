@@ -3,13 +3,14 @@ import { UserSettings, GroupData, SchemaType, Expense, Settlement, Member } from
 
 interface MockSheet {
     name: string;
+    sheetNames: string[]; // Added this field
     expenses: Expense[];
     settlements: Settlement[];
     members: Member[];
     createdTime: string;
     content?: any;
-    // New property for sharing test
     isPublic?: boolean;
+    properties?: Record<string, string>;
 }
 
 export class InMemoryAdapter implements IStorageAdapter {
@@ -33,12 +34,14 @@ export class InMemoryAdapter implements IStorageAdapter {
         }
         this.userSettings.set(userEmail, settings);
 
+        // Also save as a file for listFiles consistency if needed
         const settingsName = "quozen-settings.json";
         let existingId = Array.from(this.sheets.entries()).find(([_, s]) => s.name === settingsName)?.[0];
         if (!existingId) {
             existingId = "mock-settings-" + self.crypto.randomUUID();
             this.sheets.set(existingId, {
                 name: settingsName,
+                sheetNames: [],
                 expenses: [],
                 settlements: [],
                 members: [],
@@ -53,14 +56,16 @@ export class InMemoryAdapter implements IStorageAdapter {
 
     // --- File Operations ---
 
-    async createFile(name: string, sheetNames: string[]): Promise<string> {
+    async createFile(name: string, sheetNames: string[], properties?: Record<string, string>): Promise<string> {
         const id = "mock-sheet-" + self.crypto.randomUUID();
         this.sheets.set(id, {
             name,
+            sheetNames, // Store the sheet names
             expenses: [],
             settlements: [],
             members: [],
-            createdTime: new Date().toISOString()
+            createdTime: new Date().toISOString(),
+            properties: properties || {}
         });
         return id;
     }
@@ -90,47 +95,55 @@ export class InMemoryAdapter implements IStorageAdapter {
         return sheet?.isPublic ? 'public' : 'restricted';
     }
 
-    async listFiles(queryPrefix: string): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any }>> {
-        const files: any[] = [];
-        let nameFilter = "";
-        let exact = false;
-
-        const matchExact = queryPrefix.match(/name\s*=\s*'([^']+)'/);
-        const matchContains = queryPrefix.match(/name\s*contains\s*'([^']+)'/);
-
-        if (matchExact) {
-            nameFilter = matchExact[1];
-            exact = true;
-        } else if (matchContains) {
-            nameFilter = matchContains[1];
-        } else {
-            nameFilter = queryPrefix.replace("name contains '", "").replace("'", "");
+    async addFileProperties(fileId: string, properties: Record<string, string>): Promise<void> {
+        const sheet = this.sheets.get(fileId);
+        if (sheet) {
+            sheet.properties = { ...sheet.properties, ...properties };
         }
+    }
+
+    async listFiles(options: { nameContains?: string; properties?: Record<string, string> } = {}): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any, properties?: Record<string, string> }>> {
+        const files: any[] = [];
 
         for (const [id, sheet] of this.sheets.entries()) {
-            const matches = exact
-                ? sheet.name === nameFilter
-                : sheet.name.includes(nameFilter);
+            let match = true;
 
-            if (matches) {
+            if (options.properties) {
+                // strict match for all provided properties
+                for (const [key, value] of Object.entries(options.properties)) {
+                    if (sheet.properties?.[key] !== value) {
+                        match = false;
+                        break;
+                    }
+                }
+            } else if (options.nameContains) {
+                // fallback to name search
+                if (!sheet.name.includes(options.nameContains)) {
+                    match = false;
+                }
+            }
+
+            if (match) {
                 files.push({
                     id,
                     name: sheet.name,
                     createdTime: sheet.createdTime,
                     owners: [],
-                    capabilities: { canDelete: true }
+                    capabilities: { canDelete: true },
+                    properties: sheet.properties
                 });
             }
         }
         return files;
     }
 
-    async getFileMeta(fileId: string): Promise<{ title: string; sheetNames: string[] }> {
+    async getFileMeta(fileId: string): Promise<{ title: string; sheetNames: string[]; properties?: Record<string, string> }> {
         const sheet = this.sheets.get(fileId);
         if (!sheet) throw new Error("File not found");
         return {
             title: sheet.name,
-            sheetNames: ["Expenses", "Settlements", "Members"]
+            sheetNames: sheet.sheetNames, // Return actual stored sheets
+            properties: sheet.properties
         };
     }
 

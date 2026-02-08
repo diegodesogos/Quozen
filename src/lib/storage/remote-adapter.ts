@@ -41,10 +41,10 @@ export class RemoteMockAdapter implements IStorageAdapter {
 
     // --- File Operations ---
 
-    async createFile(name: string, sheetNames: string[]): Promise<string> {
+    async createFile(name: string, sheetNames: string[], properties?: Record<string, string>): Promise<string> {
         const res = await this.fetch(`/files`, {
             method: "POST",
-            body: JSON.stringify({ name, sheetNames })
+            body: JSON.stringify({ name, sheetNames, properties })
         });
         const data = await res.json();
         return data.id;
@@ -83,15 +83,24 @@ export class RemoteMockAdapter implements IStorageAdapter {
         return data.access;
     }
 
-    async listFiles(queryPrefix: string): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any }>> {
-        const res = await this.fetch(`/files?q=${encodeURIComponent(queryPrefix)}`);
+    async addFileProperties(fileId: string, properties: Record<string, string>): Promise<void> {
+        await this.fetch(`/files/${fileId}/properties`, {
+            method: "POST",
+            body: JSON.stringify({ properties })
+        });
+    }
+
+    async listFiles(options: { nameContains?: string; properties?: Record<string, string> } = {}): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any, properties?: Record<string, string> }>> {
+        // Encode options as JSON query param for simplicity in mock server
+        const q = JSON.stringify(options);
+        const res = await this.fetch(`/files?options=${encodeURIComponent(q)}`);
         const data = await res.json();
         return data.files || [];
     }
 
     // --- Content / Data ---
 
-    async getFileMeta(fileId: string): Promise<{ title: string; sheetNames: string[] }> {
+    async getFileMeta(fileId: string): Promise<{ title: string; sheetNames: string[]; properties?: Record<string, string> }> {
         const res = await this.fetch(`/files/${fileId}/meta`);
         return await res.json();
     }
@@ -99,7 +108,7 @@ export class RemoteMockAdapter implements IStorageAdapter {
     async readGroupData(fileId: string): Promise<GroupData | null> {
         const res = await this.fetch(`/files/${fileId}/data`);
         const data = await res.json();
-        return data.data || null; // API returns { data: ... } or null?
+        return data.data || null;
     }
 
     async initializeGroup(fileId: string, data: GroupData): Promise<void> {

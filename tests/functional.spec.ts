@@ -24,18 +24,22 @@ test.describe('Functional Flow', () => {
         // 3. Create a Group
         await page.getByRole('button', { name: 'New Group' }).click();
 
-        // Modal appears - Title changed to "Create Group" in i18n
-        // We use getByRole('heading') to avoid ambiguity with the "Create Group" submit button
+        // Modal appears
         await expect(page.getByRole('heading', { name: 'Create Group' })).toBeVisible();
 
         await page.getByLabel('Group Name').fill('Holiday Trip');
         await page.getByRole('button', { name: 'Create Group' }).click();
 
-        // Wait for modal to close (implies success)
+        // Wait for modal to close
         await expect(page.getByRole('heading', { name: 'Create Group' })).not.toBeVisible();
 
+        // **NEW: Handle Share Dialog**
+        const shareTitle = page.getByRole('heading', { name: /Share "Holiday Trip"/i });
+        await expect(shareTitle).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(shareTitle).not.toBeVisible(); // Ensure overlay is gone
+
         // 4. Verify Group Switch
-        // Note: In functional tests, we rely on the UI updates. The header should update.
         await expect(page.getByTestId('header').getByText('Holiday Trip')).toBeVisible();
 
         // 5. Add Expense
@@ -61,6 +65,13 @@ test.describe('Functional Flow', () => {
         await page.getByRole('button', { name: 'New Group' }).click();
         await page.getByLabel('Group Name').fill('Original Name');
         await page.getByRole('button', { name: 'Create Group' }).click();
+
+        // Handle Share Dialog
+        const shareTitle = page.getByRole('heading', { name: /Share "Original Name"/i });
+        await expect(shareTitle).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(shareTitle).not.toBeVisible(); // Ensure overlay is gone
+
         await expect(page.getByRole('heading', { name: 'Original Name', level: 3 })).toBeVisible();
 
         // Click Edit
@@ -86,6 +97,12 @@ test.describe('Functional Flow', () => {
         await page.getByLabel('Group Name').fill('Group To Delete');
         await page.getByRole('button', { name: 'Create Group' }).click();
 
+        // Handle Share Dialog
+        const shareTitle = page.getByRole('heading', { name: /Share "Group To Delete"/i });
+        await expect(shareTitle).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(shareTitle).not.toBeVisible(); // Ensure overlay is gone
+
         // Verify it exists
         const groupCard = page.locator('.rounded-lg', { hasText: 'Group To Delete' });
         await expect(groupCard).toBeVisible();
@@ -96,7 +113,6 @@ test.describe('Functional Flow', () => {
 
         // 3. Confirm Dialog
         await expect(page.getByText('Delete Group')).toBeVisible();
-        // Updated text expectation to match i18n key: "Are you sure you want to delete \"{{name}}\"?"
         await expect(page.getByText('Are you sure you want to delete "Group To Delete"?')).toBeVisible();
 
         await page.getByRole('button', { name: 'Delete' }).click();

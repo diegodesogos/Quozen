@@ -99,7 +99,9 @@
         "membersHint2": "Los correos recibirán una invitación de Google Drive. Los usuarios son solo para seguimiento.",
         "loadError": "Error al cargar detalles del grupo.",
         "createError": "Error al crear el grupo.",
-        "deleteError": "Error al eliminar el grupo."
+        "deleteError": "Error al eliminar el grupo.",
+        "invalidGroup": "Archivo Inválido",
+        "validationError": "El archivo seleccionado no es un grupo válido de Quozen o le faltan metadatos."
     },
     "expenseForm": {
         "addTitle": "Añadir Gasto",

@@ -200,10 +200,22 @@ export default function Groups() {
                         >
                           <Share2 className="w-3.5 h-3.5" />
                         </Button>
-                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={(e) => handleEditClick(e, group)}>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={(e) => handleEditClick(e, group)}
+                          title={t("common.edit")}
+                        >
                           <Pencil className="w-3.5 h-3.5" />
                         </Button>
-                        <Button variant="outline" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => handleDeleteClick(e, group)}>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={(e) => handleDeleteClick(e, group)}
+                          title={t("common.delete")}
+                        >
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       </>

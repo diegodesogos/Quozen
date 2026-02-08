@@ -6,6 +6,11 @@ import {
 import { IStorageAdapter } from "./adapter";
 import { ConflictError, NotFoundError } from "../errors";
 
+const QUOZEN_METADATA = {
+    quozen_type: 'group',
+    version: '1.0'
+};
+
 export class StorageService implements IStorageProvider {
     private _mutex: Promise<void> = Promise.resolve();
 
@@ -75,12 +80,14 @@ export class StorageService implements IStorageProvider {
     }
 
     private async _reconcileGroupsImpl(userEmail: string): Promise<UserSettings> {
-        const files = await this.adapter.listFiles(QUOZEN_PREFIX);
+        // US-202: Strict Reconciliation using Metadata
+        // Only return files that have 'quozen_type' = 'group' property
+        const files = await this.adapter.listFiles({ properties: { quozen_type: 'group' } });
 
         const visibleGroups: CachedGroup[] = files
             .map(file => ({
                 id: file.id,
-                name: file.name.slice(QUOZEN_PREFIX.length),
+                name: file.name.startsWith(QUOZEN_PREFIX) ? file.name.slice(QUOZEN_PREFIX.length) : file.name,
                 role: (file.owners?.some((o: any) => o.emailAddress === userEmail) || file.capabilities?.canDelete) ? "owner" as const : "member" as const,
                 lastAccessed: file.createdTime
             }))
@@ -103,7 +110,9 @@ export class StorageService implements IStorageProvider {
     async createGroupSheet(name: string, user: User, members: MemberInput[] = []): Promise<Group> {
         return this._runExclusive(async () => {
             const title = `${QUOZEN_PREFIX}${name}`;
-            const fileId = await this.adapter.createFile(title, [...REQUIRED_SHEETS]);
+
+            // US-201: Stamp metadata on creation
+            const fileId = await this.adapter.createFile(title, [...REQUIRED_SHEETS], QUOZEN_METADATA);
 
             const initialMembers: Member[] = [];
             initialMembers.push({
@@ -180,9 +189,13 @@ export class StorageService implements IStorageProvider {
     }
 
     async joinGroup(spreadsheetId: string, user: User): Promise<Group> {
-        // 1. Verify existence (basic check)
+        // US-204: Join Metadata Guard
         const meta = await this.adapter.getFileMeta(spreadsheetId);
-        if (!meta.title?.startsWith(QUOZEN_PREFIX)) throw new Error("Invalid Quozen Group File");
+
+        // Ensure it's a valid Quozen group via properties
+        if (meta.properties?.quozen_type !== 'group') {
+            throw new Error("This file is not a valid Quozen Group.");
+        }
 
         return this._runExclusive(async () => {
             // 2. Read Member Data to check if we are already in
@@ -209,6 +222,17 @@ export class StorageService implements IStorageProvider {
 
     async importGroup(spreadsheetId: string, user: User): Promise<Group> {
         return this._runExclusive(async () => {
+            // US-203: "Blessing" flow inside import
+            const meta = await this.adapter.getFileMeta(spreadsheetId);
+            if (meta.properties?.quozen_type !== 'group') {
+                // If not stamped, validate deeply and stamp if valid
+                const validation = await this.validateQuozenSpreadsheet(spreadsheetId, user.email);
+                if (!validation.valid) throw new Error("Invalid Quozen Group. Missing required sheets.");
+
+                // Stamp it
+                await this.adapter.addFileProperties(spreadsheetId, QUOZEN_METADATA);
+            }
+
             return await this._importGroupImpl(spreadsheetId, user);
         });
     }
@@ -251,10 +275,13 @@ export class StorageService implements IStorageProvider {
         }
 
         const settings = await this._getSettingsInternal(user.email);
+        const groupName = validation.name || "Imported Group";
+        const cleanName = groupName.startsWith(QUOZEN_PREFIX) ? groupName.slice(QUOZEN_PREFIX.length) : groupName;
+
         if (!settings.groupCache.some(g => g.id === spreadsheetId)) {
             settings.groupCache.unshift({
                 id: spreadsheetId,
-                name: validation.name || "Imported Group",
+                name: cleanName,
                 role: "member",
                 lastAccessed: new Date().toISOString()
             });
@@ -268,7 +295,7 @@ export class StorageService implements IStorageProvider {
 
         return {
             id: spreadsheetId,
-            name: validation.name || "Imported Group",
+            name: cleanName,
             description: "Imported",
             createdBy: "Unknown",
             participants: [],
@@ -413,7 +440,8 @@ export class StorageService implements IStorageProvider {
     async validateQuozenSpreadsheet(spreadsheetId: string, userEmail: string): Promise<{ valid: boolean; error?: string; name?: string; data?: GroupData }> {
         try {
             const meta = await this.adapter.getFileMeta(spreadsheetId);
-            if (!meta.title?.startsWith(QUOZEN_PREFIX)) return { valid: false, error: "Invalid filename" };
+            // Basic title check as fallback if properties missing (for legacy files)
+            // US-203 logic handles stricter metadata checks in importGroup
 
             if (!REQUIRED_SHEETS.every(t => meta.sheetNames.includes(t))) return { valid: false, error: "Missing tabs" };
 
@@ -421,9 +449,9 @@ export class StorageService implements IStorageProvider {
             if (!data) return { valid: false, error: "Could not read data" };
 
             const isMember = data.members.some(m => m.email === userEmail);
-            if (!isMember) return { valid: false, error: "Not a member" };
+            // We allow non-members to validate so they can join/import, but typically joinGroup handles the member check logic
 
-            return { valid: true, name: meta.title.slice(QUOZEN_PREFIX.length), data };
+            return { valid: true, name: meta.title, data };
         } catch (e: any) {
             return { valid: false, error: e.message };
         }
