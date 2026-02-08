@@ -12,6 +12,7 @@ import Groups from "@/pages/groups";
 import Profile from "@/pages/profile";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
+import JoinPage from "@/pages/join";
 import BottomNavigation from "@/components/bottom-navigation";
 import Header from "@/components/header";
 import { AppContext } from "@/context/app-context";
@@ -57,13 +58,11 @@ export function AuthenticatedApp() {
   const location = useLocation();
   const { t } = useTranslation();
 
-  // Use the new atomic updater
   const { settings, updateActiveGroup, isLoading: settingsLoading, error: settingsError } = useSettings();
   const { groups } = useGroups();
 
   const appLoading = authLoading || (isAuthenticated && settingsLoading);
 
-  // Safety Break: Handle 401 loop by forcing logout
   useEffect(() => {
     if (settingsError) {
       const errMsg = String(settingsError?.message || settingsError);
@@ -77,7 +76,6 @@ export function AuthenticatedApp() {
 
   const handleSetActiveGroupId = (groupId: string) => {
     setActiveGroupIdState(groupId);
-    // Use atomic update to prevent overwriting settings with stale data
     if (isAuthenticated) {
       updateActiveGroup(groupId);
     }
@@ -101,7 +99,10 @@ export function AuthenticatedApp() {
         if (groups.length > 0) {
           setActiveGroupIdState(groups[0].id);
         } else if (groups.length === 0) {
-          if (location.pathname !== '/groups') {
+          const allowedPaths = ['/groups', '/profile', '/join'];
+          const isAllowed = allowedPaths.some(path => location.pathname.startsWith(path));
+
+          if (!isAllowed) {
             navigate('/groups', { replace: true });
           }
         }
@@ -133,6 +134,8 @@ export function AuthenticatedApp() {
     <AppContext.Provider value={{ activeGroupId, setActiveGroupId: handleSetActiveGroupId, currentUserId: user?.id || "" }}>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/join/:id" element={<JoinPage />} />
+
         <Route
           path="/dashboard"
           element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>}

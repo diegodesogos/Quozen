@@ -1,4 +1,3 @@
-
 import { UserSettings, GroupData, SchemaType } from "./types";
 
 /**
@@ -25,6 +24,13 @@ export interface IStorageAdapter {
      * Shares file with email, returns display name if available.
      */
     shareFile(fileId: string, email: string, role: "writer" | "reader"): Promise<string | null>;
+
+    /**
+     * Sets general access permissions for the file.
+     * 'public' = Anyone with link can edit.
+     * 'restricted' = Only added users can access.
+     */
+    setFilePermissions(fileId: string, access: 'public' | 'restricted'): Promise<void>;
 
     /**
      * Generic search for files (used for reconciliation).

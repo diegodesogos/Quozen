@@ -1,4 +1,3 @@
-
 import { IStorageAdapter } from "./adapter";
 import { UserSettings, GroupData, SchemaType, SCHEMAS, SETTINGS_FILE_NAME, QUOZEN_PREFIX } from "./types";
 import { getAuthToken } from "../tokenStore";
@@ -9,7 +8,6 @@ const SHEETS_API_URL = "https://sheets.googleapis.com/v4/spreadsheets";
 
 export class GoogleDriveAdapter implements IStorageAdapter {
     // Map<UserEmail, FileId>
-    // We use a Map instead of single string to support fast user switching or concurrent usage scenarios (rare but possible).
     private settingsFileIdCache = new Map<string, string>();
     private sheetIdCache = new Map<string, number>();
 
@@ -51,7 +49,6 @@ export class GoogleDriveAdapter implements IStorageAdapter {
 
             if (listData.files && listData.files.length > 0) {
                 let fileToUse = listData.files[0];
-                // Deduplicate if multiple found
                 if (listData.files.length > 1) {
                     const sortedFiles = listData.files.sort((a: any, b: any) => {
                         const timeA = new Date(a.createdTime || 0).getTime();
@@ -64,12 +61,11 @@ export class GoogleDriveAdapter implements IStorageAdapter {
                     }
                 }
 
-                // Cache the ID for this user
                 this.settingsFileIdCache.set(userEmail, fileToUse.id);
                 const contentRes = await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileToUse.id}?alt=media`);
                 const settings = await contentRes.json();
 
-                if (!settings.version) return null; // Invalid or old format
+                if (!settings.version) return null;
                 return settings as UserSettings;
             } else {
                 return null;
@@ -87,7 +83,6 @@ export class GoogleDriveAdapter implements IStorageAdapter {
 
         let fileId = this.settingsFileIdCache.get(userEmail);
         if (!fileId) {
-            // Try to find it again just in case
             const query = `name = '${SETTINGS_FILE_NAME}' and trashed = false`;
             const listRes = await this.fetchWithAuth(`${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}`);
             const listData = await listRes.json();
@@ -159,6 +154,29 @@ export class GoogleDriveAdapter implements IStorageAdapter {
         }
     }
 
+    async setFilePermissions(fileId: string, access: 'public' | 'restricted'): Promise<void> {
+        if (access === 'public') {
+            await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}/permissions`, {
+                method: "POST",
+                body: JSON.stringify({
+                    role: "writer", // Must be writer for expense sharing
+                    type: "anyone"
+                })
+            });
+        } else {
+            // To set restricted, we must find the "anyone" permission and delete it
+            const res = await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}/permissions`);
+            const data = await res.json();
+            const publicPerm = data.permissions?.find((p: any) => p.type === 'anyone');
+
+            if (publicPerm) {
+                await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}/permissions/${publicPerm.id}`, {
+                    method: "DELETE"
+                });
+            }
+        }
+    }
+
     async listFiles(queryPrefix: string): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any }>> {
         const query = `mimeType = 'application/vnd.google-apps.spreadsheet' and name contains '${queryPrefix}' and trashed = false`;
         const fields = "files(id, name, createdTime, owners, capabilities)";
@@ -178,7 +196,6 @@ export class GoogleDriveAdapter implements IStorageAdapter {
 
     async readGroupData(fileId: string): Promise<GroupData | null> {
         if (!fileId) return null;
-        // Hardcoded dependency on SCHEMAS keys for ordering.
         const ranges = ["Expenses", "Settlements", "Members"].map(s => `${s}!A2:Z`).join('&ranges=');
         try {
             const res = await this.fetchWithAuth(`${SHEETS_API_URL}/${fileId}/values:batchGet?majorDimension=ROWS&ranges=${ranges}`);
@@ -200,13 +217,9 @@ export class GoogleDriveAdapter implements IStorageAdapter {
                 { range: "Expenses!A1", values: [SCHEMAS.Expenses] },
                 { range: "Settlements!A1", values: [SCHEMAS.Settlements] },
                 { range: "Members!A1", values: [SCHEMAS.Members] },
-                // We assume data provided is rows. But GroupData has Objects.
-                // We need to convert Objects to Rows.
                 { range: "Members!A2", values: data.members.map(m => this.serializeRow(m, "Members")) }
-                // Expenses and Settlements are initially empty usually, but if not:
             ]
         };
-        // Add expenses/settlements if present
         if (data.expenses.length > 0) {
             valuesBody.data.push({ range: "Expenses!A2", values: data.expenses.map(e => this.serializeRow(e, "Expenses")) });
         }

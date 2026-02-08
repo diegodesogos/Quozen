@@ -13,9 +13,6 @@ export class StorageService implements IStorageProvider {
         console.log("[StorageService] Initialized with adapter");
     }
 
-    /**
-     * Serializes operations to prevent race conditions within this client instance.
-     */
     private async _runExclusive<T>(task: () => Promise<T>): Promise<T> {
         const previousTask = this._mutex;
         let release: () => void;
@@ -41,7 +38,6 @@ export class StorageService implements IStorageProvider {
         return this._runExclusive(async () => {
             let settings = await this.adapter.loadSettings(userEmail);
             if (!settings) {
-                // Settings not found or empty, reconcile to create default
                 settings = await this._reconcileGroupsImpl(userEmail);
             }
             return settings;
@@ -54,7 +50,6 @@ export class StorageService implements IStorageProvider {
 
     async updateActiveGroup(userEmail: string, groupId: string): Promise<void> {
         return this._runExclusive(async () => {
-            // We reuse getSettings logic (which reconciles if needed)
             const settings = await this._getSettingsInternal(userEmail);
             if (settings.activeGroupId === groupId) return;
 
@@ -67,7 +62,6 @@ export class StorageService implements IStorageProvider {
         });
     }
 
-    // Internal helper to avoid deadlock if calling public getSettings from within exclusive block
     private async _getSettingsInternal(userEmail: string): Promise<UserSettings> {
         let settings = await this.adapter.loadSettings(userEmail);
         if (!settings) {
@@ -87,7 +81,6 @@ export class StorageService implements IStorageProvider {
             .map(file => ({
                 id: file.id,
                 name: file.name.slice(QUOZEN_PREFIX.length),
-                // owner check is rough heuristic
                 role: (file.owners?.some((o: any) => o.emailAddress === userEmail) || file.capabilities?.canDelete) ? "owner" as const : "member" as const,
                 lastAccessed: file.createdTime
             }))
@@ -113,9 +106,8 @@ export class StorageService implements IStorageProvider {
             const fileId = await this.adapter.createFile(title, [...REQUIRED_SHEETS]);
 
             const initialMembers: Member[] = [];
-            // Add Owner
             initialMembers.push({
-                userId: user.id || "unknown", // Drive provider used user.id
+                userId: user.id || "unknown",
                 email: user.email,
                 name: user.name,
                 role: "owner",
@@ -123,7 +115,6 @@ export class StorageService implements IStorageProvider {
                 _rowIndex: 2
             });
 
-            // Add Members & Share
             for (const member of members) {
                 let memberName = member.username || member.email || "Unknown";
                 let memberId = member.email || member.username || `user-${self.crypto.randomUUID()}`;
@@ -180,12 +171,51 @@ export class StorageService implements IStorageProvider {
         });
     }
 
+    async setGroupPermissions(groupId: string, access: 'public' | 'restricted'): Promise<void> {
+        await this.adapter.setFilePermissions(groupId, access);
+    }
+
+    async joinGroup(spreadsheetId: string, user: User): Promise<Group> {
+        // 1. Verify existence (basic check)
+        const meta = await this.adapter.getFileMeta(spreadsheetId);
+        if (!meta.title?.startsWith(QUOZEN_PREFIX)) throw new Error("Invalid Quozen Group File");
+
+        return this._runExclusive(async () => {
+            // 2. Read Member Data to check if we are already in
+            const data = await this.adapter.readGroupData(spreadsheetId);
+            if (!data) throw new Error("Could not read group data");
+
+            const existingMember = data.members.find(m => m.userId === user.id || m.email === user.email);
+
+            if (!existingMember) {
+                // 3. Add to Members sheet
+                await this.adapter.appendRow(spreadsheetId, "Members", {
+                    userId: user.id,
+                    email: user.email,
+                    name: user.name,
+                    role: "member",
+                    joinedAt: new Date().toISOString()
+                });
+            }
+
+            // 4. Run standard Import/Sync to update local settings
+            return await this.importGroup(spreadsheetId, user);
+        });
+    }
+
     async importGroup(spreadsheetId: string, user: User): Promise<Group> {
+        // Validation in importGroup is tricky because joinGroup calls it *after* adding permission?
+        // Actually, joinGroup adds the row.
+        // We can skip deep validation here or rely on readGroupData inside.
+        // The Spec says `importGroup` uses validateQuozenSpreadsheet.
+
+        // However, `validateQuozenSpreadsheet` enforces email membership.
+        // If `joinGroup` just added the row, `validate` should pass.
+
         const validation = await this.validateQuozenSpreadsheet(spreadsheetId, user.email);
         if (!validation.valid) throw new Error(validation.error || "Invalid group file");
 
         return this._runExclusive(async () => {
-            // Migration Logic
             try {
                 const currentGoogleId = user.id;
                 const currentDisplayName = user.name;
@@ -216,7 +246,6 @@ export class StorageService implements IStorageProvider {
                 console.error("Migration check failed", e);
             }
 
-            // Update Settings
             const settings = await this._getSettingsInternal(user.email);
             if (!settings.groupCache.some(g => g.id === spreadsheetId)) {
                 settings.groupCache.unshift({
@@ -225,6 +254,10 @@ export class StorageService implements IStorageProvider {
                     role: "member",
                     lastAccessed: new Date().toISOString()
                 });
+                settings.activeGroupId = spreadsheetId;
+                await this.adapter.saveSettings(user.email, settings);
+            } else {
+                // If already in cache, just set active
                 settings.activeGroupId = spreadsheetId;
                 await this.adapter.saveSettings(user.email, settings);
             }
@@ -242,7 +275,6 @@ export class StorageService implements IStorageProvider {
     }
 
     private async _migrateMemberExpensesAndSettlements(spreadsheetId: string, oldId: string, newId: string, groupData: GroupData): Promise<void> {
-        // Logic copied from GoogleDriveProvider
         const expensesToUpdate = groupData.expenses.filter(e =>
             e.paidBy === oldId || (e.splits && e.splits.some((s: any) => s.userId === oldId))
         );
@@ -274,11 +306,9 @@ export class StorageService implements IStorageProvider {
     }
 
     async updateGroup(groupId: string, name: string, members: MemberInput[], userEmail: string): Promise<void> {
-        // Rename file if needed (Storage) -> We can do this first.
         const newTitle = `${QUOZEN_PREFIX}${name}`;
         await this.adapter.renameFile(groupId, newTitle);
 
-        // Member Logic
         const groupData = await this.adapter.readGroupData(groupId);
         if (groupData) {
             const currentMembers = groupData.members;
@@ -298,8 +328,6 @@ export class StorageService implements IStorageProvider {
                         memberId = desired.email;
                     }
 
-                    // We need to add row. Row schema "Members".
-                    // We need joinedAt.
                     await this.adapter.appendRow(groupId, "Members", {
                         userId: memberId,
                         email: desired.email || "",
@@ -311,9 +339,7 @@ export class StorageService implements IStorageProvider {
                 }
             }
 
-            // Delete removed members
             const membersToDelete = currentMembers.filter(m => !processedIds.has(m.userId) && m.role !== 'owner');
-            // Sort by rowIndex descending to avoid index shifting problems
             membersToDelete.sort((a, b) => (b._rowIndex || 0) - (a._rowIndex || 0));
 
             for (const m of membersToDelete) {
@@ -321,7 +347,6 @@ export class StorageService implements IStorageProvider {
             }
         }
 
-        // Update Settings Cache
         await this._runExclusive(async () => {
             const settings = await this._getSettingsInternal(userEmail);
             const cachedGroup = settings.groupCache.find(g => g.id === groupId);
