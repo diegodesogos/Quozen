@@ -14,6 +14,7 @@
 | **US-203** | Manual Import & Validation (The "Blessing" Flow) | Not Started | |
 | **US-204** | Join via Link (Metadata Guard) | Not Started  | |
 
+IMPORTANT: For all stories make sure i18n is used for all strings, add any new missing keys to the i18n files.
 
 ---
 
