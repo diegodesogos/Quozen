@@ -202,72 +202,79 @@ export class StorageService implements IStorageProvider {
                 });
             }
 
-            // 4. Run standard Import/Sync to update local settings
-            return await this.importGroup(spreadsheetId, user);
+            // 4. Run standard Import/Sync logic (INTERNAL CALL to avoid Deadlock)
+            return await this._importGroupImpl(spreadsheetId, user);
         });
     }
 
     async importGroup(spreadsheetId: string, user: User): Promise<Group> {
+        return this._runExclusive(async () => {
+            return await this._importGroupImpl(spreadsheetId, user);
+        });
+    }
+
+    /**
+     * Internal implementation of importGroup that assumes the caller holds the mutex.
+     */
+    private async _importGroupImpl(spreadsheetId: string, user: User): Promise<Group> {
         const validation = await this.validateQuozenSpreadsheet(spreadsheetId, user.email);
         if (!validation.valid) throw new Error(validation.error || "Invalid group file");
 
-        return this._runExclusive(async () => {
-            try {
-                const currentGoogleId = user.id;
-                const currentDisplayName = user.name;
+        try {
+            const currentGoogleId = user.id;
+            const currentDisplayName = user.name;
 
-                if (currentGoogleId && validation.data) {
-                    const memberToUpdate = validation.data.members.find(m => m.email === user.email);
-                    if (memberToUpdate) {
-                        const needsNameUpdate = currentDisplayName && memberToUpdate.name !== currentDisplayName;
-                        const needsIdMigration = memberToUpdate.userId !== currentGoogleId;
+            if (currentGoogleId && validation.data) {
+                const memberToUpdate = validation.data.members.find(m => m.email === user.email);
+                if (memberToUpdate) {
+                    const needsNameUpdate = currentDisplayName && memberToUpdate.name !== currentDisplayName;
+                    const needsIdMigration = memberToUpdate.userId !== currentGoogleId;
 
-                        if (needsNameUpdate || needsIdMigration) {
-                            const updatedMember = {
-                                ...memberToUpdate,
-                                userId: needsIdMigration ? currentGoogleId : memberToUpdate.userId,
-                                name: needsNameUpdate ? currentDisplayName : memberToUpdate.name
-                            };
-                            if (memberToUpdate._rowIndex) {
-                                await this.adapter.updateRow(spreadsheetId, "Members", memberToUpdate._rowIndex, updatedMember);
-                            }
-                        }
-
-                        if (needsIdMigration) {
-                            await this._migrateMemberExpensesAndSettlements(spreadsheetId, memberToUpdate.userId, currentGoogleId, validation.data);
+                    if (needsNameUpdate || needsIdMigration) {
+                        const updatedMember = {
+                            ...memberToUpdate,
+                            userId: needsIdMigration ? currentGoogleId : memberToUpdate.userId,
+                            name: needsNameUpdate ? currentDisplayName : memberToUpdate.name
+                        };
+                        if (memberToUpdate._rowIndex) {
+                            await this.adapter.updateRow(spreadsheetId, "Members", memberToUpdate._rowIndex, updatedMember);
                         }
                     }
+
+                    if (needsIdMigration) {
+                        await this._migrateMemberExpensesAndSettlements(spreadsheetId, memberToUpdate.userId, currentGoogleId, validation.data);
+                    }
                 }
-            } catch (e) {
-                console.error("Migration check failed", e);
             }
+        } catch (e) {
+            console.error("Migration check failed", e);
+        }
 
-            const settings = await this._getSettingsInternal(user.email);
-            if (!settings.groupCache.some(g => g.id === spreadsheetId)) {
-                settings.groupCache.unshift({
-                    id: spreadsheetId,
-                    name: validation.name || "Imported Group",
-                    role: "member",
-                    lastAccessed: new Date().toISOString()
-                });
-                settings.activeGroupId = spreadsheetId;
-                await this.adapter.saveSettings(user.email, settings);
-            } else {
-                // If already in cache, just set active
-                settings.activeGroupId = spreadsheetId;
-                await this.adapter.saveSettings(user.email, settings);
-            }
-
-            return {
+        const settings = await this._getSettingsInternal(user.email);
+        if (!settings.groupCache.some(g => g.id === spreadsheetId)) {
+            settings.groupCache.unshift({
                 id: spreadsheetId,
                 name: validation.name || "Imported Group",
-                description: "Imported",
-                createdBy: "Unknown",
-                participants: [],
-                createdAt: new Date().toISOString(),
-                isOwner: false
-            };
-        });
+                role: "member",
+                lastAccessed: new Date().toISOString()
+            });
+            settings.activeGroupId = spreadsheetId;
+            await this.adapter.saveSettings(user.email, settings);
+        } else {
+            // If already in cache, just set active
+            settings.activeGroupId = spreadsheetId;
+            await this.adapter.saveSettings(user.email, settings);
+        }
+
+        return {
+            id: spreadsheetId,
+            name: validation.name || "Imported Group",
+            description: "Imported",
+            createdBy: "Unknown",
+            participants: [],
+            createdAt: new Date().toISOString(),
+            isOwner: false
+        };
     }
 
     private async _migrateMemberExpensesAndSettlements(spreadsheetId: string, oldId: string, newId: string, groupData: GroupData): Promise<void> {
