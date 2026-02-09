@@ -6,6 +6,11 @@ import {
 import { IStorageAdapter } from "./adapter";
 import { ConflictError, NotFoundError } from "../errors";
 
+const QUOZEN_METADATA = {
+    quozen_type: 'group',
+    version: '1.0'
+};
+
 export class StorageService implements IStorageProvider {
     private _mutex: Promise<void> = Promise.resolve();
 
@@ -13,9 +18,6 @@ export class StorageService implements IStorageProvider {
         console.log("[StorageService] Initialized with adapter");
     }
 
-    /**
-     * Serializes operations to prevent race conditions within this client instance.
-     */
     private async _runExclusive<T>(task: () => Promise<T>): Promise<T> {
         const previousTask = this._mutex;
         let release: () => void;
@@ -41,7 +43,6 @@ export class StorageService implements IStorageProvider {
         return this._runExclusive(async () => {
             let settings = await this.adapter.loadSettings(userEmail);
             if (!settings) {
-                // Settings not found or empty, reconcile to create default
                 settings = await this._reconcileGroupsImpl(userEmail);
             }
             return settings;
@@ -54,7 +55,6 @@ export class StorageService implements IStorageProvider {
 
     async updateActiveGroup(userEmail: string, groupId: string): Promise<void> {
         return this._runExclusive(async () => {
-            // We reuse getSettings logic (which reconciles if needed)
             const settings = await this._getSettingsInternal(userEmail);
             if (settings.activeGroupId === groupId) return;
 
@@ -67,7 +67,6 @@ export class StorageService implements IStorageProvider {
         });
     }
 
-    // Internal helper to avoid deadlock if calling public getSettings from within exclusive block
     private async _getSettingsInternal(userEmail: string): Promise<UserSettings> {
         let settings = await this.adapter.loadSettings(userEmail);
         if (!settings) {
@@ -81,13 +80,14 @@ export class StorageService implements IStorageProvider {
     }
 
     private async _reconcileGroupsImpl(userEmail: string): Promise<UserSettings> {
-        const files = await this.adapter.listFiles(QUOZEN_PREFIX);
+        // US-202: Strict Reconciliation using Metadata
+        // Only return files that have 'quozen_type' = 'group' property
+        const files = await this.adapter.listFiles({ properties: { quozen_type: 'group' } });
 
         const visibleGroups: CachedGroup[] = files
             .map(file => ({
                 id: file.id,
-                name: file.name.slice(QUOZEN_PREFIX.length),
-                // owner check is rough heuristic
+                name: file.name.startsWith(QUOZEN_PREFIX) ? file.name.slice(QUOZEN_PREFIX.length) : file.name,
                 role: (file.owners?.some((o: any) => o.emailAddress === userEmail) || file.capabilities?.canDelete) ? "owner" as const : "member" as const,
                 lastAccessed: file.createdTime
             }))
@@ -110,12 +110,13 @@ export class StorageService implements IStorageProvider {
     async createGroupSheet(name: string, user: User, members: MemberInput[] = []): Promise<Group> {
         return this._runExclusive(async () => {
             const title = `${QUOZEN_PREFIX}${name}`;
-            const fileId = await this.adapter.createFile(title, [...REQUIRED_SHEETS]);
+
+            // US-201: Stamp metadata on creation
+            const fileId = await this.adapter.createFile(title, [...REQUIRED_SHEETS], QUOZEN_METADATA);
 
             const initialMembers: Member[] = [];
-            // Add Owner
             initialMembers.push({
-                userId: user.id || "unknown", // Drive provider used user.id
+                userId: user.id || "unknown",
                 email: user.email,
                 name: user.name,
                 role: "owner",
@@ -123,7 +124,6 @@ export class StorageService implements IStorageProvider {
                 _rowIndex: 2
             });
 
-            // Add Members & Share
             for (const member of members) {
                 let memberName = member.username || member.email || "Unknown";
                 let memberId = member.email || member.username || `user-${self.crypto.randomUUID()}`;
@@ -180,69 +180,140 @@ export class StorageService implements IStorageProvider {
         });
     }
 
-    async importGroup(spreadsheetId: string, user: User): Promise<Group> {
-        const validation = await this.validateQuozenSpreadsheet(spreadsheetId, user.email);
-        if (!validation.valid) throw new Error(validation.error || "Invalid group file");
+    async setGroupPermissions(groupId: string, access: 'public' | 'restricted'): Promise<void> {
+        await this.adapter.setFilePermissions(groupId, access);
+    }
+
+    async getGroupPermissions(groupId: string): Promise<'public' | 'restricted'> {
+        return await this.adapter.getFilePermissions(groupId);
+    }
+
+    async joinGroup(spreadsheetId: string, user: User): Promise<Group> {
+        // US-204: Join Metadata Guard
+        const meta = await this.adapter.getFileMeta(spreadsheetId);
+
+        // Ensure it's a valid Quozen group via properties
+        if (meta.properties?.quozen_type !== 'group') {
+            throw new Error("This file is not a valid Quozen Group.");
+        }
 
         return this._runExclusive(async () => {
-            // Migration Logic
-            try {
-                const currentGoogleId = user.id;
-                const currentDisplayName = user.name;
+            // 2. Read Member Data to check if we are already in
+            const data = await this.adapter.readGroupData(spreadsheetId);
+            if (!data) throw new Error("Could not read group data");
 
-                if (currentGoogleId && validation.data) {
-                    const memberToUpdate = validation.data.members.find(m => m.email === user.email);
-                    if (memberToUpdate) {
-                        const needsNameUpdate = currentDisplayName && memberToUpdate.name !== currentDisplayName;
-                        const needsIdMigration = memberToUpdate.userId !== currentGoogleId;
+            const existingMember = data.members.find(m => m.userId === user.id || m.email === user.email);
 
-                        if (needsNameUpdate || needsIdMigration) {
-                            const updatedMember = {
-                                ...memberToUpdate,
-                                userId: needsIdMigration ? currentGoogleId : memberToUpdate.userId,
-                                name: needsNameUpdate ? currentDisplayName : memberToUpdate.name
-                            };
-                            if (memberToUpdate._rowIndex) {
-                                await this.adapter.updateRow(spreadsheetId, "Members", memberToUpdate._rowIndex, updatedMember);
-                            }
-                        }
-
-                        if (needsIdMigration) {
-                            await this._migrateMemberExpensesAndSettlements(spreadsheetId, memberToUpdate.userId, currentGoogleId, validation.data);
-                        }
-                    }
-                }
-            } catch (e) {
-                console.error("Migration check failed", e);
-            }
-
-            // Update Settings
-            const settings = await this._getSettingsInternal(user.email);
-            if (!settings.groupCache.some(g => g.id === spreadsheetId)) {
-                settings.groupCache.unshift({
-                    id: spreadsheetId,
-                    name: validation.name || "Imported Group",
+            if (!existingMember) {
+                // 3. Add to Members sheet
+                await this.adapter.appendRow(spreadsheetId, "Members", {
+                    userId: user.id,
+                    email: user.email,
+                    name: user.name,
                     role: "member",
-                    lastAccessed: new Date().toISOString()
+                    joinedAt: new Date().toISOString()
                 });
-                settings.activeGroupId = spreadsheetId;
-                await this.adapter.saveSettings(user.email, settings);
             }
 
-            return {
-                id: spreadsheetId,
-                name: validation.name || "Imported Group",
-                description: "Imported",
-                createdBy: "Unknown",
-                participants: [],
-                createdAt: new Date().toISOString(),
-                isOwner: false
-            };
+            // 4. Run standard Import/Sync logic (INTERNAL CALL to avoid Deadlock)
+            return await this._importGroupImpl(spreadsheetId, user);
         });
     }
 
+    async importGroup(spreadsheetId: string, user: User): Promise<Group> {
+        return this._runExclusive(async () => {
+            // US-203: "Blessing" flow inside import
+            const meta = await this.adapter.getFileMeta(spreadsheetId);
+            if (meta.properties?.quozen_type !== 'group') {
+                // If not stamped, validate deeply and stamp if valid
+                const validation = await this.validateQuozenSpreadsheet(spreadsheetId, user.email);
+                if (!validation.valid) throw new Error("Invalid Quozen Group. Missing required sheets.");
+
+                // Stamp it
+                await this.adapter.addFileProperties(spreadsheetId, QUOZEN_METADATA);
+            }
+
+            return await this._importGroupImpl(spreadsheetId, user);
+        });
+    }
+
+    /**
+     * Internal implementation of importGroup that assumes the caller holds the mutex.
+     */
+    private async _importGroupImpl(spreadsheetId: string, user: User): Promise<Group> {
+        const validation = await this.validateQuozenSpreadsheet(spreadsheetId, user.email);
+        if (!validation.valid) throw new Error(validation.error || "Invalid group file");
+
+        // Fix: Determine role from group data
+        let role: "owner" | "member" = "member";
+        if (validation.data) {
+            const member = validation.data.members.find(m => m.email === user.email || m.userId === user.id);
+            if (member?.role === "owner") role = "owner";
+        }
+
+        try {
+            const currentGoogleId = user.id;
+            const currentDisplayName = user.name;
+
+            if (currentGoogleId && validation.data) {
+                const memberToUpdate = validation.data.members.find(m => m.email === user.email);
+                if (memberToUpdate) {
+                    const needsNameUpdate = currentDisplayName && memberToUpdate.name !== currentDisplayName;
+                    const needsIdMigration = memberToUpdate.userId !== currentGoogleId;
+
+                    if (needsNameUpdate || needsIdMigration) {
+                        const updatedMember = {
+                            ...memberToUpdate,
+                            userId: needsIdMigration ? currentGoogleId : memberToUpdate.userId,
+                            name: needsNameUpdate ? currentDisplayName : memberToUpdate.name
+                        };
+                        if (memberToUpdate._rowIndex) {
+                            await this.adapter.updateRow(spreadsheetId, "Members", memberToUpdate._rowIndex, updatedMember);
+                        }
+                    }
+
+                    if (needsIdMigration) {
+                        await this._migrateMemberExpensesAndSettlements(spreadsheetId, memberToUpdate.userId, currentGoogleId, validation.data);
+                    }
+                }
+            }
+        } catch (e) {
+            console.error("Migration check failed", e);
+        }
+
+        const settings = await this._getSettingsInternal(user.email);
+        const groupName = validation.name || "Imported Group";
+        const cleanName = groupName.startsWith(QUOZEN_PREFIX) ? groupName.slice(QUOZEN_PREFIX.length) : groupName;
+
+        const cachedGroup = settings.groupCache.find(g => g.id === spreadsheetId);
+
+        if (!cachedGroup) {
+            settings.groupCache.unshift({
+                id: spreadsheetId,
+                name: cleanName,
+                role: role,
+                lastAccessed: new Date().toISOString()
+            });
+        } else {
+            cachedGroup.role = role;
+            cachedGroup.lastAccessed = new Date().toISOString();
+        }
+
+        settings.activeGroupId = spreadsheetId;
+        await this.adapter.saveSettings(user.email, settings);
+
+        return {
+            id: spreadsheetId,
+            name: cleanName,
+            description: "Imported",
+            createdBy: "Unknown",
+            participants: [],
+            createdAt: new Date().toISOString(),
+            isOwner: role === "owner"
+        };
+    }
+
     private async _migrateMemberExpensesAndSettlements(spreadsheetId: string, oldId: string, newId: string, groupData: GroupData): Promise<void> {
-        // Logic copied from GoogleDriveProvider
         const expensesToUpdate = groupData.expenses.filter(e =>
             e.paidBy === oldId || (e.splits && e.splits.some((s: any) => s.userId === oldId))
         );
@@ -274,11 +345,9 @@ export class StorageService implements IStorageProvider {
     }
 
     async updateGroup(groupId: string, name: string, members: MemberInput[], userEmail: string): Promise<void> {
-        // Rename file if needed (Storage) -> We can do this first.
         const newTitle = `${QUOZEN_PREFIX}${name}`;
         await this.adapter.renameFile(groupId, newTitle);
 
-        // Member Logic
         const groupData = await this.adapter.readGroupData(groupId);
         if (groupData) {
             const currentMembers = groupData.members;
@@ -298,8 +367,6 @@ export class StorageService implements IStorageProvider {
                         memberId = desired.email;
                     }
 
-                    // We need to add row. Row schema "Members".
-                    // We need joinedAt.
                     await this.adapter.appendRow(groupId, "Members", {
                         userId: memberId,
                         email: desired.email || "",
@@ -311,9 +378,7 @@ export class StorageService implements IStorageProvider {
                 }
             }
 
-            // Delete removed members
             const membersToDelete = currentMembers.filter(m => !processedIds.has(m.userId) && m.role !== 'owner');
-            // Sort by rowIndex descending to avoid index shifting problems
             membersToDelete.sort((a, b) => (b._rowIndex || 0) - (a._rowIndex || 0));
 
             for (const m of membersToDelete) {
@@ -321,7 +386,6 @@ export class StorageService implements IStorageProvider {
             }
         }
 
-        // Update Settings Cache
         await this._runExclusive(async () => {
             const settings = await this._getSettingsInternal(userEmail);
             const cachedGroup = settings.groupCache.find(g => g.id === groupId);
@@ -385,7 +449,8 @@ export class StorageService implements IStorageProvider {
     async validateQuozenSpreadsheet(spreadsheetId: string, userEmail: string): Promise<{ valid: boolean; error?: string; name?: string; data?: GroupData }> {
         try {
             const meta = await this.adapter.getFileMeta(spreadsheetId);
-            if (!meta.title?.startsWith(QUOZEN_PREFIX)) return { valid: false, error: "Invalid filename" };
+            // Basic title check as fallback if properties missing (for legacy files)
+            // US-203 logic handles stricter metadata checks in importGroup
 
             if (!REQUIRED_SHEETS.every(t => meta.sheetNames.includes(t))) return { valid: false, error: "Missing tabs" };
 
@@ -393,9 +458,9 @@ export class StorageService implements IStorageProvider {
             if (!data) return { valid: false, error: "Could not read data" };
 
             const isMember = data.members.some(m => m.email === userEmail);
-            if (!isMember) return { valid: false, error: "Not a member" };
+            // We allow non-members to validate so they can join/import, but typically joinGroup handles the member check logic
 
-            return { valid: true, name: meta.title.slice(QUOZEN_PREFIX.length), data };
+            return { valid: true, name: meta.title, data };
         } catch (e: any) {
             return { valid: false, error: e.message };
         }

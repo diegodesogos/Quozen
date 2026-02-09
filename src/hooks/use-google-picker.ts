@@ -7,9 +7,10 @@ const APP_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID?.split("-")[0]; // Project 
 interface UseGooglePickerProps {
     onPick: (doc: google.picker.PickerDocument) => void;
     onCancel?: () => void;
+    query?: string;
 }
 
-export function useGooglePicker({ onPick, onCancel }: UseGooglePickerProps) {
+export function useGooglePicker({ onPick, onCancel, query }: UseGooglePickerProps) {
     const { token } = useAuth();
     const [isLoaded, setIsLoaded] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -70,6 +71,10 @@ export function useGooglePicker({ onPick, onCancel }: UseGooglePickerProps) {
             .setIncludeFolders(true)
             .setSelectFolderEnabled(false);
 
+        if (query) {
+            view.setQuery(query);
+        }
+
         const picker = new google.picker.PickerBuilder()
             .setAppId(APP_ID)
             .setOAuthToken(token)
@@ -85,7 +90,7 @@ export function useGooglePicker({ onPick, onCancel }: UseGooglePickerProps) {
             .build();
 
         picker.setVisible(true);
-    }, [isLoaded, token, onPick, onCancel, loadPickerApi]);
+    }, [isLoaded, token, onPick, onCancel, loadPickerApi, query]);
 
     return { openPicker, isLoaded, error };
 }

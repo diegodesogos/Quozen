@@ -140,28 +140,12 @@ export async function deleteFile(request: APIRequestContext, token: string, file
 
 export async function createEmptySettingsFile(request: APIRequestContext, token: string) {
     if (isMockMode) {
+        // In Mock mode, create a FILE that matches the settings name.
+        // The App's reconciliation logic will find this file via listFiles.
         const res = await apiRequest(request, 'POST', `${MOCK_API_BASE}/files`, token, {
             name: SETTINGS_FILE_NAME,
-            sheetNames: [] // Settings is just a JSON file in drive, but our Mock treats everything as "Files". 
-            // Wait, RemoteMockAdapter implementation of saveSettings uses /settings endpoint or /files?
+            sheetNames: []
         });
-        // Wait, createEmptySettingsFile in reproduce_issues.spec.ts creates a file with mimeType application/json.
-        // My Mock Adapter "createFile" creates a "Sheet" mock.
-        // But saveSettings in RemoteMockAdapter uses /settings endpoint.
-
-        // If the APP uses saveSettings, it hits /settings.
-        // But this test setup helper creates a file manually to test "Concurrent Initialization".
-        // The app initialization likely checks if file exists.
-
-        // Logic:
-        // App `loadSettings` calls `listFiles` (GET /files).
-        // If found, it reads it.
-        // If not found, it creates it.
-
-        // So for the test "App should handle empty settings file", we need to create a file that `listFiles` finds.
-        // Mock Adapter `listFiles` returns items from `this.sheets`.
-        // So we must create a "Sheet" (File) in the mock adapter that matches the name.
-
         const data = await res.json();
         return data.id;
     } else {
@@ -178,80 +162,39 @@ export async function createEmptySettingsFile(request: APIRequestContext, token:
 export async function createDummyGroup(request: APIRequestContext, token: string, name: string) {
     // Ensure consistency: Real mode prepends "Quozen - ", Mock mode should too.
     const fullName = name.startsWith("Quozen - ") ? name : `Quozen - ${name}`;
+    const properties = { quozen_type: 'group', version: '1.0' };
 
     if (isMockMode) {
         const res = await apiRequest(request, 'POST', `${MOCK_API_BASE}/files`, token, {
             name: fullName,
-            sheetNames: ["Expenses", "Settlements", "Members"]
+            sheetNames: ["Expenses", "Settlements", "Members"],
+            properties: properties // Add properties for strict reconciliation
         });
         const data = await res.json();
         const id = data.id;
-        // Fetch it back to return full object
         return { id, name: fullName };
     } else {
+        // Real Drive API
+        // 1. Create Spreadsheet
         const metadata = {
             name: fullName,
             mimeType: "application/vnd.google-apps.spreadsheet"
         };
         const res = await apiRequest(request, 'POST', `${DRIVE_API_URL}/files`, token, metadata);
-        return await res.json();
+        const data = await res.json();
+        const fileId = data.id;
+
+        // 2. Add Properties (Drive API doesn't allow setting properties on CREATE for some file types, safe to do patch)
+        await apiRequest(request, 'PATCH', `${DRIVE_API_URL}/files/${fileId}`, token, {
+            properties: properties
+        });
+
+        return data;
     }
 }
 
 export async function fetchFileContent(request: APIRequestContext, token: string, fileId: string) {
     if (isMockMode) {
-        // For settings (JSON), our mock stores it in `userSettings` map via `/settings` endpoint usually.
-        // BUT if it was created via `FILES` API (as above), it is a MockSheet.
-        // The App's `GoogleDriveAdapter` reads settings via `alt=media`.
-        // My `RemoteMockAdapter` reads settings via `/settings`.
-
-        // This causes a discrepancy.
-        // Real App: Settings File is a FILE in Drive. content is JSON.
-        // Mock App: Settings is a specific endpoint `/settings`.
-        // OR `listFiles` finds a file, then `loadSettings` reads it.
-
-        // In `GoogleDriveAdapter.loadSettings`:
-        // 1. `listFiles` with `name = settings`.
-        // 2. `fetch(fileId + '?alt=media')`.
-
-        // In `RemoteMockAdapter.loadSettings`:
-        // 1. `fetch('/settings')`.
-
-        // This is a VALID discrepancy. The Mock Adapter simplifies "Settings" concept.
-        // BUT, the test "Concurrent initialization" relies on `files` list.
-        // It checks if 2 files were created.
-
-        // In RemoteMockAdapter `saveSettings`:
-        // It calls `POST /settings`.
-
-        // If `POST /settings` in `mock-server.ts` does NOT create a "File" in `adapter.sheets`, then `listFiles` will return 0 results!
-        // `GoogleDriveAdapter` `saveSettings` creates a FILE.
-        // So `RemoteMockAdapter` `saveSettings` and `mock-server` `POST /settings` handlers MUST create a FILE in `adapter.sheets` if they want `reproduce_issues` test to work (checking for duplicates).
-
-        // Does `InMemoryAdapter.saveSettings` create a File?
-        // Let's check `memory-adapter.ts`.
-        // `saveSettings` -> `this.userSettings.set(email, settings)`.
-        // `listFiles` -> Iterates `this.sheets`.
-        // `sheets` vs `userSettings` are arrays.
-
-        // So `InMemoryAdapter` currently separates Settings from Files.
-        // `GoogleDriveAdapter` treats Settings AS a File.
-
-        // THIS IS THE CAUSE OF INCONSISTENCY!
-        // To fix this, `InMemoryAdapter` should store Settings as a "File" in `this.sheets` (or `MockSheet` concept).
-        // OR `InMemoryAdapter.listFiles` should ALSO return the settings file if it exists.
-
-        // I should fix `InMemoryAdapter` to include the settings file in `listFiles` so that reconciliation logic (which might look for settings?) works?
-        // Actually, the test checks `findFiles` for settings.
-        // If `InMemoryAdapter` doesn't expose settings in `listFiles`, the test fails.
-
-        // I will modify `InMemoryAdapter.saveSettings` to ALSO save it as a "Sheet" (File) with the name `quozen-settings.json`.
-        // And `loadSettings` should look there.
-        // This unifies the behavior.
-
-        // I will handle this in `mock-server.ts` or `InMemoryAdapter`. 
-        // Better in `InMemoryAdapter` update.
-
         const res = await apiRequest(request, 'GET', `${MOCK_API_BASE}/settings?email=test@example.com`, token);
         const json = await res.json();
         return JSON.stringify(json.settings);

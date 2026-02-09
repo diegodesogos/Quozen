@@ -1,14 +1,16 @@
-
 import { IStorageAdapter } from "./adapter";
 import { UserSettings, GroupData, SchemaType, Expense, Settlement, Member } from "./types";
 
 interface MockSheet {
     name: string;
+    sheetNames: string[]; // Added this field
     expenses: Expense[];
     settlements: Settlement[];
     members: Member[];
     createdTime: string;
     content?: any;
+    isPublic?: boolean;
+    properties?: Record<string, string>;
 }
 
 export class InMemoryAdapter implements IStorageAdapter {
@@ -32,13 +34,14 @@ export class InMemoryAdapter implements IStorageAdapter {
         }
         this.userSettings.set(userEmail, settings);
 
-        // Also ensure a file exists for "quozen-settings.json" to support listFiles/reconciliation tests
+        // Also save as a file for listFiles consistency if needed
         const settingsName = "quozen-settings.json";
         let existingId = Array.from(this.sheets.entries()).find(([_, s]) => s.name === settingsName)?.[0];
         if (!existingId) {
             existingId = "mock-settings-" + self.crypto.randomUUID();
             this.sheets.set(existingId, {
                 name: settingsName,
+                sheetNames: [],
                 expenses: [],
                 settlements: [],
                 members: [],
@@ -53,14 +56,16 @@ export class InMemoryAdapter implements IStorageAdapter {
 
     // --- File Operations ---
 
-    async createFile(name: string, sheetNames: string[]): Promise<string> {
+    async createFile(name: string, sheetNames: string[], properties?: Record<string, string>): Promise<string> {
         const id = "mock-sheet-" + self.crypto.randomUUID();
         this.sheets.set(id, {
             name,
+            sheetNames, // Store the sheet names
             expenses: [],
             settlements: [],
             members: [],
-            createdTime: new Date().toISOString()
+            createdTime: new Date().toISOString(),
+            properties: properties || {}
         });
         return id;
     }
@@ -75,54 +80,70 @@ export class InMemoryAdapter implements IStorageAdapter {
     }
 
     async shareFile(fileId: string, email: string, role: "writer" | "reader"): Promise<string | null> {
-        // Mocking behavior: verification not needed
         return email;
     }
 
-    async listFiles(queryPrefix: string): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any }>> {
+    async setFilePermissions(fileId: string, access: 'public' | 'restricted'): Promise<void> {
+        const sheet = this.sheets.get(fileId);
+        if (sheet) {
+            sheet.isPublic = (access === 'public');
+        }
+    }
+
+    async getFilePermissions(fileId: string): Promise<'public' | 'restricted'> {
+        const sheet = this.sheets.get(fileId);
+        return sheet?.isPublic ? 'public' : 'restricted';
+    }
+
+    async addFileProperties(fileId: string, properties: Record<string, string>): Promise<void> {
+        const sheet = this.sheets.get(fileId);
+        if (sheet) {
+            sheet.properties = { ...sheet.properties, ...properties };
+        }
+    }
+
+    async listFiles(options: { nameContains?: string; properties?: Record<string, string> } = {}): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any, properties?: Record<string, string> }>> {
         const files: any[] = [];
 
-        // Improve query parsing implementation
-        let nameFilter = "";
-        let exact = false;
-
-        const matchExact = queryPrefix.match(/name\s*=\s*'([^']+)'/);
-        const matchContains = queryPrefix.match(/name\s*contains\s*'([^']+)'/);
-
-        if (matchExact) {
-            nameFilter = matchExact[1];
-            exact = true;
-        } else if (matchContains) {
-            nameFilter = matchContains[1];
-        } else {
-            // Fallback to naive remove
-            nameFilter = queryPrefix.replace("name contains '", "").replace("'", "");
-        }
-
         for (const [id, sheet] of this.sheets.entries()) {
-            const matches = exact
-                ? sheet.name === nameFilter
-                : sheet.name.includes(nameFilter);
+            let match = true;
 
-            if (matches) {
+            if (options.properties) {
+                // strict match for all provided properties
+                for (const [key, value] of Object.entries(options.properties)) {
+                    if (sheet.properties?.[key] !== value) {
+                        match = false;
+                        break;
+                    }
+                }
+            } else if (options.nameContains) {
+                // fallback to name search
+                if (!sheet.name.includes(options.nameContains)) {
+                    match = false;
+                }
+            }
+
+            if (match) {
                 files.push({
                     id,
                     name: sheet.name,
                     createdTime: sheet.createdTime,
-                    owners: [], // Mock doesn't track owners
-                    capabilities: { canDelete: true }
+                    owners: [],
+                    capabilities: { canDelete: true },
+                    properties: sheet.properties
                 });
             }
         }
         return files;
     }
 
-    async getFileMeta(fileId: string): Promise<{ title: string; sheetNames: string[] }> {
+    async getFileMeta(fileId: string): Promise<{ title: string; sheetNames: string[]; properties?: Record<string, string> }> {
         const sheet = this.sheets.get(fileId);
         if (!sheet) throw new Error("File not found");
         return {
             title: sheet.name,
-            sheetNames: ["Expenses", "Settlements", "Members"]
+            sheetNames: sheet.sheetNames, // Return actual stored sheets
+            properties: sheet.properties
         };
     }
 
@@ -131,7 +152,6 @@ export class InMemoryAdapter implements IStorageAdapter {
     async readGroupData(fileId: string): Promise<GroupData | null> {
         const sheet = this.sheets.get(fileId);
         if (!sheet) return null;
-        // Search needs deep copy to simulate network fetch?
         return JSON.parse(JSON.stringify(sheet));
     }
 
@@ -151,14 +171,7 @@ export class InMemoryAdapter implements IStorageAdapter {
         if (!sheet) throw new Error("Sheet not found");
 
         const collection = this.getCollection(sheet, sheetName);
-        const rowIndex = collection.length + 2; // +2 for Header + 1-based index?
-        // Actually, rowIndex should be collection.length + 2 (Header row is 1).
-
-        // Ensure meta/rowIndex are set?
-        // Google Drive implementation doesn't return the row. The caller sets ID/Meta.
-        // But _rowIndex needs to be derived.
-        // Wait, `readGroupData` assigns `_rowIndex`.
-        // So here we should push the data.
+        const rowIndex = collection.length + 2;
         collection.push({ ...data, _rowIndex: rowIndex });
     }
 
@@ -167,14 +180,6 @@ export class InMemoryAdapter implements IStorageAdapter {
         if (!sheet) throw new Error("Sheet not found");
 
         const collection = this.getCollection(sheet, sheetName);
-        // We find by rowIndex? Memory provider implementation mapped 1-to-1.
-        // But if we deleted rows, indices shift.
-        // Google Sheets API handles shifting.
-        // Our Mock should allow random access by index if it simulates Sheets?
-        // If we use `splice` for delete, indices shift.
-        // `readGroupData` recalculates indices based on position.
-
-        // So `rowIndex` argument means "Position in array + 2".
         const arrayIndex = rowIndex - 2;
         if (arrayIndex >= 0 && arrayIndex < collection.length) {
             collection[arrayIndex] = { ...collection[arrayIndex], ...data };

@@ -91,7 +91,7 @@ export interface UserSettings {
   preferences: {
     defaultCurrency: string;
     theme?: "light" | "dark" | "system";
-    locale?: "en" | "es" | "system"; // New Field
+    locale?: "en" | "es" | "system";
   };
   lastUpdated: string;
 }
@@ -111,6 +111,13 @@ export interface IStorageProvider {
   importGroup(spreadsheetId: string, user: User): Promise<Group>;
 
   /**
+   * Joins a group via a public link (Magic Link).
+   * Checks if user is already a member; if not, appends them to the Member sheet.
+   * Then performs an import.
+   */
+  joinGroup(spreadsheetId: string, user: User): Promise<Group>;
+
+  /**
    * Update an existing group (rename and/or update members).
    * Updates settings file if name changes.
    */
@@ -127,6 +134,17 @@ export interface IStorageProvider {
    * Updates settings file.
    */
   leaveGroup(groupId: string, userId: string, userEmail: string): Promise<void>;
+
+  /**
+   * Toggle file permissions between Restricted and Public (Anyone with link can write).
+   */
+  setGroupPermissions(groupId: string, access: 'public' | 'restricted'): Promise<void>;
+
+  /**
+   * Check current permissions of the group.
+   * Returns 'public' if anyone with link can write, 'restricted' otherwise.
+   */
+  getGroupPermissions(groupId: string): Promise<'public' | 'restricted'>;
 
   /**
    * Check if a member has any associated expenses (paidBy or in splits)

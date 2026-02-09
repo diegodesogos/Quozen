@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { googleApi } from "@/lib/drive";
-import { Users, Plus, Pencil, Shield, User, Trash2, LogOut } from "lucide-react";
+import { Users, Plus, Pencil, Shield, User, Trash2, LogOut, Share2 } from "lucide-react";
 import { MemberInput, Group } from "@/lib/storage/types";
 import { Badge } from "@/components/ui/badge";
 import GroupDialog from "@/components/group-dialog";
+import ShareDialog from "@/components/share-dialog";
 import { useGroups } from "@/hooks/use-groups";
 import { useTranslation } from "react-i18next";
 
@@ -30,6 +31,12 @@ export default function Groups() {
     initialMembers?: string;
   }>({ open: false, mode: "create" });
 
+  const [shareDialog, setShareDialog] = useState<{
+    open: boolean;
+    groupId: string;
+    groupName: string;
+  }>({ open: false, groupId: "", groupName: "" });
+
   const [alertState, setAlertState] = useState<{
     open: boolean;
     type: "delete" | "leave";
@@ -46,6 +53,11 @@ export default function Groups() {
     } catch (err) {
       toast({ title: t("common.error"), description: t("groups.loadError"), variant: "destructive" });
     }
+  };
+
+  const handleShareClick = (e: React.MouseEvent, group: Group) => {
+    e.stopPropagation();
+    setShareDialog({ open: true, groupId: group.id, groupName: group.name });
   };
 
   const handleDeleteClick = (e: React.MouseEvent, group: Group) => {
@@ -69,7 +81,15 @@ export default function Groups() {
       queryClient.invalidateQueries({ queryKey: ["drive", "settings"] });
       toast({ title: t("common.success") });
       setDialogState(prev => ({ ...prev, open: false }));
-      if (newGroup?.id) setActiveGroupId(newGroup.id);
+      if (newGroup?.id) {
+        setActiveGroupId(newGroup.id);
+        // Automatically prompt to share the new group
+        setShareDialog({
+          open: true,
+          groupId: newGroup.id,
+          groupName: newGroup.name
+        });
+      }
     },
     onError: () => toast({ title: t("common.error"), description: t("groups.createError"), variant: "destructive" }),
   });
@@ -125,7 +145,7 @@ export default function Groups() {
   });
 
   return (
-    <div className="mx-4 mt-4">
+    <div className="mx-4 mt-4 pb-20">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold">{t("groups.title")}</h2>
         <Button onClick={openCreateDialog}>
@@ -141,6 +161,13 @@ export default function Groups() {
         initialMembers={dialogState.initialMembers}
         isPending={createGroupMutation.isPending || updateGroupMutation.isPending}
         onSubmit={(data) => dialogState.mode === 'create' ? createGroupMutation.mutate(data) : updateGroupMutation.mutate({ groupId: dialogState.groupId!, ...data })}
+      />
+
+      <ShareDialog
+        isOpen={shareDialog.open}
+        onClose={() => setShareDialog(prev => ({ ...prev, open: false }))}
+        groupId={shareDialog.groupId}
+        groupName={shareDialog.groupName}
       />
 
       <div className="space-y-4">
@@ -164,8 +191,33 @@ export default function Groups() {
                   <div className="flex gap-2">
                     {group.isOwner ? (
                       <>
-                        <Button variant="outline" size="sm" className="h-8" onClick={(e) => handleEditClick(e, group)}><Pencil className="w-3 h-3 mr-1" />{t("common.edit")}</Button>
-                        <Button variant="outline" size="sm" className="h-8 text-destructive hover:text-destructive" onClick={(e) => handleDeleteClick(e, group)}><Trash2 className="w-3 h-3" /></Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={(e) => handleShareClick(e, group)}
+                          title={t("common.share")}
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={(e) => handleEditClick(e, group)}
+                          title={t("common.edit")}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={(e) => handleDeleteClick(e, group)}
+                          title={t("common.delete")}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
                       </>
                     ) : (
                       <Button variant="outline" size="sm" className="h-8 text-destructive hover:text-destructive" onClick={(e) => handleLeaveClick(e, group)}><LogOut className="w-3 h-3 mr-1" />{t("groups.leaveAction")}</Button>

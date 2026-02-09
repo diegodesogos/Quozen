@@ -14,7 +14,7 @@ i18n
             es: { translation: es }
         },
         fallbackLng: 'en',
-        debug: import.meta.env.DEV, // Enable debug in dev mode
+        debug: false, // Disable verbose logging to keep console clean. Use this to enable again: import.meta.env.DEV, 
 
         interpolation: {
             escapeValue: false, // React already safes from xss

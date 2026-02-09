@@ -1,4 +1,3 @@
-
 import { IStorageAdapter } from "./adapter";
 import { UserSettings, GroupData, SchemaType, SCHEMAS, SETTINGS_FILE_NAME, QUOZEN_PREFIX } from "./types";
 import { getAuthToken } from "../tokenStore";
@@ -9,7 +8,6 @@ const SHEETS_API_URL = "https://sheets.googleapis.com/v4/spreadsheets";
 
 export class GoogleDriveAdapter implements IStorageAdapter {
     // Map<UserEmail, FileId>
-    // We use a Map instead of single string to support fast user switching or concurrent usage scenarios (rare but possible).
     private settingsFileIdCache = new Map<string, string>();
     private sheetIdCache = new Map<string, number>();
 
@@ -51,7 +49,6 @@ export class GoogleDriveAdapter implements IStorageAdapter {
 
             if (listData.files && listData.files.length > 0) {
                 let fileToUse = listData.files[0];
-                // Deduplicate if multiple found
                 if (listData.files.length > 1) {
                     const sortedFiles = listData.files.sort((a: any, b: any) => {
                         const timeA = new Date(a.createdTime || 0).getTime();
@@ -64,12 +61,11 @@ export class GoogleDriveAdapter implements IStorageAdapter {
                     }
                 }
 
-                // Cache the ID for this user
                 this.settingsFileIdCache.set(userEmail, fileToUse.id);
                 const contentRes = await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileToUse.id}?alt=media`);
                 const settings = await contentRes.json();
 
-                if (!settings.version) return null; // Invalid or old format
+                if (!settings.version) return null;
                 return settings as UserSettings;
             } else {
                 return null;
@@ -87,7 +83,6 @@ export class GoogleDriveAdapter implements IStorageAdapter {
 
         let fileId = this.settingsFileIdCache.get(userEmail);
         if (!fileId) {
-            // Try to find it again just in case
             const query = `name = '${SETTINGS_FILE_NAME}' and trashed = false`;
             const listRes = await this.fetchWithAuth(`${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}`);
             const listData = await listRes.json();
@@ -118,7 +113,8 @@ export class GoogleDriveAdapter implements IStorageAdapter {
 
     // --- File Operations ---
 
-    async createFile(name: string, sheetNames: string[]): Promise<string> {
+    async createFile(name: string, sheetNames: string[], properties?: Record<string, string>): Promise<string> {
+        // 1. Create Spreadsheet via Sheets API
         const createRes = await this.fetchWithAuth(SHEETS_API_URL, {
             method: "POST",
             body: JSON.stringify({
@@ -127,7 +123,14 @@ export class GoogleDriveAdapter implements IStorageAdapter {
             })
         });
         const sheetFile = await createRes.json();
-        return sheetFile.spreadsheetId;
+        const fileId = sheetFile.spreadsheetId;
+
+        // 2. Add properties via Drive API if provided (Sheets API create doesn't support 'properties' field directly on Drive file)
+        if (properties && fileId) {
+            await this.addFileProperties(fileId, properties);
+        }
+
+        return fileId;
     }
 
     async deleteFile(fileId: string): Promise<void> {
@@ -159,26 +162,99 @@ export class GoogleDriveAdapter implements IStorageAdapter {
         }
     }
 
-    async listFiles(queryPrefix: string): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any }>> {
-        const query = `mimeType = 'application/vnd.google-apps.spreadsheet' and name contains '${queryPrefix}' and trashed = false`;
-        const fields = "files(id, name, createdTime, owners, capabilities)";
-        const response = await this.fetchWithAuth(`${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}`);
-        const data = await response.json();
-        return data.files || [];
+    async setFilePermissions(fileId: string, access: 'public' | 'restricted'): Promise<void> {
+        if (access === 'public') {
+            await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}/permissions`, {
+                method: "POST",
+                body: JSON.stringify({
+                    role: "writer",
+                    type: "anyone"
+                })
+            });
+        } else {
+            const res = await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}/permissions`);
+            const data = await res.json();
+            const publicPerm = data.permissions?.find((p: any) => p.type === 'anyone');
+
+            if (publicPerm) {
+                await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}/permissions/${publicPerm.id}`, {
+                    method: "DELETE"
+                });
+            }
+        }
     }
 
-    async getFileMeta(fileId: string): Promise<{ title: string; sheetNames: string[] }> {
-        const metaRes = await this.fetchWithAuth(`${SHEETS_API_URL}/${fileId}?fields=properties.title,sheets.properties.title`);
-        const meta = await metaRes.json();
-        const titles = meta.sheets?.map((s: any) => s.properties.title) || [];
-        return { title: meta.properties?.title || "", sheetNames: titles };
+    async getFilePermissions(fileId: string): Promise<'public' | 'restricted'> {
+        try {
+            const res = await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}/permissions`);
+            const data = await res.json();
+            const publicPerm = data.permissions?.find((p: any) => p.type === 'anyone');
+            return publicPerm ? 'public' : 'restricted';
+        } catch (e) {
+            console.error("Failed to get permissions", e);
+            return 'restricted';
+        }
+    }
+
+    async addFileProperties(fileId: string, properties: Record<string, string>): Promise<void> {
+        await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}`, {
+            method: "PATCH",
+            body: JSON.stringify({ properties })
+        });
+    }
+
+    async listFiles(options: { nameContains?: string; properties?: Record<string, string> } = {}): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any, properties?: Record<string, string> }>> {
+        const clauses: string[] = ["mimeType = 'application/vnd.google-apps.spreadsheet'", "trashed = false"];
+
+        if (options.properties) {
+            Object.entries(options.properties).forEach(([key, value]) => {
+                clauses.push(`properties has { key='${key}' and value='${value}' }`);
+            });
+        }
+
+        // Only use name filter if properties not provided OR if strictly required
+        // The implementation strategy for US-202 is to rely on properties if available.
+        if (options.nameContains && !options.properties) {
+            clauses.push(`name contains '${options.nameContains}'`);
+        }
+
+        const query = clauses.join(" and ");
+        const fields = "files(id, name, createdTime, owners, capabilities, properties)";
+
+        try {
+            const response = await this.fetchWithAuth(`${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}`);
+            const data = await response.json();
+            return data.files || [];
+        } catch (e) {
+            console.error("List files error", e);
+            return [];
+        }
+    }
+
+    async getFileMeta(fileId: string): Promise<{ title: string; sheetNames: string[]; properties?: Record<string, string> }> {
+        // Fetch properties from Drive API
+        const driveResPromise = this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}?fields=name,properties`);
+        // Fetch sheets from Sheets API
+        const sheetsResPromise = this.fetchWithAuth(`${SHEETS_API_URL}/${fileId}?fields=properties.title,sheets.properties.title`);
+
+        const [driveRes, sheetsRes] = await Promise.all([driveResPromise, sheetsResPromise]);
+
+        const driveData = await driveRes.json();
+        const sheetsData = await sheetsRes.json();
+
+        const titles = sheetsData.sheets?.map((s: any) => s.properties.title) || [];
+
+        return {
+            title: driveData.name || sheetsData.properties?.title || "",
+            sheetNames: titles,
+            properties: driveData.properties
+        };
     }
 
     // --- Data Operations ---
 
     async readGroupData(fileId: string): Promise<GroupData | null> {
         if (!fileId) return null;
-        // Hardcoded dependency on SCHEMAS keys for ordering.
         const ranges = ["Expenses", "Settlements", "Members"].map(s => `${s}!A2:Z`).join('&ranges=');
         try {
             const res = await this.fetchWithAuth(`${SHEETS_API_URL}/${fileId}/values:batchGet?majorDimension=ROWS&ranges=${ranges}`);
@@ -200,13 +276,9 @@ export class GoogleDriveAdapter implements IStorageAdapter {
                 { range: "Expenses!A1", values: [SCHEMAS.Expenses] },
                 { range: "Settlements!A1", values: [SCHEMAS.Settlements] },
                 { range: "Members!A1", values: [SCHEMAS.Members] },
-                // We assume data provided is rows. But GroupData has Objects.
-                // We need to convert Objects to Rows.
                 { range: "Members!A2", values: data.members.map(m => this.serializeRow(m, "Members")) }
-                // Expenses and Settlements are initially empty usually, but if not:
             ]
         };
-        // Add expenses/settlements if present
         if (data.expenses.length > 0) {
             valuesBody.data.push({ range: "Expenses!A2", values: data.expenses.map(e => this.serializeRow(e, "Expenses")) });
         }

@@ -76,7 +76,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onError: error => console.error('Login Failed:', error),
     // Request scopes for Google Sheets and Drive
-    scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file',
+    // MODIFIED: Removed 'https://www.googleapis.com/auth/spreadsheets' to adhere to minimum permissions.
+    // 'drive.file' is sufficient for Sheets API operations on files created/opened by this app.
+    scope: 'https://www.googleapis.com/auth/drive.file',
   });
 
   const logout = () => {
