@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { parseMembers } from "@/lib/utils";
 import { MemberInput } from "@/lib/storage/types";
 import { useTranslation } from "react-i18next";
+import { useAutoSync } from "@/context/auto-sync-context";
 
 interface GroupDialogProps {
   open: boolean;
@@ -30,6 +31,12 @@ export default function GroupDialog({
   const [groupName, setGroupName] = useState(initialName);
   const [membersInput, setMembersInput] = useState(initialMembers);
   const { t } = useTranslation();
+  const { setPaused } = useAutoSync();
+
+  useEffect(() => {
+    if (open) setPaused(true);
+    return () => setPaused(false);
+  }, [open, setPaused]);
 
   useEffect(() => {
     if (open) {

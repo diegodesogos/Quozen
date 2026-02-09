@@ -231,6 +231,12 @@ export class GoogleDriveAdapter implements IStorageAdapter {
         }
     }
 
+    async getLastModified(fileId: string): Promise<string> {
+        const res = await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}?fields=modifiedTime`);
+        const data = await res.json();
+        return data.modifiedTime || new Date().toISOString();
+    }
+
     async getFileMeta(fileId: string): Promise<{ title: string; sheetNames: string[]; properties?: Record<string, string> }> {
         // Fetch properties from Drive API
         const driveResPromise = this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}?fields=name,properties`);

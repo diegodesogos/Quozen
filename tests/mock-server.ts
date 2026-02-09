@@ -130,6 +130,10 @@ class MockServer {
             await this.adapter.initializeGroup(id, body);
             result = { success: true };
         }
+        else if (path.match(/\/files\/[^\/]+\/modifiedTime$/)) {
+            const id = path.split('/')[2];
+            result = { modifiedTime: await this.adapter.getLastModified(id) };
+        }
         // --- Rows ---
         else if (path.match(/\/files\/[^\/]+\/rows\/[^\/]+$/)) {
             // /files/:id/rows/:sheetName

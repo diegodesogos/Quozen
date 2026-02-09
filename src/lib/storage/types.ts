@@ -230,4 +230,9 @@ export interface IStorageProvider {
    * Performs a full scan of sources to rebuild the cache and saves it.
    */
   reconcileGroups(userEmail: string): Promise<UserSettings>;
+
+  /**
+   * Get the last modified timestamp of the group file.
+   */
+  getLastModified(fileId: string): Promise<string>;
 }

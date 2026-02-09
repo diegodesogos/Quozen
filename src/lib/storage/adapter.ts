@@ -48,6 +48,11 @@ export interface IStorageAdapter {
      */
     listFiles(options?: { nameContains?: string; properties?: Record<string, string> }): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any, properties?: Record<string, string> }>>;
 
+    /**
+     * Gets the last modified timestamp of a file.
+     */
+    getLastModified(fileId: string): Promise<string>;
+
     // --- content Operations ---
 
     /**

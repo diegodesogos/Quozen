@@ -548,4 +548,8 @@ export class StorageService implements IStorageProvider {
     async deleteRow(spreadsheetId: string, sheetName: SchemaType, rowIndex: number): Promise<void> {
         await this.adapter.deleteRow(spreadsheetId, sheetName, rowIndex);
     }
+
+    async getLastModified(fileId: string): Promise<string> {
+        return this.adapter.getLastModified(fileId);
+    }
 }

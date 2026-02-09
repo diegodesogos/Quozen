@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useGroups } from "@/hooks/use-groups";
 import { useTranslation } from "react-i18next";
+import { useAutoSync } from "@/context/auto-sync-context";
 
 export default function Header() {
   const { activeGroupId } = useAppContext();
@@ -15,6 +16,7 @@ export default function Header() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { t } = useTranslation();
+  const { isEnabled } = useAutoSync();
 
   // 1. Fetch group list via hook
   const { groups, isLoading: isGroupsLoading } = useGroups();
@@ -68,18 +70,20 @@ export default function Header() {
           </div>
 
           <div className="flex items-center space-x-2">
-            <button
-              className="w-8 h-8 rounded-full bg-muted flex items-center justify-center hover:bg-accent transition-colors disabled:opacity-50"
-              onClick={handleRefresh}
-              disabled={isSyncing}
-              title="Sync current group"
-              data-testid="button-refresh"
-            >
-              <RefreshCw className={cn(
-                "w-4 h-4 text-muted-foreground",
-                isSyncing && "animate-spin text-primary"
-              )} />
-            </button>
+            {!isEnabled && (
+              <button
+                className="w-8 h-8 rounded-full bg-muted flex items-center justify-center hover:bg-accent transition-colors disabled:opacity-50"
+                onClick={handleRefresh}
+                disabled={isSyncing}
+                title="Sync current group"
+                data-testid="button-refresh"
+              >
+                <RefreshCw className={cn(
+                  "w-4 h-4 text-muted-foreground",
+                  isSyncing && "animate-spin text-primary"
+                )} />
+              </button>
+            )}
 
             <button className="w-8 h-8 rounded-full bg-muted flex items-center justify-center" data-testid="button-notifications">
               <Bell className="w-4 h-4 text-muted-foreground" />

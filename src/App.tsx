@@ -19,6 +19,7 @@ import { AppContext } from "@/context/app-context";
 import { AuthProvider, useAuth } from "@/context/auth-provider";
 import { useSettings } from "@/hooks/use-settings";
 import { useGroups } from "@/hooks/use-groups";
+import { AutoSyncProvider } from "@/context/auto-sync-context";
 import { useTranslation } from "react-i18next";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -132,44 +133,46 @@ export function AuthenticatedApp() {
 
   return (
     <AppContext.Provider value={{ activeGroupId, setActiveGroupId: handleSetActiveGroupId, currentUserId: user?.id || "" }}>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/join/:id" element={<JoinPage />} />
+      <AutoSyncProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/join/:id" element={<JoinPage />} />
 
-        <Route
-          path="/dashboard"
-          element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>}
-        />
-        <Route
-          path="/expenses"
-          element={<ProtectedRoute><AppLayout><ActivityHub /></AppLayout></ProtectedRoute>}
-        />
-        <Route
-          path="/add-expense"
-          element={<ProtectedRoute><AppLayout><AddExpense /></AppLayout></ProtectedRoute>}
-        />
-        <Route
-          path="/edit-expense/:id"
-          element={<ProtectedRoute><AppLayout><EditExpense /></AppLayout></ProtectedRoute>}
-        />
-        <Route
-          path="/groups"
-          element={<ProtectedRoute><AppLayout><Groups /></AppLayout></ProtectedRoute>}
-        />
-        <Route
-          path="/profile"
-          element={<ProtectedRoute><AppLayout><Profile /></AppLayout></ProtectedRoute>}
-        />
-        <Route
-          path="/"
-          element={
-            authLoading ? <div>{t("common.loading")}</div> :
-              isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
-          }
-        />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-      <Toaster />
+          <Route
+            path="/dashboard"
+            element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>}
+          />
+          <Route
+            path="/expenses"
+            element={<ProtectedRoute><AppLayout><ActivityHub /></AppLayout></ProtectedRoute>}
+          />
+          <Route
+            path="/add-expense"
+            element={<ProtectedRoute><AppLayout><AddExpense /></AppLayout></ProtectedRoute>}
+          />
+          <Route
+            path="/edit-expense/:id"
+            element={<ProtectedRoute><AppLayout><EditExpense /></AppLayout></ProtectedRoute>}
+          />
+          <Route
+            path="/groups"
+            element={<ProtectedRoute><AppLayout><Groups /></AppLayout></ProtectedRoute>}
+          />
+          <Route
+            path="/profile"
+            element={<ProtectedRoute><AppLayout><Profile /></AppLayout></ProtectedRoute>}
+          />
+          <Route
+            path="/"
+            element={
+              authLoading ? <div>{t("common.loading")}</div> :
+                isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
+            }
+          />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+        <Toaster />
+      </AutoSyncProvider>
     </AppContext.Provider>
   );
 }
