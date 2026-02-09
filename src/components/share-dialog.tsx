@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { googleApi } from "@/lib/drive";
 import { Copy, Check, Globe, Lock } from "lucide-react";
+import { useAuth } from "@/context/auth-provider";
 import { useTranslation } from "react-i18next";
 
 interface ShareDialogProps {
@@ -20,12 +21,18 @@ interface ShareDialogProps {
 export default function ShareDialog({ isOpen, onClose, groupId, groupName }: ShareDialogProps) {
     const { toast } = useToast();
     const { t } = useTranslation();
+    const { user } = useAuth();
     const queryClient = useQueryClient();
 
     const [isPublic, setIsPublic] = useState(false);
     const [copied, setCopied] = useState(false);
 
-    const joinLink = `${window.location.origin}/join/${groupId}`;
+    // Construct link with metadata for better UX
+    const joinUrl = new URL(`${window.location.origin}/join/${groupId}`);
+    if (groupName) joinUrl.searchParams.set("name", groupName);
+    if (user?.name) joinUrl.searchParams.set("inviter", user.name);
+
+    const joinLink = joinUrl.toString();
 
     // Fetch permission status when dialog opens
     const { data: permissionStatus } = useQuery({

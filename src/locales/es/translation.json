@@ -227,6 +227,16 @@
         "genericError": "Error al unirse al grupo.",
         "goHome": "Ir al Inicio",
         "tryAgain": "Intentar de nuevo",
-        "signIn": "Por favor inicia sesión para unirte al grupo."
+        "signIn": "Por favor inicia sesión para unirte al grupo.",
+        "accessRequired": "Confirmación de Acceso Requerida",
+        "accessRequiredDesc": "No pudimos acceder al archivo. Sigue estos dos pasos para conectarlo:",
+        "step1": "Paso 1: Abrir en Drive",
+        "step1Desc": "Abre el archivo en una pestaña nueva para hacerlo visible.",
+        "step2": "Paso 2: Confirmar Acceso",
+        "step2Desc": "Selecciona el archivo usando el selector de Google.",
+        "idMismatch": "El archivo seleccionado no coincide. Por favor selecciona el archivo correcto.",
+        "welcomeTitle": "¡Te han invitado!",
+        "welcomeDesc": "{{inviter}} te invitó a unirte al grupo \"{{groupName}}\".",
+        "joinButton": "Unirse al Grupo"
     }
 }

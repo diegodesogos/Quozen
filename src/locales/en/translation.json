@@ -227,6 +227,16 @@
         "genericError": "Failed to join group.",
         "goHome": "Go Home",
         "tryAgain": "Try Again",
-        "signIn": "Please sign in to join the group."
+        "signIn": "Please sign in to join the group.",
+        "accessRequired": "Access Confirmation Required",
+        "accessRequiredDesc": "We couldn't access the file directly. Please follow these two steps to connect it:",
+        "step1": "Step 1: Open in Drive",
+        "step1Desc": "Opens file in a new tab to make it visible to the app.",
+        "step2": "Step 2: Confirm Access",
+        "step2Desc": "Select the file using the Google Picker.",
+        "idMismatch": "The selected file does not match this group. Please select the correct file.",
+        "welcomeTitle": "You've been invited!",
+        "welcomeDesc": "{{inviter}} invited you to join the group \"{{groupName}}\".",
+        "joinButton": "Join Group"
     }
 }
