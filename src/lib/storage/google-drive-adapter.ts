@@ -232,7 +232,10 @@ export class GoogleDriveAdapter implements IStorageAdapter {
     }
 
     async getLastModified(fileId: string): Promise<string> {
-        const res = await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}?fields=modifiedTime`);
+        // Use 'no-store' to bypass browser cache and ensure we see remote changes immediately
+        const res = await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}?fields=modifiedTime`, {
+            cache: "no-store"
+        });
         const data = await res.json();
         return data.modifiedTime || new Date().toISOString();
     }

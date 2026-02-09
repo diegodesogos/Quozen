@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from "react";
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { googleApi } from "@/lib/drive";
@@ -9,6 +9,7 @@ interface AutoSyncContextType {
     setPaused: (paused: boolean) => void;
     isEnabled: boolean;
     lastSyncTime: Date | null;
+    triggerSync: () => Promise<void>;
 }
 
 const AutoSyncContext = createContext<AutoSyncContextType | undefined>(undefined);
@@ -29,6 +30,8 @@ export function AutoSyncProvider({ children }: { children: React.ReactNode }) {
     const lastKnownRemoteTimeRef = useRef<string | null>(null);
     const isEnabled = POLLING_INTERVAL_SEC > 0;
 
+    const isPaused = manualPaused || routePaused || pageHidden || !activeGroupId;
+
     // 1. Route Guard
     useEffect(() => {
         const isUnsafe = UNSAFE_ROUTES.some(route => location.pathname.startsWith(route));
@@ -42,44 +45,40 @@ export function AutoSyncProvider({ children }: { children: React.ReactNode }) {
         return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
     }, []);
 
-    // 3. Polling Logic
-    useEffect(() => {
-        if (!isEnabled) return;
-        if (manualPaused || routePaused || pageHidden || !activeGroupId) return;
+    // Core Sync Logic
+    const checkUpdates = useCallback(async () => {
+        if (!activeGroupId || !isEnabled) return;
 
-        const checkUpdates = async () => {
-            try {
-                // Fetch metadata only
-                const remoteTimeStr = await googleApi.getLastModified(activeGroupId);
+        try {
+            // Fetch metadata only
+            const remoteTimeStr = await googleApi.getLastModified(activeGroupId);
 
-                if (!lastKnownRemoteTimeRef.current) {
-                    // First check, initialize
-                    lastKnownRemoteTimeRef.current = remoteTimeStr;
-                } else if (new Date(remoteTimeStr).getTime() > new Date(lastKnownRemoteTimeRef.current).getTime()) {
-                    // Remote is newer -> Invalidate
-                    console.log("[AutoSync] Remote change detected. Invalidating queries.");
-                    await queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
-                    lastKnownRemoteTimeRef.current = remoteTimeStr;
-                    setLastSyncTime(new Date());
-                }
-            } catch (e) {
-                console.error("[AutoSync] Polling failed (silent):", e);
+            if (!lastKnownRemoteTimeRef.current) {
+                // First check, initialize
+                lastKnownRemoteTimeRef.current = remoteTimeStr;
+            } else if (new Date(remoteTimeStr).getTime() > new Date(lastKnownRemoteTimeRef.current).getTime()) {
+                // Remote is newer -> Invalidate
+                console.log("[AutoSync] Remote change detected.", { old: lastKnownRemoteTimeRef.current, new: remoteTimeStr });
+                await queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
+                lastKnownRemoteTimeRef.current = remoteTimeStr;
+                setLastSyncTime(new Date());
             }
-        };
+        } catch (e) {
+            console.error("[AutoSync] Polling failed (silent):", e);
+        }
+    }, [activeGroupId, isEnabled, queryClient]);
 
-        // Immediate check on resume? Maybe not to avoid spam.
-        // Just start interval.
+    // 3. Polling Loop & Immediate Resume
+    useEffect(() => {
+        if (isPaused || !isEnabled) return;
+
+        // Perform an immediate check on mount/resume to catch updates while we were away/paused
+        checkUpdates();
+
         const intervalId = setInterval(checkUpdates, POLLING_INTERVAL_SEC * 1000);
 
         return () => clearInterval(intervalId);
-    }, [
-        isEnabled,
-        manualPaused,
-        routePaused,
-        pageHidden,
-        activeGroupId,
-        queryClient
-    ]);
+    }, [isPaused, isEnabled, checkUpdates]);
 
     // Reset ref when switching groups
     useEffect(() => {
@@ -87,16 +86,16 @@ export function AutoSyncProvider({ children }: { children: React.ReactNode }) {
     }, [activeGroupId]);
 
     return (
-        <AutoSyncContext.Provider value= {{
-        isPaused: manualPaused || routePaused || pageHidden,
+        <AutoSyncContext.Provider value={{
+            isPaused,
             setPaused: setManualPaused,
-                isEnabled,
-                lastSyncTime
-    }
-}>
-    { children }
-    </AutoSyncContext.Provider>
-  );
+            isEnabled,
+            lastSyncTime,
+            triggerSync: checkUpdates
+        }}>
+            {children}
+        </AutoSyncContext.Provider>
+    );
 }
 
 export const useAutoSync = () => {
