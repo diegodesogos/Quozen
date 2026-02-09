@@ -14,3 +14,4 @@ vite.config.ts.*
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+changes.patch
