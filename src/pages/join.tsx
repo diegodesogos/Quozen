@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { googleApi } from "@/lib/drive";
+import { googleApi, UserSettings } from "@/lib/drive";
 import { useAuth } from "@/context/auth-provider";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,6 +35,31 @@ export default function JoinPage() {
             return await googleApi.joinGroup(id, user);
         },
         onSuccess: (group) => {
+            // Optimistic update: Update local cache immediately so App.tsx sees the group as valid
+            // before the network request for settings completes. Prevents race-condition redirects.
+            if (user?.email) {
+                queryClient.setQueryData<UserSettings>(["drive", "settings", user.email], (old) => {
+                    if (!old) return old;
+
+                    const exists = old.groupCache.some(g => g.id === group.id);
+                    const newCache = exists
+                        ? old.groupCache
+                        : [{
+                            id: group.id,
+                            name: group.name,
+                            role: group.isOwner ? "owner" : "member",
+                            lastAccessed: new Date().toISOString()
+                        }, ...old.groupCache];
+
+                    return {
+                        ...old,
+                        activeGroupId: group.id,
+                        groupCache: newCache
+                    };
+                });
+            }
+
+            // Trigger actual refresh in background
             queryClient.invalidateQueries({ queryKey: ["drive", "settings"] });
             queryClient.invalidateQueries({ queryKey: ["drive", "group", group.id] });
 
