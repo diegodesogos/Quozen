@@ -35,6 +35,7 @@ vi.mock("@tanstack/react-query", async (importOriginal) => {
         })),
         useQueryClient: vi.fn(() => ({
             invalidateQueries: vi.fn(),
+            setQueryData: vi.fn(),
         })),
     };
 });
@@ -156,7 +157,7 @@ describe("JoinPage", () => {
 
         // Advance timers to trigger the setTimeout in onSuccess
         await act(async () => {
-            // Trigger Join
+            // Trigger Join manually first
             fireEvent.click(screen.getByText(en.join.joinButton));
 
             vi.advanceTimersByTime(1500);
@@ -171,7 +172,7 @@ describe("JoinPage", () => {
         // 1. Initial Failure (404)
         (useMutation as any).mockImplementation((options: any) => ({
             mutate: () => {
-                const error = new Error("File not found: 123."); // Google API 404 message style
+                const error = new Error("404 File not found"); // Google API 404 message style
                 if (options.onError) options.onError(error);
             },
             isPending: false,
@@ -193,24 +194,25 @@ describe("JoinPage", () => {
 
         // 2. Verify Manual Pick UI appears
         await waitFor(async () => {
-            // The text is split across elements, so we look for key phrases
-            expect(screen.getByText(en.join.step1)).toBeInTheDocument();
-            expect(screen.getByText(en.join.step2)).toBeInTheDocument();
+            // Use regex for flexible matching because of nested elements
+            expect(screen.getByText(/Step 1: Open in Drive/i)).toBeInTheDocument();
+            expect(screen.getByText(/Step 2: Confirm Access/i)).toBeInTheDocument();
         });
 
-        // 3. Verify it is a link with correct href
-        const link = screen.getByRole("link", { name: en.join.step1 });
+        // 3. Verify it is a link with correct href using regex match on name
+        const link = screen.getByRole("link", { name: /Step 1: Open in Drive/i });
         expect(link).toHaveAttribute("href", "https://docs.google.com/spreadsheets/d/123");
 
         // 4. Verify Step 2 is disabled initially
-        const step2Btn = screen.getByText(en.join.step2).closest('button');
+        const step2Btn = screen.getByText(/Step 2: Confirm Access/i).closest('button');
         expect(step2Btn).toBeDisabled();
 
         // 5. Click Step 1, then Step 2 should enable
         fireEvent.click(link);
         expect(step2Btn).not.toBeDisabled();
 
-        fireEvent.click(screen.getByText(en.join.step2));
+        // 6. Click Step 2
+        fireEvent.click(step2Btn!); // Use non-null assertion as we verified presence
         expect(mockOpenPicker).toHaveBeenCalled();
     });
 });

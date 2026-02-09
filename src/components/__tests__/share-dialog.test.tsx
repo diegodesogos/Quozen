@@ -11,6 +11,11 @@ vi.mock("@/hooks/use-toast", () => ({
     useToast: () => ({ toast: mockToast }),
 }));
 
+// Mock auth provider to avoid context error
+vi.mock("@/context/auth-provider", () => ({
+    useAuth: vi.fn(() => ({ user: { name: "Test User" } })),
+}));
+
 vi.mock("@tanstack/react-query", async (importOriginal) => {
     const actual = await importOriginal<typeof import("@tanstack/react-query")>();
     return {

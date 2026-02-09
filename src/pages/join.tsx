@@ -6,11 +6,10 @@ import { useAuth } from "@/context/auth-provider";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2, ExternalLink, Search } from "lucide-react";
 import { useAppContext } from "@/context/app-context";
 import { useTranslation } from "react-i18next";
 import { useGooglePicker } from "@/hooks/use-google-picker";
-import { ExternalLink, Search } from "lucide-react";
 
 export default function JoinPage() {
     const { id } = useParams<{ id: string }>();
@@ -47,7 +46,7 @@ export default function JoinPage() {
                         : [{
                             id: group.id,
                             name: group.name,
-                            role: group.isOwner ? "owner" : "member",
+                            role: (group.isOwner ? "owner" : "member") as "owner" | "member",
                             lastAccessed: new Date().toISOString()
                         }, ...old.groupCache];
 
