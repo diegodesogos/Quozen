@@ -1,7 +1,6 @@
 # **Epic: Automatic Smart Synchronization**
 
-**Status:** ✅ **Implementation Complete**
-Pending tests and final review
+**Status:** ✅ **Completed & Verified**
 
 ## **Implementation Status**
 
@@ -11,6 +10,7 @@ Pending tests and final review
 | **US-302** | Route-Based Guard | ✅ **Completed** | Auto-pause on `/add-expense`, `/edit-expense`, `/join`. |
 | **US-303** | Modal-Based Guard | ✅ **Completed** | Manual pause hooks added to Settlement, Group, and Switcher modals. |
 | **US-304** | UI Feedback | ✅ **Completed** | Refresh button hidden when auto-sync is active. |
+| **US-305** | Pull-to-Refresh Gesture | ✅ **Completed** | Mobile-style pull-to-refresh implemented for manual sync when button is hidden. |
 
 ---
 
@@ -35,7 +35,7 @@ Crucially, this system implements **"Edit-Safety"**: synchronization is strictly
 * **Global State:** `AutoSyncContext` to manage `isPaused` state globally.  
 * **Route Guards:** Automatic pausing on `/add-expense`, `/edit-expense/*`, `/join/*`.  
 * **Modal Guards:** Manual pausing integration in `SettlementModal` and `GroupDialog`.  
-* **UI Changes:** Hide "Refresh" button when polling is active.
+* **UI Changes:** Hide "Refresh" button when polling is active; implement Pull-to-Refresh.
 
 **Out-of-Scope:**
 
@@ -128,3 +128,29 @@ Crucially, this system implements **"Edit-Safety"**: synchronization is strictly
 **Dev Notes:**
 
 * Refactor `src/components/header.tsx` to read the config or context state.
+
+---
+
+### **US-305: Pull-to-Refresh Gesture**
+
+**Narrative:** As a User on a touch device (or desktop) with Auto-Sync enabled, I want to manually trigger a refresh by pulling down the list, so that I can force an update immediately without waiting for the polling interval.
+
+**Acceptance Criteria:**
+
+* **Scenario 1 (Auto Mode Enabled):** * **Given** `VITE_POLLING_INTERVAL > 0`.  
+  * **And** I am at the top of the page (`scrollTop === 0`).  
+  * **When** I drag/swipe down.  
+  * **Then** I see visual feedback ("Pull to refresh" -> "Release to refresh").  
+  * **When** I release past the threshold.  
+  * **Then** a manual sync is triggered, showing a loading spinner.  
+* **Scenario 2 (Auto Mode Disabled):** * **Given** `VITE_POLLING_INTERVAL = 0`.  
+  * **When** I drag/swipe down.  
+  * **Then** standard browser behavior applies (no custom pull-to-refresh). The refresh button in the header is used instead.  
+* **Scenario 3 (Safety):** * **Given** I am in an "Unsafe Route" (e.g., editing).  
+  * **Then** Pull-to-Refresh is disabled to prevent data loss.
+
+**Dev Notes:**
+
+* Use `framer-motion` for gesture handling.  
+* Wrap the main application layout (`AppLayout`) to provide global availability.  
+* Ensure `overscroll-behavior: contain` is applied to body to prevent browser conflict.

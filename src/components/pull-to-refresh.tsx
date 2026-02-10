@@ -19,43 +19,27 @@ export default function PullToRefresh({ children, onRefresh, enabled }: PullToRe
     const y = useMotionValue(0);
     const controls = useAnimation();
 
-    // Transform y to opacity/rotation for UI feedback
     const opacity = useTransform(y, [0, 50], [0, 1]);
     const rotate = useTransform(y, [0, TRIGGER_THRESHOLD], [0, 180]);
 
-    // We need to track startY to calculate delta manually to avoid scroll conflicts
     const startY = useRef(0);
     const isDragging = useRef(false);
 
-    // If disabled, just render children
-    if (!enabled) {
-        return <>{children}</>;
-    }
+    // --- Shared Logic ---
 
-    const handleTouchStart = (e: React.TouchEvent) => {
-        if (window.scrollY > 0 || isRefreshing) return;
-        startY.current = e.touches[0].clientY;
-        isDragging.current = true;
-    };
-
-    const handleTouchMove = (e: React.TouchEvent) => {
+    const handleDragUpdate = (currentY: number) => {
         if (!isDragging.current || window.scrollY > 0 || isRefreshing) return;
 
-        const currentY = e.touches[0].clientY;
         const delta = currentY - startY.current;
 
         // Only activate if pulling down
         if (delta > 0) {
-            // Logarithmic damping function for resistance
-            const damped = Math.min(delta * 0.5, MAX_DRAG); // Simple linear damping for now, capped
+            const damped = Math.min(delta * 0.5, MAX_DRAG);
             y.set(damped);
-
-            // Prevent native scroll if we are actively pulling down from top
-            if (e.cancelable) e.preventDefault();
         }
     };
 
-    const handleTouchEnd = async () => {
+    const handleDragEnd = async () => {
         if (!isDragging.current || isRefreshing) return;
         isDragging.current = false;
 
@@ -78,13 +62,70 @@ export default function PullToRefresh({ children, onRefresh, enabled }: PullToRe
         }
     };
 
+    // --- Mouse Handlers (Window-based for robustness) ---
+    // FIXED: Hook is now unconditional (always called)
+    useEffect(() => {
+        // We check enabled inside the effect logic, not before the hook call
+        if (!enabled) return;
+
+        const handleWindowMouseMove = (e: MouseEvent) => {
+            if (isDragging.current) {
+                e.preventDefault();
+                handleDragUpdate(e.clientY);
+            }
+        };
+
+        const handleWindowMouseUp = () => {
+            if (isDragging.current) {
+                handleDragEnd();
+            }
+        };
+
+        window.addEventListener("mousemove", handleWindowMouseMove);
+        window.addEventListener("mouseup", handleWindowMouseUp);
+
+        return () => {
+            window.removeEventListener("mousemove", handleWindowMouseMove);
+            window.removeEventListener("mouseup", handleWindowMouseUp);
+        };
+    }, [isRefreshing, enabled]);
+
+    // --- Conditional Rendering ---
+    // FIXED: Return happens AFTER all hooks are declared
+    if (!enabled) {
+        return <>{children}</>;
+    }
+
+    // --- Touch Handlers ---
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        if (window.scrollY > 0 || isRefreshing) return;
+        startY.current = e.touches[0].clientY;
+        isDragging.current = true;
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        handleDragUpdate(e.touches[0].clientY);
+        // Prevent native pull-to-refresh / scroll if dragging our component
+        if (isDragging.current && y.get() > 0 && e.cancelable) {
+            e.preventDefault();
+        }
+    };
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        if (window.scrollY > 0 || isRefreshing) return;
+        startY.current = e.clientY;
+        isDragging.current = true;
+    };
+
     return (
         <div
             ref={containerRef}
-            className="relative min-h-screen"
+            className="relative min-h-screen cursor-default lg:cursor-grab active:cursor-grabbing"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
+            onTouchEnd={handleDragEnd}
+            onMouseDown={handleMouseDown}
         >
             {/* Background Indicator */}
             <div className="absolute top-0 left-0 w-full flex justify-center pt-6 pointer-events-none z-0">
@@ -112,7 +153,7 @@ export default function PullToRefresh({ children, onRefresh, enabled }: PullToRe
             <motion.div
                 animate={controls}
                 style={{ y }}
-                className="relative z-10 bg-background min-h-screen transition-transform will-change-transform"
+                className="relative z-10 bg-background min-h-screen transition-transform will-change-transform shadow-sm"
             >
                 {children}
             </motion.div>
