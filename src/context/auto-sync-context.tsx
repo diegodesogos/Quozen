@@ -38,6 +38,14 @@ export function AutoSyncProvider({
 
     const isPaused = manualPaused || routePaused || pageHidden || !activeGroupId;
 
+    useEffect(() => {
+        if (isEnabled) {
+            console.log(`[AutoSync] Initialized. Interval: ${pollingInterval}s`);
+        } else {
+            console.log("[AutoSync] Disabled (Interval is 0).");
+        }
+    }, [isEnabled, pollingInterval]);
+
     // 1. Route Guard
     useEffect(() => {
         const isUnsafe = UNSAFE_ROUTES.some(route => location.pathname.startsWith(route));
@@ -64,7 +72,7 @@ export function AutoSyncProvider({
                 lastKnownRemoteTimeRef.current = remoteTimeStr;
             } else if (new Date(remoteTimeStr).getTime() > new Date(lastKnownRemoteTimeRef.current).getTime()) {
                 // Remote is newer -> Invalidate
-                console.log("[AutoSync] Remote change detected.", { old: lastKnownRemoteTimeRef.current, new: remoteTimeStr });
+                // Log removed to keep console clean
                 await queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
                 lastKnownRemoteTimeRef.current = remoteTimeStr;
                 setLastSyncTime(new Date());
