@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useState, useRef, useCallback } from "react";
+import React, { createContext, useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { googleApi } from "@/lib/drive";
@@ -35,12 +35,15 @@ export function AutoSyncProvider({
     const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
     const lastKnownRemoteTimeRef = useRef<string | null>(null);
-    const isEnabled = pollingInterval > 0;
 
+    // We use a ref to hold the latest check function to avoid restarting the interval
+    // whenever the dependencies of checkUpdates change.
+    const checkUpdatesRef = useRef<() => Promise<void>>(async () => { });
+
+    const isEnabled = pollingInterval > 0;
     const isPaused = manualPaused || routePaused || pageHidden || !activeGroupId;
 
     useEffect(() => {
-        // Changed log level to debug to reduce noise during rapid testing/mounting
         if (isEnabled) {
             console.debug(`[AutoSync] Initialized. Interval: ${pollingInterval}s`);
         } else {
@@ -79,35 +82,48 @@ export function AutoSyncProvider({
                 setLastSyncTime(new Date());
             }
         } catch (e) {
-            console.error("[AutoSync] Polling failed (silent):", e);
+            // Use debug to prevent console flooding on network loss
+            console.debug("[AutoSync] Polling failed (silent):", e);
         }
     }, [activeGroupId, isEnabled, queryClient]);
 
-    // 3. Polling Loop & Immediate Resume
+    // Keep the ref updated with the latest callback
+    useEffect(() => {
+        checkUpdatesRef.current = checkUpdates;
+    }, [checkUpdates]);
+
+    // 3. Polling Loop
+    // This effect is now stable and won't reset on re-renders unless paused state changes
     useEffect(() => {
         if (isPaused || !isEnabled) return;
 
-        // Perform an immediate check on mount/resume to catch updates while we were away/paused
-        checkUpdates();
+        const executeCheck = () => {
+            checkUpdatesRef.current();
+        };
 
-        const intervalId = setInterval(checkUpdates, pollingInterval * 1000);
+        // Perform an immediate check on mount/resume
+        executeCheck();
+
+        const intervalId = setInterval(executeCheck, pollingInterval * 1000);
 
         return () => clearInterval(intervalId);
-    }, [isPaused, isEnabled, checkUpdates, pollingInterval]);
+    }, [isPaused, isEnabled, pollingInterval]);
 
     // Reset ref when switching groups
     useEffect(() => {
         lastKnownRemoteTimeRef.current = null;
     }, [activeGroupId]);
 
+    const value = useMemo(() => ({
+        isPaused,
+        setPaused: setManualPaused,
+        isEnabled,
+        lastSyncTime,
+        triggerSync: checkUpdates
+    }), [isPaused, isEnabled, lastSyncTime, checkUpdates]);
+
     return (
-        <AutoSyncContext.Provider value={{
-            isPaused,
-            setPaused: setManualPaused,
-            isEnabled,
-            lastSyncTime,
-            triggerSync: checkUpdates
-        }}>
+        <AutoSyncContext.Provider value={value}>
             {children}
         </AutoSyncContext.Provider>
     );
