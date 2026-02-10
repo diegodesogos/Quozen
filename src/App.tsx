@@ -21,6 +21,8 @@ import { useSettings } from "@/hooks/use-settings";
 import { useGroups } from "@/hooks/use-groups";
 import { AutoSyncProvider } from "@/context/auto-sync-context";
 import { useTranslation } from "react-i18next";
+import PullToRefresh from "@/components/pull-to-refresh";
+import { useAutoSync } from "@/hooks/use-auto-sync";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -42,15 +44,24 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const AppLayout = ({ children }: { children: React.ReactNode }) => (
-  <div className="max-w-md mx-auto bg-background shadow-2xl min-h-screen relative border-x border-border">
-    <Header />
-    <main className="pb-20">
-      {children}
-    </main>
-    <BottomNavigation />
-  </div>
-);
+const AppLayout = ({ children }: { children: React.ReactNode }) => {
+  const { triggerSync, isEnabled, isPaused } = useAutoSync();
+
+  return (
+    <div className="max-w-md mx-auto bg-background shadow-2xl min-h-screen relative border-x border-border">
+      <Header />
+      <main className="pb-20 relative">
+        <PullToRefresh
+          onRefresh={triggerSync}
+          enabled={isEnabled && !isPaused}
+        >
+          {children}
+        </PullToRefresh>
+      </main>
+      <BottomNavigation />
+    </div>
+  );
+};
 
 export function AuthenticatedApp() {
   const [activeGroupId, setActiveGroupIdState] = useState("");
