@@ -40,10 +40,11 @@ export function AutoSyncProvider({
     const isPaused = manualPaused || routePaused || pageHidden || !activeGroupId;
 
     useEffect(() => {
+        // Changed log level to debug to reduce noise during rapid testing/mounting
         if (isEnabled) {
-            console.log(`[AutoSync] Initialized. Interval: ${pollingInterval}s`);
+            console.debug(`[AutoSync] Initialized. Interval: ${pollingInterval}s`);
         } else {
-            console.log("[AutoSync] Disabled (Interval is 0).");
+            console.debug("[AutoSync] Disabled (Interval is 0).");
         }
     }, [isEnabled, pollingInterval]);
 

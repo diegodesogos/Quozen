@@ -6,6 +6,7 @@ import { useAuth } from "@/context/auth-provider";
 import { useSettings } from "@/hooks/use-settings";
 import { useGroups } from "@/hooks/use-groups";
 import { useQuery } from "@tanstack/react-query";
+import { useAutoSync } from "@/hooks/use-auto-sync";
 
 // Mock hooks
 vi.mock("@/context/auth-provider", () => ({
@@ -47,6 +48,9 @@ vi.mock("@tanstack/react-query", async (importOriginal) => {
 // Mock UI components
 vi.mock("@/components/header", () => ({ default: () => <div data-testid="header">Header</div> }));
 vi.mock("@/components/bottom-navigation", () => ({ default: () => <div data-testid="bottom-nav">Nav</div> }));
+vi.mock("@/components/pull-to-refresh", () => ({
+  default: ({ children }: any) => <div data-testid="pull-to-refresh">{children}</div>
+}));
 vi.mock("@/pages/login", () => ({ default: () => <div data-testid="login">Login</div> }));
 
 // Helper mock for Dashboard that consumes context
@@ -101,6 +105,12 @@ describe("AuthenticatedApp Integration", () => {
     (useGroups as any).mockReturnValue({
       groups: mockGroups,
       isLoading: false
+    });
+
+    (useAutoSync as any).mockReturnValue({
+      triggerSync: vi.fn(),
+      isEnabled: true,
+      isPaused: false
     });
 
     (useQuery as any).mockReturnValue({

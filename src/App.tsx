@@ -45,7 +45,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
-  const { triggerSync, isEnabled, isPaused } = useAutoSync();
+  const autoSync = useAutoSync();
+  // Safe destructuring in case context is missing (though provider wraps this)
+  const triggerSync = autoSync?.triggerSync || (async () => { });
+  const isEnabled = autoSync?.isEnabled || false;
+  const isPaused = autoSync?.isPaused || false;
 
   return (
     <div className="max-w-md mx-auto bg-background shadow-2xl min-h-screen relative border-x border-border">
@@ -73,7 +77,9 @@ export function AuthenticatedApp() {
   const { settings, updateActiveGroup, isLoading: settingsLoading, error: settingsError } = useSettings();
   const { groups } = useGroups();
 
-  const appLoading = authLoading || (isAuthenticated && settingsLoading);
+  // FIX: Only consider app loading if we DON'T have settings yet. 
+  // If we have settings (even stale), we should render the app to prevent tree unmounting.
+  const appLoading = authLoading || (isAuthenticated && !settings && settingsLoading);
 
   useEffect(() => {
     if (settingsError) {
