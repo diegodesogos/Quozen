@@ -25,6 +25,15 @@ vi.mock("@/hooks/use-groups", () => ({
   useGroups: vi.fn(),
 }));
 
+// Mock AutoSync to avoid provider requirement
+vi.mock("@/context/auto-sync-context", () => ({
+  useAutoSync: vi.fn(() => ({
+    isEnabled: true,
+    isPaused: false,
+    setPaused: vi.fn()
+  })),
+}));
+
 vi.mock("@tanstack/react-query", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@tanstack/react-query")>();
   return {

@@ -15,9 +15,15 @@ interface AutoSyncContextType {
 const AutoSyncContext = createContext<AutoSyncContextType | undefined>(undefined);
 
 const UNSAFE_ROUTES = ["/add-expense", "/edit-expense", "/join"];
-const POLLING_INTERVAL_SEC = Number(import.meta.env.VITE_POLLING_INTERVAL || 30);
+const DEFAULT_POLLING_INTERVAL = Number(import.meta.env.VITE_POLLING_INTERVAL || 30);
 
-export function AutoSyncProvider({ children }: { children: React.ReactNode }) {
+export function AutoSyncProvider({
+    children,
+    pollingInterval = DEFAULT_POLLING_INTERVAL
+}: {
+    children: React.ReactNode;
+    pollingInterval?: number;
+}) {
     const { activeGroupId } = useAppContext();
     const queryClient = useQueryClient();
     const location = useLocation();
@@ -28,7 +34,7 @@ export function AutoSyncProvider({ children }: { children: React.ReactNode }) {
     const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
     const lastKnownRemoteTimeRef = useRef<string | null>(null);
-    const isEnabled = POLLING_INTERVAL_SEC > 0;
+    const isEnabled = pollingInterval > 0;
 
     const isPaused = manualPaused || routePaused || pageHidden || !activeGroupId;
 
@@ -75,10 +81,10 @@ export function AutoSyncProvider({ children }: { children: React.ReactNode }) {
         // Perform an immediate check on mount/resume to catch updates while we were away/paused
         checkUpdates();
 
-        const intervalId = setInterval(checkUpdates, POLLING_INTERVAL_SEC * 1000);
+        const intervalId = setInterval(checkUpdates, pollingInterval * 1000);
 
         return () => clearInterval(intervalId);
-    }, [isPaused, isEnabled, checkUpdates]);
+    }, [isPaused, isEnabled, checkUpdates, pollingInterval]);
 
     // Reset ref when switching groups
     useEffect(() => {

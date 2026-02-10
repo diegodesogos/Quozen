@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react"; // Added fireEvent
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { AuthenticatedApp } from "../../App";
 import { useAuth } from "@/context/auth-provider";
@@ -21,11 +21,22 @@ vi.mock("@/hooks/use-groups", () => ({
   useGroups: vi.fn(),
 }));
 
+// Mock AutoSync Context (AutoSyncProvider is rendered by AuthenticatedApp, 
+// but we mock it to avoid internal logic and just render children)
+vi.mock("@/context/auto-sync-context", () => ({
+  useAutoSync: vi.fn(),
+  AutoSyncProvider: ({ children }: any) => <>{children}</>
+}));
+
 vi.mock("@tanstack/react-query", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@tanstack/react-query")>();
   return {
     ...actual,
     useQuery: vi.fn(),
+    // Mock useQueryClient to avoid "No QueryClient set" error
+    useQueryClient: vi.fn(() => ({
+      invalidateQueries: vi.fn(),
+    })),
     QueryClientProvider: ({ children }: any) => <div>{children}</div>,
   };
 });
@@ -81,7 +92,7 @@ describe("AuthenticatedApp Integration", () => {
     (useSettings as any).mockReturnValue({
       settings: mockSettings,
       isLoading: false,
-      updateActiveGroup: mockUpdateActiveGroup // Mock the new atomic function
+      updateActiveGroup: mockUpdateActiveGroup
     });
 
     (useGroups as any).mockReturnValue({

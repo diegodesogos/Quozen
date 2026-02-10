@@ -14,6 +14,13 @@ vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: mockToast }),
 }));
 
+// Mock AutoSync
+vi.mock("@/context/auto-sync-context", () => ({
+  useAutoSync: vi.fn(() => ({
+    setPaused: vi.fn()
+  })),
+}));
+
 vi.mock("@tanstack/react-query", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@tanstack/react-query")>();
   return {

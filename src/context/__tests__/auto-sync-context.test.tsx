@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { AutoSyncProvider, useAutoSync } from "../auto-sync-context";
-import { useAppContext } from "../app-context";
+import { AutoSyncProvider, useAutoSync } from "@/context/auto-sync-context";
+import { useAppContext } from "@/context/app-context";
 import { useQueryClient } from "@tanstack/react-query";
 import { googleApi } from "@/lib/drive";
 import { MemoryRouter, useLocation } from "react-router-dom";
 
-// Mock dependencies
-vi.mock("../app-context", () => ({
+// Mock dependencies using aliases
+vi.mock("@/context/app-context", () => ({
     useAppContext: vi.fn(),
 }));
 
@@ -33,6 +33,11 @@ vi.mock("react-router-dom", async (importOriginal) => {
 
 describe("AutoSyncContext", () => {
     let invalidateQueriesMock: any;
+    let stableQueryClient: any;
+
+    // We use a specific test constant (10s) to decouple from environment variables
+    const TEST_INTERVAL_SEC = 10;
+    const TEST_INTERVAL_MS = TEST_INTERVAL_SEC * 1000;
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -41,54 +46,66 @@ describe("AutoSyncContext", () => {
         (useAppContext as any).mockReturnValue({ activeGroupId: "group-1" });
 
         invalidateQueriesMock = vi.fn();
-        (useQueryClient as any).mockReturnValue({
+
+        // CRITICAL FIX: Return a stable object reference to prevent useEffect re-runs
+        stableQueryClient = {
             invalidateQueries: invalidateQueriesMock,
-        });
+        };
+        (useQueryClient as any).mockReturnValue(stableQueryClient);
 
         mockUseLocation.mockReturnValue({ pathname: "/dashboard" });
+        (googleApi.getLastModified as any).mockResolvedValue("2023-01-01T12:00:00Z");
     });
 
     afterEach(() => {
         vi.useRealTimers();
     });
 
+    // Wrapper injects the specific test interval
     const wrapper = ({ children }: { children: React.ReactNode }) => (
         <MemoryRouter>
-            <AutoSyncProvider>{children}</AutoSyncProvider>
+            <AutoSyncProvider pollingInterval={TEST_INTERVAL_SEC}>{children}</AutoSyncProvider>
         </MemoryRouter>
     );
 
     it("polls periodically when on a safe route", async () => {
-        (googleApi.getLastModified as any).mockResolvedValue("2023-01-01T12:00:00Z");
-
         renderHook(() => useAutoSync(), { wrapper });
 
-        // Initial check on mount
+        // Initial check on mount (Immediate Sync)
         expect(googleApi.getLastModified).toHaveBeenCalledTimes(1);
 
-        // Interval check
+        // Clear mock to test interval specifically
+        (googleApi.getLastModified as any).mockClear();
+
+        // Advance by test interval (10s)
         await act(async () => {
-            vi.advanceTimersByTime(30000);
+            vi.advanceTimersByTime(TEST_INTERVAL_MS);
         });
 
-        expect(googleApi.getLastModified).toHaveBeenCalledTimes(2);
+        // Check if called exactly once
+        try {
+            expect(googleApi.getLastModified).toHaveBeenCalledTimes(1);
+        } catch (e: any) {
+            throw new Error(`Test failed: Auto-sync did not fire exactly once in ${TEST_INTERVAL_SEC} seconds. 
+            Original error: ${e.message}`);
+        }
     });
 
     it("pauses polling on unsafe routes", async () => {
         mockUseLocation.mockReturnValue({ pathname: "/edit-expense" });
-        (googleApi.getLastModified as any).mockResolvedValue("2023-01-01T12:00:00Z");
 
         renderHook(() => useAutoSync(), { wrapper });
 
-        // Might be called once on mount if the effect runs before location effect settles, 
-        // but let's check subsequent intervals
+        // Clear initial calls
+        (googleApi.getLastModified as any).mockClear();
 
+        // Advance time significantly past the interval
         await act(async () => {
-            vi.advanceTimersByTime(35000);
+            vi.advanceTimersByTime(TEST_INTERVAL_MS + 5000);
         });
 
-        // Should not have multiple calls
-        expect(googleApi.getLastModified).not.toHaveBeenCalledTimes(2);
+        // Should NOT be called because route is unsafe
+        expect(googleApi.getLastModified).not.toHaveBeenCalled();
     });
 
     it("resumes polling immediately when returning to safe route", async () => {
@@ -105,8 +122,10 @@ describe("AutoSyncContext", () => {
 
         expect(result.current.isPaused).toBe(false);
 
-        // Should call immediately (within effect cycle)
-        await act(async () => { vi.advanceTimersByTime(100); });
+        // Should call immediately (within effect cycle) upon unpausing
+        await act(async () => {
+            vi.advanceTimersByTime(100);
+        });
 
         expect(googleApi.getLastModified).toHaveBeenCalled();
     });
