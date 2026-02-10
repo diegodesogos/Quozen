@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { AutoSyncProvider, useAutoSync } from "@/context/auto-sync-context";
+import { AutoSyncProvider } from "@/context/auto-sync-context";
+import { useAutoSync } from "@/hooks/use-auto-sync";
 import { useAppContext } from "@/context/app-context";
 import { useQueryClient } from "@tanstack/react-query";
 import { googleApi } from "@/lib/drive";

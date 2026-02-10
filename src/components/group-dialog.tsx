@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { parseMembers } from "@/lib/utils";
 import { MemberInput } from "@/lib/storage/types";
 import { useTranslation } from "react-i18next";
-import { useAutoSync } from "@/context/auto-sync-context";
+import { useAutoSync } from "@/hooks/use-auto-sync";
 
 interface GroupDialogProps {
   open: boolean;

@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useGroups } from "@/hooks/use-groups";
 import { useTranslation } from "react-i18next";
-import { useAutoSync } from "@/context/auto-sync-context";
+import { useAutoSync } from "@/hooks/use-auto-sync";
 
 export default function Header() {
   const { activeGroupId } = useAppContext();

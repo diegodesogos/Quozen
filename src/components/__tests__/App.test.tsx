@@ -21,10 +21,13 @@ vi.mock("@/hooks/use-groups", () => ({
   useGroups: vi.fn(),
 }));
 
-// Mock AutoSync Context (AutoSyncProvider is rendered by AuthenticatedApp, 
-// but we mock it to avoid internal logic and just render children)
-vi.mock("@/context/auto-sync-context", () => ({
+// Mock AutoSync
+vi.mock("@/hooks/use-auto-sync", () => ({
   useAutoSync: vi.fn(),
+}));
+
+// Mock Provider which is used in App
+vi.mock("@/context/auto-sync-context", () => ({
   AutoSyncProvider: ({ children }: any) => <>{children}</>
 }));
 

@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useTranslation } from "react-i18next";
-import { useAutoSync } from "@/context/auto-sync-context";
+import { useAutoSync } from "@/hooks/use-auto-sync";
 
 interface UserInfo {
   userId: string;

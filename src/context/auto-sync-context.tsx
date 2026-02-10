@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
+import React, { createContext, useEffect, useState, useRef, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { googleApi } from "@/lib/drive";
@@ -12,7 +12,8 @@ interface AutoSyncContextType {
     triggerSync: () => Promise<void>;
 }
 
-const AutoSyncContext = createContext<AutoSyncContextType | undefined>(undefined);
+// Export Context so the hook can use it
+export const AutoSyncContext = createContext<AutoSyncContextType | undefined>(undefined);
 
 const UNSAFE_ROUTES = ["/add-expense", "/edit-expense", "/join"];
 const DEFAULT_POLLING_INTERVAL = Number(import.meta.env.VITE_POLLING_INTERVAL || 30);
@@ -72,7 +73,6 @@ export function AutoSyncProvider({
                 lastKnownRemoteTimeRef.current = remoteTimeStr;
             } else if (new Date(remoteTimeStr).getTime() > new Date(lastKnownRemoteTimeRef.current).getTime()) {
                 // Remote is newer -> Invalidate
-                // Log removed to keep console clean
                 await queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
                 lastKnownRemoteTimeRef.current = remoteTimeStr;
                 setLastSyncTime(new Date());
@@ -111,11 +111,3 @@ export function AutoSyncProvider({
         </AutoSyncContext.Provider>
     );
 }
-
-export const useAutoSync = () => {
-    const context = useContext(AutoSyncContext);
-    if (!context) {
-        throw new Error("useAutoSync must be used within AutoSyncProvider");
-    }
-    return context;
-};

@@ -25,8 +25,8 @@ vi.mock("@/hooks/use-groups", () => ({
   useGroups: vi.fn(),
 }));
 
-// Mock AutoSync to avoid provider requirement
-vi.mock("@/context/auto-sync-context", () => ({
+// Mock AutoSync
+vi.mock("@/hooks/use-auto-sync", () => ({
   useAutoSync: vi.fn(() => ({
     isEnabled: true,
     isPaused: false,

@@ -15,7 +15,7 @@ vi.mock("@/hooks/use-toast", () => ({
 }));
 
 // Mock AutoSync
-vi.mock("@/context/auto-sync-context", () => ({
+vi.mock("@/hooks/use-auto-sync", () => ({
   useAutoSync: vi.fn(() => ({
     setPaused: vi.fn()
   })),

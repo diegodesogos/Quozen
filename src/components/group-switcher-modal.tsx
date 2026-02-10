@@ -11,7 +11,7 @@ import { useAuth } from "@/context/auth-provider";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useGroups } from "@/hooks/use-groups";
 import { useTranslation } from "react-i18next";
-import { useAutoSync } from "@/context/auto-sync-context";
+import { useAutoSync } from "@/hooks/use-auto-sync";
 import { useEffect } from "react";
 
 export default function GroupSwitcherModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
