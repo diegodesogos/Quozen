@@ -38,6 +38,26 @@ export class GoogleDriveAdapter implements IStorageAdapter {
         return response;
     }
 
+    /**
+     * Forces a modification timestamp update on the Drive file by patching a metadata property.
+     * This ensures auto-sync picks up changes immediately, as Sheets API edits can be lazily indexed.
+     */
+    private async touchFile(fileId: string): Promise<void> {
+        try {
+            await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}`, {
+                method: "PATCH",
+                body: JSON.stringify({
+                    properties: {
+                        _lastSyncTrigger: new Date().toISOString()
+                    }
+                })
+            });
+        } catch (e) {
+            console.warn("[DriveAdapter] Failed to touch file timestamp. Auto-sync might be delayed.", e);
+            // Non-blocking: don't fail the operation if this fails
+        }
+    }
+
     // --- Settings ---
 
     async loadSettings(userEmail: string): Promise<UserSettings | null> {
@@ -142,6 +162,7 @@ export class GoogleDriveAdapter implements IStorageAdapter {
             method: "PATCH",
             body: JSON.stringify({ name: newName })
         });
+        await this.touchFile(fileId);
     }
 
     async shareFile(fileId: string, email: string, role: "writer" | "reader"): Promise<string | null> {
@@ -212,8 +233,6 @@ export class GoogleDriveAdapter implements IStorageAdapter {
             });
         }
 
-        // Only use name filter if properties not provided OR if strictly required
-        // The implementation strategy for US-202 is to rely on properties if available.
         if (options.nameContains && !options.properties) {
             clauses.push(`name contains '${options.nameContains}'`);
         }
@@ -231,10 +250,16 @@ export class GoogleDriveAdapter implements IStorageAdapter {
         }
     }
 
+    async getLastModified(fileId: string): Promise<string> {
+        const res = await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}?fields=modifiedTime`, {
+            cache: "no-store"
+        });
+        const data = await res.json();
+        return data.modifiedTime || new Date().toISOString();
+    }
+
     async getFileMeta(fileId: string): Promise<{ title: string; sheetNames: string[]; properties?: Record<string, string> }> {
-        // Fetch properties from Drive API
         const driveResPromise = this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}?fields=name,properties`);
-        // Fetch sheets from Sheets API
         const sheetsResPromise = this.fetchWithAuth(`${SHEETS_API_URL}/${fileId}?fields=properties.title,sheets.properties.title`);
 
         const [driveRes, sheetsRes] = await Promise.all([driveResPromise, sheetsResPromise]);
@@ -290,6 +315,8 @@ export class GoogleDriveAdapter implements IStorageAdapter {
             method: "POST",
             body: JSON.stringify(valuesBody)
         });
+
+        await this.touchFile(fileId);
     }
 
     // --- Row Operations ---
@@ -300,6 +327,7 @@ export class GoogleDriveAdapter implements IStorageAdapter {
             method: "POST",
             body: JSON.stringify({ values: [row] })
         });
+        await this.touchFile(fileId);
     }
 
     async updateRow(fileId: string, sheetName: SchemaType, rowIndex: number, data: any): Promise<void> {
@@ -308,6 +336,7 @@ export class GoogleDriveAdapter implements IStorageAdapter {
             method: "PUT",
             body: JSON.stringify({ values: [row] })
         });
+        await this.touchFile(fileId);
     }
 
     async deleteRow(fileId: string, sheetName: SchemaType, rowIndex: number): Promise<void> {
@@ -316,6 +345,7 @@ export class GoogleDriveAdapter implements IStorageAdapter {
             method: "POST",
             body: JSON.stringify({ requests: [{ deleteDimension: { range: { sheetId, dimension: "ROWS", startIndex: rowIndex - 1, endIndex: rowIndex } } }] })
         });
+        await this.touchFile(fileId);
     }
 
     async readRow(fileId: string, sheetName: SchemaType, rowIndex: number): Promise<any | null> {

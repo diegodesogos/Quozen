@@ -8,6 +8,7 @@ interface MockSheet {
     settlements: Settlement[];
     members: Member[];
     createdTime: string;
+    modifiedTime: string;
     content?: any;
     isPublic?: boolean;
     properties?: Record<string, string>;
@@ -46,6 +47,7 @@ export class InMemoryAdapter implements IStorageAdapter {
                 settlements: [],
                 members: [],
                 createdTime: new Date().toISOString(),
+                modifiedTime: new Date().toISOString(),
                 content: settings
             });
         } else {
@@ -65,6 +67,7 @@ export class InMemoryAdapter implements IStorageAdapter {
             settlements: [],
             members: [],
             createdTime: new Date().toISOString(),
+            modifiedTime: new Date().toISOString(),
             properties: properties || {}
         });
         return id;
@@ -75,7 +78,7 @@ export class InMemoryAdapter implements IStorageAdapter {
     }
 
     async renameFile(fileId: string, newName: string): Promise<void> {
-        const sheet = this.sheets.get(fileId);
+        const sheet = this.getAndTouch(fileId);
         if (sheet) sheet.name = newName;
     }
 
@@ -84,7 +87,7 @@ export class InMemoryAdapter implements IStorageAdapter {
     }
 
     async setFilePermissions(fileId: string, access: 'public' | 'restricted'): Promise<void> {
-        const sheet = this.sheets.get(fileId);
+        const sheet = this.getAndTouch(fileId);
         if (sheet) {
             sheet.isPublic = (access === 'public');
         }
@@ -96,7 +99,7 @@ export class InMemoryAdapter implements IStorageAdapter {
     }
 
     async addFileProperties(fileId: string, properties: Record<string, string>): Promise<void> {
-        const sheet = this.sheets.get(fileId);
+        const sheet = this.getAndTouch(fileId);
         if (sheet) {
             sheet.properties = { ...sheet.properties, ...properties };
         }
@@ -137,6 +140,11 @@ export class InMemoryAdapter implements IStorageAdapter {
         return files;
     }
 
+    async getLastModified(fileId: string): Promise<string> {
+        const sheet = this.sheets.get(fileId);
+        return sheet?.modifiedTime || new Date().toISOString();
+    }
+
     async getFileMeta(fileId: string): Promise<{ title: string; sheetNames: string[]; properties?: Record<string, string> }> {
         const sheet = this.sheets.get(fileId);
         if (!sheet) throw new Error("File not found");
@@ -156,7 +164,7 @@ export class InMemoryAdapter implements IStorageAdapter {
     }
 
     async initializeGroup(fileId: string, data: GroupData): Promise<void> {
-        const sheet = this.sheets.get(fileId);
+        const sheet = this.getAndTouch(fileId);
         if (sheet) {
             sheet.expenses = data.expenses;
             sheet.settlements = data.settlements;
@@ -167,8 +175,8 @@ export class InMemoryAdapter implements IStorageAdapter {
     // --- Row Operations ---
 
     async appendRow(fileId: string, sheetName: SchemaType, data: any): Promise<void> {
-        const sheet = this.sheets.get(fileId);
-        if (!sheet) throw new Error("Sheet not found");
+        const sheet = this.getAndTouch(fileId);
+        if (!sheet) throw new Error(`Sheet not found: ${fileId}`);
 
         const collection = this.getCollection(sheet, sheetName);
         const rowIndex = collection.length + 2;
@@ -176,8 +184,8 @@ export class InMemoryAdapter implements IStorageAdapter {
     }
 
     async updateRow(fileId: string, sheetName: SchemaType, rowIndex: number, data: any): Promise<void> {
-        const sheet = this.sheets.get(fileId);
-        if (!sheet) throw new Error("Sheet not found");
+        const sheet = this.getAndTouch(fileId);
+        if (!sheet) throw new Error(`Sheet not found: ${fileId}`);
 
         const collection = this.getCollection(sheet, sheetName);
         const arrayIndex = rowIndex - 2;
@@ -187,8 +195,8 @@ export class InMemoryAdapter implements IStorageAdapter {
     }
 
     async deleteRow(fileId: string, sheetName: SchemaType, rowIndex: number): Promise<void> {
-        const sheet = this.sheets.get(fileId);
-        if (!sheet) throw new Error("Sheet not found");
+        const sheet = this.getAndTouch(fileId);
+        if (!sheet) throw new Error(`Sheet not found: ${fileId}`);
         const collection = this.getCollection(sheet, sheetName);
         const arrayIndex = rowIndex - 2;
         if (arrayIndex >= 0 && arrayIndex < collection.length) {
@@ -208,5 +216,13 @@ export class InMemoryAdapter implements IStorageAdapter {
         if (sheetName === 'Expenses') return sheet.expenses;
         if (sheetName === 'Settlements') return sheet.settlements;
         return sheet.members;
+    }
+
+    private getAndTouch(fileId: string): MockSheet | undefined {
+        const sheet = this.sheets.get(fileId);
+        if (sheet) {
+            sheet.modifiedTime = new Date().toISOString();
+        }
+        return sheet;
     }
 }

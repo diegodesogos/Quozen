@@ -25,6 +25,13 @@ vi.mock("@/hooks/use-groups", () => ({
   useGroups: vi.fn(),
 }));
 
+// Mock AutoSync
+vi.mock("@/hooks/use-auto-sync", () => ({
+  useAutoSync: vi.fn(() => ({
+    setPaused: vi.fn()
+  })),
+}));
+
 vi.mock("@tanstack/react-query", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@tanstack/react-query")>();
   return {

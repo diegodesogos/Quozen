@@ -98,6 +98,12 @@ export class RemoteMockAdapter implements IStorageAdapter {
         return data.files || [];
     }
 
+    async getLastModified(fileId: string): Promise<string> {
+        const res = await this.fetch(`/files/${fileId}/modifiedTime`);
+        const data = await res.json();
+        return data.modifiedTime;
+    }
+
     // --- Content / Data ---
 
     async getFileMeta(fileId: string): Promise<{ title: string; sheetNames: string[]; properties?: Record<string, string> }> {

@@ -10,8 +10,14 @@ Quozen operates entirely within your browser (Single Page Application). It uses 
 * **Google Sign-In**: Secure authentication using your existing Google account.
 * **Collaborative Groups**: 
     * **Share via Email**: Invite friends by email to give them access to the group. They will see it in their "Shared with me" list and can edit expenses.
+    * **Magic Link Sharing**: Generate a unique link to let anyone join the group instantly (permissions handled automatically).
     * **Offline Members**: Add members by username (e.g., "Bob") to track expenses for people who don't use the app.
 * **Activity Hub**: A unified view to track all group expenses and internal money transfers (settlements) in one place.
+* **Smart Data Sync**:
+    * **Auto-Sync**: Automatically detects changes from other users and updates your view in near real-time (configurable polling).
+    * **Pull-to-Refresh**: Intuitive mobile gesture to manually trigger a sync when auto-sync is active.
+    * **Conflict Detection**: Prevents accidental overwrites if multiple users edit an expense simultaneously.
+    * **Edit Safety**: Intelligent guards prevent syncing while you are typing or editing to avoid data loss.
 * **Role-Based Access**:
     * **Owners**: Can edit group settings, manage members, and delete the group.
     * **Members**: Can add/edit expenses, view balances, and leave the group.
@@ -19,9 +25,6 @@ Quozen operates entirely within your browser (Single Page Application). It uses 
     * **Multi-Language Support**: Fully translated into **English** and **Spanish** (Español). Auto-detects your system preference with manual override in Profile.
     * **Regional Formatting**: Automatically formats dates and numbers (e.g., 1,234.56 vs 1.234,56) based on your selected locale.
     * **Currency Selection**: Set your preferred display currency (USD, EUR, GBP, JPY, etc.).
-* **Data Integrity**:
-    * **Conflict Detection**: Prevents accidental overwrites if multiple users edit an expense simultaneously.
-    * **Manual Sync**: Refresh data instantly to see the latest changes from other members.
 * **Smart Settlements**: Client-side algorithms calculate the most efficient way to settle debts.
 * **Transparent Data**: Every group is just a Google Sheet. You can export, backup, or analyze your data using Excel/Sheets tools anytime.
 
@@ -44,7 +47,7 @@ To function, Quozen requests these specific permissions:
 ## 🛠 Tech Stack
 
 * **Frontend**: React, TypeScript, Vite
-* **Styling**: Tailwind CSS, Shadcn UI
+* **Styling**: Tailwind CSS, Shadcn UI, Framer Motion
 * **State Management**: TanStack Query (React Query)
 * **Authentication & Data**: Google Identity Services, Google Drive API v3, Google Sheets API v4
 * **i18n**: react-i18next
@@ -78,6 +81,9 @@ To function, Quozen requests these specific permissions:
     
     # App Port
     VITE_PORT=3001
+
+    # Auto-Sync Polling Interval (Seconds). Set to 0 to disable and use manual button.
+    VITE_POLLING_INTERVAL=30
     ```
 4.  Start the development server:
     ```bash

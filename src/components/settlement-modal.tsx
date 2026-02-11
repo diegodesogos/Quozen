@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useTranslation } from "react-i18next";
+import { useAutoSync } from "@/hooks/use-auto-sync";
 
 interface UserInfo {
   userId: string;
@@ -51,6 +52,7 @@ export default function SettlementModal({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { t } = useTranslation();
+  const { setPaused } = useAutoSync();
 
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("cash");
@@ -60,6 +62,11 @@ export default function SettlementModal({
   const [selectedToId, setSelectedToId] = useState("");
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) setPaused(true);
+    return () => setPaused(false);
+  }, [isOpen, setPaused]);
 
   useEffect(() => {
     if (isOpen) {
