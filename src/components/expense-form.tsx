@@ -67,7 +67,7 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
 
     if (!currentAmount) return;
 
-    const totalAmount = parseFloat(currentAmount);
+    const totalAmount = parseFloat(String(currentAmount).replace(',', '.'));
     if (isNaN(totalAmount)) return;
 
     const distributedAmounts = distributeAmount(totalAmount, count);
@@ -96,7 +96,7 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
   };
 
   const handleSplitAmountChange = (userId: string, newAmount: string) => {
-    const value = parseFloat(newAmount) || 0;
+    const value = parseFloat(String(newAmount).replace(',', '.')) || 0;
     setSplits(prev =>
       prev.map(split =>
         split.userId === userId ? { ...split, amount: value } : split
@@ -126,7 +126,7 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
       return;
     }
 
-    const expenseAmount = parseFloat(amount);
+    const expenseAmount = parseFloat(String(amount).replace(',', '.'));
     const totalSplit = splits.reduce((sum, s) => sum + (s.selected ? s.amount : 0), 0);
 
     if (Math.abs(totalSplit - expenseAmount) > 0.05) {

@@ -139,7 +139,7 @@ export default function SettlementModal({
     saveMutation.mutate({
       fromUserId: selectedFromId,
       toUserId: selectedToId,
-      amount: parseFloat(amount),
+      amount: parseFloat(String(amount).replace(',', '.')),
       method,
       notes: notes.trim() || undefined,
       date: initialData ? initialData.date : new Date().toISOString(),

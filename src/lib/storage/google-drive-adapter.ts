@@ -282,7 +282,7 @@ export class GoogleDriveAdapter implements IStorageAdapter {
         if (!fileId) return null;
         const ranges = ["Expenses", "Settlements", "Members"].map(s => `${s}!A2:Z`).join('&ranges=');
         try {
-            const res = await this.fetchWithAuth(`${SHEETS_API_URL}/${fileId}/values:batchGet?majorDimension=ROWS&ranges=${ranges}`);
+            const res = await this.fetchWithAuth(`${SHEETS_API_URL}/${fileId}/values:batchGet?majorDimension=ROWS&valueRenderOption=UNFORMATTED_VALUE&ranges=${ranges}`);
             const data = await res.json();
             if (!data.valueRanges) return null;
 
@@ -349,7 +349,7 @@ export class GoogleDriveAdapter implements IStorageAdapter {
     }
 
     async readRow(fileId: string, sheetName: SchemaType, rowIndex: number): Promise<any | null> {
-        const res = await this.fetchWithAuth(`${SHEETS_API_URL}/${fileId}/values/${sheetName}!A${rowIndex}:Z${rowIndex}`);
+        const res = await this.fetchWithAuth(`${SHEETS_API_URL}/${fileId}/values/${sheetName}!A${rowIndex}:Z${rowIndex}?valueRenderOption=UNFORMATTED_VALUE`);
         const data = await res.json();
         const row = data.values?.[0];
         if (!row) return null;
@@ -367,8 +367,10 @@ export class GoogleDriveAdapter implements IStorageAdapter {
                 let val = row[idx];
                 if (key === 'splits' || key === 'meta') {
                     try { val = JSON.parse(val); } catch { val = {}; }
-                } else if (key === 'amount' && val) val = parseFloat(val);
-                obj[key] = val;
+                } else if (key === 'amount' && val !== undefined && val !== null) {
+                    val = typeof val === 'string' ? parseFloat(val.replace(',', '.')) : parseFloat(String(val));
+                }
+                obj[key] = isNaN(val) ? 0 : val;
             });
             return obj;
         });
