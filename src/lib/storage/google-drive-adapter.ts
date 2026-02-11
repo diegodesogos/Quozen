@@ -366,11 +366,20 @@ export class GoogleDriveAdapter implements IStorageAdapter {
             schema.forEach((key, idx) => {
                 let val = row[idx];
                 if (key === 'splits' || key === 'meta') {
-                    try { val = JSON.parse(val); } catch { val = {}; }
-                } else if (key === 'amount' && val !== undefined && val !== null) {
-                    val = typeof val === 'string' ? parseFloat(val.replace(',', '.')) : parseFloat(String(val));
+                    try {
+                        val = JSON.parse(val);
+                    } catch {
+                        val = key === 'splits' ? [] : {};
+                    }
+                } else if (key === 'amount') {
+                    if (val !== undefined && val !== null && val !== "") {
+                        val = typeof val === 'string' ? parseFloat(val.replace(',', '.')) : parseFloat(String(val));
+                    } else {
+                        val = 0;
+                    }
+                    if (isNaN(val)) val = 0;
                 }
-                obj[key] = isNaN(val) ? 0 : val;
+                obj[key] = val;
             });
             return obj;
         });
