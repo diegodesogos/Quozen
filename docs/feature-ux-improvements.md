@@ -4,7 +4,7 @@
 |---|---|---|
 | Bug-01 | Precision error in payments (< 0.5) | ✅ Completed |
 | 1 | Universal Bottom Drawer Strategy | ✅ Completed |
-| 2 | Sticky Action Footers | ⏳ Pending |
+| 2 | Sticky Action Footers | ✅ Completed |
 | 3 | Standardize Navigation Header Pattern | ⏳ Pending |
 | 4 | Expand Group Card Touch Target | ⏳ Pending |
 | 5 | Consolidate Secondary Actions (Meatball Menu) | ⏳ Pending |

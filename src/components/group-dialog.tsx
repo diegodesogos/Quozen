@@ -68,44 +68,46 @@ export default function GroupDialog({
                 : t("groups.update")}
             </DrawerDescription>
           </DrawerHeader>
-          <form onSubmit={handleSubmit} className="space-y-4 p-4 pb-0">
-            <div>
-              <Label htmlFor="groupName">{t("groups.nameLabel")} *</Label>
-              <Input
-                id="groupName"
-                placeholder="e.g., Weekend Trip"
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                required
-              />
+          <form onSubmit={handleSubmit} className="p-4 pb-28">
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="groupName">{t("groups.nameLabel")} *</Label>
+                <Input
+                  id="groupName"
+                  placeholder="e.g., Weekend Trip"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="members">{t("groups.membersLabel")}</Label>
+                <Textarea
+                  id="members"
+                  placeholder={t("groups.membersHint")}
+                  value={membersInput}
+                  onChange={(e) => setMembersInput(e.target.value)}
+                  className="mt-1"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t("groups.membersHint2")}
+                </p>
+              </div>
             </div>
 
-            <div>
-              <Label htmlFor="members">{t("groups.membersLabel")}</Label>
-              <Textarea
-                id="members"
-                placeholder={t("groups.membersHint")}
-                value={membersInput}
-                onChange={(e) => setMembersInput(e.target.value)}
-                className="mt-1"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                {t("groups.membersHint2")}
-              </p>
-            </div>
-
-            <DrawerFooter className="flex-row space-x-3 px-0 pb-8">
+            <DrawerFooter className="fixed bottom-0 left-0 right-0 flex-row space-x-3 bg-background border-t shadow-[0_-4px_10px_rgba(0,0,0,0.05)] px-4 pb-8 z-10">
               <Button
                 type="button"
                 variant="secondary"
-                className="flex-1"
+                className="flex-1 h-12"
                 onClick={() => onOpenChange(false)}
               >
                 {t("common.cancel")}
               </Button>
               <Button
                 type="submit"
-                className="flex-1"
+                className="flex-1 h-12"
                 disabled={isPending}
               >
                 {isPending ? t("expenseForm.saving") : (mode === 'create' ? t("groups.create") : t("groups.update"))}

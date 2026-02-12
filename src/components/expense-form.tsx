@@ -153,7 +153,7 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
   };
 
   return (
-    <div className="mx-4 mt-4">
+    <div className="mx-4 mt-4 pb-32">
       <h2 className="text-xl font-bold mb-6">{title}</h2>
       <form onSubmit={handleSubmit} className="space-y-6" data-testid="form-expense">
         <div>
@@ -249,26 +249,30 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
             ))}
           </div>
         </div>
-        <div className="flex space-x-3">
-          <Button
-            type="button"
-            variant="secondary"
-            className="flex-1"
-            onClick={() => navigate(-1)}
-            data-testid="button-cancel-expense"
-          >
-            {t("common.cancel")}
-          </Button>
-          <Button
-            type="submit"
-            className="flex-1"
-            disabled={isPending}
-            data-testid="button-submit-expense"
-          >
-            {isPending ? t("expenseForm.saving") : t("expenseForm.save")}
-          </Button>
+
+        {/* Sticky Action Footer */}
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-10">
+          <div className="max-w-md mx-auto flex space-x-3">
+            <Button
+              type="button"
+              variant="secondary"
+              className="flex-1 h-12"
+              onClick={() => navigate(-1)}
+              data-testid="button-cancel-expense"
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              type="submit"
+              className="flex-1 h-12"
+              disabled={isPending}
+              data-testid="button-submit-expense"
+            >
+              {isPending ? t("expenseForm.saving") : t("expenseForm.save")}
+            </Button>
+          </div>
         </div>
-      </form>
-    </div>
+      </form >
+    </div >
   );
 }
