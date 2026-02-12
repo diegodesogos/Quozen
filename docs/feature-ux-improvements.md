@@ -21,6 +21,7 @@
 | 16 | Remove Legacy Registration Route | ⏳ Pending |
 | 17 | Implement Mobile "Cover" Login Layout | ⏳ Pending |
 | 18 | "Wizard" UI for Manual Join Fix | ⏳ Pending |
+| 19 | Convert Expense Forms to Drawers | ⏳ Pending |
 
 # Bugs
 
@@ -180,4 +181,13 @@ If you attempt a transfer amount lower than 0.5, the app records a 0.0 transacti
   * **Connector:** A vertical line connecting the icons.  
   * **Step 2 Row:** \[ Icon \] \[ Title: Confirm Access \] \[ Action: Button "Select File" \].  
   * **Logic:** Step 2 opacity is 50% until Step 1 is triggered.
+
+**19\. Convert Expense Forms to Drawers**
+
+* **Target:** `src/App.tsx`, `src/components/bottom-navigation.tsx`, `src/pages/dashboard.tsx`.  
+* **Instruction:**  
+  * **Remove:** The `/add-expense` route (eventually).  
+  * **Create:** A global `AddExpenseDrawer` component available at the Layout level.  
+  * **Trigger:** Update the Bottom Navigation `+` button to open this Drawer instead of navigating.  
+  * **Edit Flow:** For editing, since it requires a URL ID (`/edit-expense/:id`), we can keep the route *but* render the page inside a `Drawer` wrapper that opens automatically on mount, preserving the "Modal" feel while keeping deep-linking capabilities.
 
