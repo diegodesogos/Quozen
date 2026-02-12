@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, DrawerFooter } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,61 +57,63 @@ export default function GroupDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{mode === 'create' ? t("groups.create") : t("groups.edit")}</DialogTitle>
-          <DialogDescription>
-            {mode === 'create'
-              ? t("groups.new")
-              : t("groups.update")}
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="groupName">{t("groups.nameLabel")} *</Label>
-            <Input
-              id="groupName"
-              placeholder="e.g., Weekend Trip"
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-              required
-            />
-          </div>
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent>
+        <div className="mx-auto w-full max-w-md">
+          <DrawerHeader>
+            <DrawerTitle>{mode === 'create' ? t("groups.create") : t("groups.edit")}</DrawerTitle>
+            <DrawerDescription>
+              {mode === 'create'
+                ? t("groups.new")
+                : t("groups.update")}
+            </DrawerDescription>
+          </DrawerHeader>
+          <form onSubmit={handleSubmit} className="space-y-4 p-4 pb-0">
+            <div>
+              <Label htmlFor="groupName">{t("groups.nameLabel")} *</Label>
+              <Input
+                id="groupName"
+                placeholder="e.g., Weekend Trip"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                required
+              />
+            </div>
 
-          <div>
-            <Label htmlFor="members">{t("groups.membersLabel")}</Label>
-            <Textarea
-              id="members"
-              placeholder={t("groups.membersHint")}
-              value={membersInput}
-              onChange={(e) => setMembersInput(e.target.value)}
-              className="mt-1"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              {t("groups.membersHint2")}
-            </p>
-          </div>
+            <div>
+              <Label htmlFor="members">{t("groups.membersLabel")}</Label>
+              <Textarea
+                id="members"
+                placeholder={t("groups.membersHint")}
+                value={membersInput}
+                onChange={(e) => setMembersInput(e.target.value)}
+                className="mt-1"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {t("groups.membersHint2")}
+              </p>
+            </div>
 
-          <div className="flex space-x-3 pt-2">
-            <Button
-              type="button"
-              variant="secondary"
-              className="flex-1"
-              onClick={() => onOpenChange(false)}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              type="submit"
-              className="flex-1"
-              disabled={isPending}
-            >
-              {isPending ? t("expenseForm.saving") : (mode === 'create' ? t("groups.create") : t("groups.update"))}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+            <DrawerFooter className="flex-row space-x-3 px-0 pb-8">
+              <Button
+                type="button"
+                variant="secondary"
+                className="flex-1"
+                onClick={() => onOpenChange(false)}
+              >
+                {t("common.cancel")}
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1"
+                disabled={isPending}
+              >
+                {isPending ? t("expenseForm.saving") : (mode === 'create' ? t("groups.create") : t("groups.update"))}
+              </Button>
+            </DrawerFooter>
+          </form>
+        </div>
+      </DrawerContent>
+    </Drawer>
   );
 }

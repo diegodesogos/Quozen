@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Users, Check, Plus, Download, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -59,33 +59,37 @@ export default function GroupSwitcherModal({ isOpen, onClose }: { isOpen: boolea
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-center">{t("groups.switchModalTitle")}</DialogTitle>
-          <DialogDescription>{t("groups.switchModalDesc")}</DialogDescription>
-        </DialogHeader>
-        {pickerError && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{pickerError}</AlertDescription></Alert>}
+    <Drawer open={isOpen} onOpenChange={onClose}>
+      <DrawerContent>
+        <div className="mx-auto w-full max-w-md">
+          <DrawerHeader>
+            <DrawerTitle className="text-center">{t("groups.switchModalTitle")}</DrawerTitle>
+            <DrawerDescription className="text-center">{t("groups.switchModalDesc")}</DrawerDescription>
+          </DrawerHeader>
+          <div className="px-4 pb-6">
+            {pickerError && <Alert variant="destructive" className="mb-4"><AlertCircle className="h-4 w-4" /><AlertDescription>{pickerError}</AlertDescription></Alert>}
 
-        <div className="space-y-3 max-h-96 overflow-y-auto">
-          {groups.map((group) => (
-            <button key={group.id} onClick={() => handleSelectGroup(group.id)} className="w-full p-4 bg-secondary rounded-lg text-left hover:bg-accent transition-colors">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center"><Users className="w-6 h-6 text-primary-foreground" /></div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-foreground">{group.name}</h4>
-                </div>
-                {group.id === activeGroupId && <Check className="w-4 h-4 text-primary" />}
-              </div>
-            </button>
-          ))}
-        </div>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {groups.map((group) => (
+                <button key={group.id} onClick={() => handleSelectGroup(group.id)} className="w-full p-4 bg-secondary rounded-lg text-left hover:bg-accent transition-colors">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center"><Users className="w-6 h-6 text-primary-foreground" /></div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-foreground">{group.name}</h4>
+                    </div>
+                    {group.id === activeGroupId && <Check className="w-4 h-4 text-primary" />}
+                  </div>
+                </button>
+              ))}
+            </div>
 
-        <div className="flex flex-col gap-2 mt-6">
-          <Button onClick={handleImportClick} variant="secondary" className="w-full"><Download className="w-4 h-4 mr-2" />{t("groups.import")}</Button>
-          <Button onClick={() => { onClose(); navigate("/groups"); }} className="w-full"><Plus className="w-4 h-4 mr-2" />{t("groups.new")}</Button>
+            <div className="flex flex-col gap-2 mt-6 pb-6">
+              <Button onClick={handleImportClick} variant="secondary" className="w-full h-12"><Download className="w-4 h-4 mr-2" />{t("groups.import")}</Button>
+              <Button onClick={() => { onClose(); navigate("/groups"); }} className="w-full h-12"><Plus className="w-4 h-4 mr-2" />{t("groups.new")}</Button>
+            </div>
+          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </DrawerContent>
+    </Drawer>
   );
 }

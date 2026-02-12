@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -85,52 +85,54 @@ export default function ShareDialog({ isOpen, onClose, groupId, groupName }: Sha
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle>{t("share.title", { name: groupName })}</DialogTitle>
-                    <DialogDescription>
-                        {t("share.description")}
-                    </DialogDescription>
-                </DialogHeader>
+        <Drawer open={isOpen} onOpenChange={onClose}>
+            <DrawerContent>
+                <div className="mx-auto w-full max-w-md">
+                    <DrawerHeader>
+                        <DrawerTitle>{t("share.title", { name: groupName })}</DrawerTitle>
+                        <DrawerDescription>
+                            {t("share.description")}
+                        </DrawerDescription>
+                    </DrawerHeader>
 
-                <div className="space-y-6 py-4">
-                    <div className="flex items-center justify-between space-x-2">
-                        <div className="flex flex-col space-y-1">
-                            <Label htmlFor="public-access" className="flex items-center gap-2">
-                                {isPublic ? <Globe className="w-4 h-4 text-primary" /> : <Lock className="w-4 h-4 text-muted-foreground" />}
-                                <span>{t("share.accessLabel")}</span>
-                            </Label>
-                            <span className="text-xs text-muted-foreground">
-                                {isPublic ? t("share.public") : t("share.restricted")}
-                            </span>
-                        </div>
-                        <Switch
-                            id="public-access"
-                            checked={isPublic}
-                            onCheckedChange={handleToggle}
-                            disabled={permissionMutation.isPending}
-                        />
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label>{t("share.magicLink")}</Label>
-                        <div className="flex items-center space-x-2">
-                            <Input
-                                readOnly
-                                value={joinLink}
-                                className="flex-1 bg-muted/50 text-xs font-mono"
+                    <div className="space-y-6 p-4 pb-12">
+                        <div className="flex items-center justify-between space-x-2">
+                            <div className="flex flex-col space-y-1">
+                                <Label htmlFor="public-access" className="flex items-center gap-2">
+                                    {isPublic ? <Globe className="w-4 h-4 text-primary" /> : <Lock className="w-4 h-4 text-muted-foreground" />}
+                                    <span>{t("share.accessLabel")}</span>
+                                </Label>
+                                <span className="text-xs text-muted-foreground">
+                                    {isPublic ? t("share.public") : t("share.restricted")}
+                                </span>
+                            </div>
+                            <Switch
+                                id="public-access"
+                                checked={isPublic}
+                                onCheckedChange={handleToggle}
+                                disabled={permissionMutation.isPending}
                             />
-                            <Button size="icon" variant="outline" onClick={handleCopy} title={t("share.copy")}>
-                                {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                            </Button>
                         </div>
-                        <p className="text-[10px] text-muted-foreground">
-                            {t("share.note")}
-                        </p>
+
+                        <div className="space-y-2">
+                            <Label>{t("share.magicLink")}</Label>
+                            <div className="flex items-center space-x-2">
+                                <Input
+                                    readOnly
+                                    value={joinLink}
+                                    className="flex-1 bg-muted/50 text-xs font-mono"
+                                />
+                                <Button size="icon" variant="outline" onClick={handleCopy} title={t("share.copy")}>
+                                    {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                                </Button>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">
+                                {t("share.note")}
+                            </p>
+                        </div>
                     </div>
                 </div>
-            </DialogContent>
-        </Dialog>
+            </DrawerContent>
+        </Drawer>
     );
 }
