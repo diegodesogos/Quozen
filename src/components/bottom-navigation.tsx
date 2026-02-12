@@ -7,6 +7,13 @@ export default function BottomNavigation() {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
+  const hiddenRoutes = ["/add-expense", "/edit-expense"];
+  const shouldHide = hiddenRoutes.some(route => location.pathname.startsWith(route));
+
+  if (shouldHide) {
+    return null;
+  }
+
   const tabs = [
     { id: "home", path: "/dashboard", icon: Home, label: t("nav.home") },
     { id: "expenses", path: "/expenses", icon: Activity, label: t("nav.activity") },

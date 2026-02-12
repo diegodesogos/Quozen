@@ -251,8 +251,8 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
         </div>
 
         {/* Sticky Action Footer */}
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-10">
-          <div className="max-w-md mx-auto flex space-x-3">
+        <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md p-4 bg-background border-t shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-40">
+          <div className="flex space-x-3">
             <Button
               type="button"
               variant="secondary"
@@ -272,7 +272,7 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
             </Button>
           </div>
         </div>
-      </form >
-    </div >
+      </form>
+    </div>
   );
 }
