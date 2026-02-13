@@ -86,7 +86,11 @@ export default function ShareDialog({ isOpen, onClose, groupId, groupName }: Sha
 
     return (
         <Drawer open={isOpen} onOpenChange={onClose}>
-            <DrawerContent>
+            <DrawerContent
+                onCloseAutoFocus={(event) => {
+                    if (event.defaultPrevented) return;
+                }}
+            >
                 <div className="mx-auto w-full max-w-md">
                     <DrawerHeader>
                         <DrawerTitle>{t("share.title", { name: groupName })}</DrawerTitle>

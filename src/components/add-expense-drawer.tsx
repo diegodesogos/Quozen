@@ -55,7 +55,11 @@ export default function AddExpenseDrawer() {
 
     return (
         <Drawer open={isAddExpenseOpen} onOpenChange={setIsAddExpenseOpen}>
-            <DrawerContent className="max-h-[85vh]">
+            <DrawerContent className="max-h-[85vh]"
+                onCloseAutoFocus={(event) => {
+                    if (event.defaultPrevented) return;
+                }}
+            >
                 <div className="mx-auto w-full max-w-md overflow-y-auto pb-8">
                     <DrawerHeader>
                         <DrawerTitle>{t("expenseForm.addTitle")}</DrawerTitle>

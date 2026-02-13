@@ -159,7 +159,12 @@ export default function SettlementModal({
   return (
     <>
       <Drawer open={isOpen} onOpenChange={onClose}>
-        <DrawerContent data-testid="modal-settlement">
+        <DrawerContent
+          data-testid="modal-settlement"
+          onCloseAutoFocus={(event) => {
+            if (event.defaultPrevented) return;
+          }}
+        >
           <div className="mx-auto w-full max-w-md">
             <DrawerHeader>
               <DrawerTitle className="text-center">{initialData ? t("settlement.editTitle") : t("settlement.title")}</DrawerTitle>
