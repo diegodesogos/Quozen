@@ -194,25 +194,21 @@ describe("JoinPage", () => {
 
         // 2. Verify Manual Pick UI appears
         await waitFor(async () => {
-            // Use regex for flexible matching because of nested elements
-            expect(screen.getByText(/Step 1: Open in Drive/i)).toBeInTheDocument();
-            expect(screen.getByText(/Step 2: Confirm Access/i)).toBeInTheDocument();
+            // 3. Verify it is a link with correct href
+            const link = screen.getByRole("link", { name: en.join.openButton });
+            expect(link).toHaveAttribute("href", "https://docs.google.com/spreadsheets/d/123");
+
+            // 4. Verify Step 2 is disabled initially
+            const step2Btn = screen.getByText(en.join.selectButton).closest('button');
+            expect(step2Btn).toBeDisabled();
+
+            // 5. Click Step 1, then Step 2 should enable
+            fireEvent.click(link);
+            expect(step2Btn).not.toBeDisabled();
+
+            // 6. Click Step 2
+            fireEvent.click(step2Btn!); // Use non-null assertion as we verified presence
+            expect(mockOpenPicker).toHaveBeenCalled();
         });
-
-        // 3. Verify it is a link with correct href using regex match on name
-        const link = screen.getByRole("link", { name: /Step 1: Open in Drive/i });
-        expect(link).toHaveAttribute("href", "https://docs.google.com/spreadsheets/d/123");
-
-        // 4. Verify Step 2 is disabled initially
-        const step2Btn = screen.getByText(/Step 2: Confirm Access/i).closest('button');
-        expect(step2Btn).toBeDisabled();
-
-        // 5. Click Step 1, then Step 2 should enable
-        fireEvent.click(link);
-        expect(step2Btn).not.toBeDisabled();
-
-        // 6. Click Step 2
-        fireEvent.click(step2Btn!); // Use non-null assertion as we verified presence
-        expect(mockOpenPicker).toHaveBeenCalled();
     });
 });

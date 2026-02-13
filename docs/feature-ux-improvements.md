@@ -14,14 +14,14 @@
 | 9 | Implement Segmented Controls for Views | ✅ Completed |
 | 10 | Empty State Illustration | ✅ Completed |
 | 11 | Haptic Feedback Integration | ✅ Completed |
-| 12 | Redesign Dashboard "Settle Up" CTA | ⏳ Pending |
-| 13 | Refactor "Group Balances" Rows | ⏳ Pending |
-| 14 | Streamline Settlement Modal (Directional UI) | ⏳ Pending |
-| 15 | Quick Actions for Transfer History | ⏳ Pending |
-| 16 | Remove Legacy Registration Route | ⏳ Pending |
-| 17 | Implement Mobile "Cover" Login Layout | ⏳ Pending |
-| 18 | "Wizard" UI for Manual Join Fix | ⏳ Pending |
-| 19 | Convert Expense Forms to Drawers | ⏳ Pending |
+| 12 | Redesign Dashboard "Settle Up" CTA | ✅ Completed |
+| 13 | Refactor "Group Balances" Rows | ✅ Completed |
+| 14 | Streamline Settlement Modal (Directional UI) | ✅ Completed |
+| 15 | Quick Actions for Transfer History | ✅ Completed |
+| 16 | Remove Legacy Registration Route | ✅ Completed |
+| 17 | Implement Mobile "Cover" Login Layout | ✅ Completed |
+| 18 | "Wizard" UI for Manual Join Fix | ✅ Completed |
+| 19 | Convert Expense Forms to Drawers | ✅ Completed |
 
 # Bugs
 

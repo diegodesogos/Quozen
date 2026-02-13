@@ -44,7 +44,7 @@ describe("Login Page", () => {
     );
 
     expect(screen.getByText(en.login.welcome)).toBeInTheDocument();
-    expect(screen.getByText(en.login.connect)).toBeInTheDocument();
+    expect(screen.getByText(en.login.subtitle)).toBeInTheDocument();
 
     // The button contains an image with alt="Google" and the text "Continue with Google".
     // RTL computes the accessible name as "Google Continue with Google".

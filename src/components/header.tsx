@@ -22,12 +22,10 @@ export default function Header() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const isSubPage = location.pathname.startsWith("/add-expense") ||
-    location.pathname.startsWith("/edit-expense") ||
+  const isSubPage = location.pathname.startsWith("/edit-expense") ||
     location.pathname.startsWith("/profile");
 
   const getTitle = () => {
-    if (location.pathname.startsWith("/add-expense")) return t("expenseForm.addTitle");
     if (location.pathname.startsWith("/edit-expense")) return t("expenseForm.editTitle");
     if (location.pathname.startsWith("/profile")) return t("profile.title") || "Profile";
     return null;

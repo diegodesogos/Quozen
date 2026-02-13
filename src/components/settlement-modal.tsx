@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { googleApi } from "@/lib/drive";
 import { Member, Settlement } from "@/lib/storage/types";
-import { ArrowRight, Trash2 } from "lucide-react";
+import { ArrowRightLeft, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -85,6 +85,15 @@ export default function SettlementModal({
       }
     }
   }, [isOpen, initialData, suggestedAmount, fromUser, toUser]);
+
+  const handleSwap = () => {
+    setSelectedFromId(selectedToId);
+    setSelectedToId(selectedFromId);
+  };
+
+  const getMember = (userId: string) => users.find(u => u.userId === userId);
+  const fromMember = getMember(selectedFromId);
+  const toMember = getMember(selectedToId);
 
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -161,12 +170,17 @@ export default function SettlementModal({
 
             <form onSubmit={handleSubmit} className="space-y-4 p-4 pb-0" data-testid="form-settlement">
 
-              <div className="grid grid-cols-[1fr,auto,1fr] gap-2 items-end">
-                <div className="space-y-2">
-                  <Label>{t("settlement.payer")}</Label>
+              <div className="flex items-center justify-between gap-2 py-6 px-2 bg-muted/20 rounded-2xl relative border border-border/50">
+                <div className="flex-1">
                   <Select value={selectedFromId} onValueChange={setSelectedFromId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("settlement.whoPaid")} />
+                    <SelectTrigger className="h-auto p-0 border-none bg-transparent hover:bg-transparent shadow-none focus:ring-0 flex flex-col items-center gap-2">
+                      <div className="w-16 h-16 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center text-xl font-bold text-primary shadow-sm">
+                        {fromMember?.name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || "?"}
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm font-semibold truncate max-w-[100px]">{fromMember?.name || t("settlement.whoPaid")}</div>
+                        <div className="text-[10px] uppercase tracking-tighter text-muted-foreground font-medium">{t("settlement.payer")}</div>
+                      </div>
                     </SelectTrigger>
                     <SelectContent>
                       {users.map(u => (
@@ -178,15 +192,28 @@ export default function SettlementModal({
                   </Select>
                 </div>
 
-                <div className="pb-3 text-muted-foreground">
-                  <ArrowRight className="w-5 h-5" />
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-11 z-10">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 rounded-full bg-background shadow-sm border-border hover:bg-muted"
+                    onClick={handleSwap}
+                  >
+                    <ArrowRightLeft className="w-3.5 h-3.5 text-primary" />
+                  </Button>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>{t("settlement.receiver")}</Label>
+                <div className="flex-1">
                   <Select value={selectedToId} onValueChange={setSelectedToId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("settlement.whoReceived")} />
+                    <SelectTrigger className="h-auto p-0 border-none bg-transparent hover:bg-transparent shadow-none focus:ring-0 flex flex-col items-center gap-2">
+                      <div className="w-16 h-16 rounded-full bg-secondary/50 border-2 border-border flex items-center justify-center text-xl font-bold text-foreground shadow-sm">
+                        {toMember?.name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || "?"}
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm font-semibold truncate max-w-[100px]">{toMember?.name || t("settlement.whoReceived")}</div>
+                        <div className="text-[10px] uppercase tracking-tighter text-muted-foreground font-medium">{t("settlement.receiver")}</div>
+                      </div>
                     </SelectTrigger>
                     <SelectContent>
                       {users.map(u => (

@@ -23,9 +23,10 @@ interface ExpenseFormProps {
   currentUserId: string;
   onSubmit: (data: Partial<Expense>) => void;
   isPending: boolean;
+  onCancel?: () => void;
 }
 
-export default function ExpenseForm({ initialData, users, currentUserId, onSubmit, isPending }: ExpenseFormProps) {
+export default function ExpenseForm({ initialData, users, currentUserId, onSubmit, isPending, onCancel }: ExpenseFormProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t } = useTranslation();

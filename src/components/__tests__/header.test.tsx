@@ -121,12 +121,12 @@ describe("Header Component", () => {
     (useQuery as unknown as ReturnType<typeof vi.fn>).mockReturnValue({ data: mockGroupData });
 
     render(
-      <MemoryRouter initialEntries={["/add-expense"]}>
+      <MemoryRouter initialEntries={["/edit-expense/123"]}>
         <Header />
       </MemoryRouter>
     );
 
-    expect(screen.getByText(en.expenseForm.addTitle)).toBeInTheDocument();
+    expect(screen.getByText(en.expenseForm.editTitle)).toBeInTheDocument();
     expect(screen.getByTestId("button-back")).toBeInTheDocument();
   });
 });

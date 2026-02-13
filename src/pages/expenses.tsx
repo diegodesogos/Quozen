@@ -37,7 +37,7 @@ interface ExpensesListProps {
 }
 
 export default function ExpensesList({ expenses = [], members = [], isLoading = false }: ExpensesListProps) {
-  const { activeGroupId, currentUserId } = useAppContext();
+  const { activeGroupId, currentUserId, setIsAddExpenseOpen } = useAppContext();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -125,7 +125,7 @@ export default function ExpensesList({ expenses = [], members = [], isLoading = 
         <p className="text-muted-foreground mb-8 max-w-[280px]">
           {t("activity.startAdding")}
         </p>
-        <Button onClick={() => navigate("/add-expense")} className="h-12 px-8">
+        <Button onClick={() => setIsAddExpenseOpen(true)} className="h-12 px-8">
           <Plus className="w-4 h-4 mr-2" />
           {t("expenseForm.addTitle")}
         </Button>
