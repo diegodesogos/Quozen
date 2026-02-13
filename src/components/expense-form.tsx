@@ -22,10 +22,9 @@ interface ExpenseFormProps {
   currentUserId: string;
   onSubmit: (data: Partial<Expense>) => void;
   isPending: boolean;
-  title: string;
 }
 
-export default function ExpenseForm({ initialData, users, currentUserId, onSubmit, isPending, title }: ExpenseFormProps) {
+export default function ExpenseForm({ initialData, users, currentUserId, onSubmit, isPending }: ExpenseFormProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -154,7 +153,6 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
 
   return (
     <div className="mx-4 mt-4 pb-32">
-      <h2 className="text-xl font-bold mb-6">{title}</h2>
       <form onSubmit={handleSubmit} className="space-y-6" data-testid="form-expense">
         <div>
           <Label htmlFor="description">{t("expenseForm.description")} *</Label>
@@ -252,25 +250,14 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
 
         {/* Sticky Action Footer */}
         <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md p-4 bg-background border-t shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-40">
-          <div className="flex space-x-3">
-            <Button
-              type="button"
-              variant="secondary"
-              className="flex-1 h-12"
-              onClick={() => navigate(-1)}
-              data-testid="button-cancel-expense"
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              type="submit"
-              className="flex-1 h-12"
-              disabled={isPending}
-              data-testid="button-submit-expense"
-            >
-              {isPending ? t("expenseForm.saving") : t("expenseForm.save")}
-            </Button>
-          </div>
+          <Button
+            type="submit"
+            className="w-full h-12"
+            disabled={isPending}
+            data-testid="button-submit-expense"
+          >
+            {isPending ? t("expenseForm.saving") : t("expenseForm.save")}
+          </Button>
         </div>
       </form>
     </div>

@@ -108,7 +108,6 @@ export default function EditExpense() {
   return (
     <>
       <ExpenseForm
-        title={t("expenseForm.editTitle")}
         initialData={expense}
         users={groupData.members}
         currentUserId={currentUserId}

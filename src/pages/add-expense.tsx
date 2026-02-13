@@ -52,7 +52,6 @@ export default function AddExpense() {
   return (
     <div data-testid="add-expense-view">
       <ExpenseForm
-        title={t("expenseForm.addTitle")}
         users={users}
         currentUserId={currentUserId}
         isPending={expenseMutation.isPending}

@@ -115,4 +115,19 @@ describe("Header Component", () => {
     const expectedPeopleText = en.header.people_other.replace("{{count}}", "2");
     expect(screen.getByText(expectedPeopleText)).toBeInTheDocument();
   });
+
+  it("renders the header with subpage title and back button", () => {
+    (useAppContext as unknown as ReturnType<typeof vi.fn>).mockReturnValue({ activeGroupId: "group-1" });
+    (useQuery as unknown as ReturnType<typeof vi.fn>).mockReturnValue({ data: mockGroupData });
+
+    render(
+      <MemoryRouter initialEntries={["/add-expense"]}>
+        <Header />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText(en.expenseForm.addTitle)).toBeInTheDocument();
+    expect(screen.getByTestId("button-back")).toBeInTheDocument();
+  });
 });
+
