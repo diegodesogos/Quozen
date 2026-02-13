@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import Groups from "../groups";
 import { useAppContext } from "@/context/app-context";
 import { useAuth } from "@/context/auth-provider";
@@ -61,6 +61,13 @@ vi.mock("@/lib/drive", () => ({
     leaveGroup: vi.fn(),
     checkMemberHasExpenses: vi.fn(),
   },
+}));
+
+vi.mock("@/components/ui/dropdown-menu", () => ({
+  DropdownMenu: ({ children }: any) => <>{children}</>,
+  DropdownMenuTrigger: ({ children }: any) => <>{children}</>,
+  DropdownMenuContent: ({ children }: any) => <>{children}</>,
+  DropdownMenuItem: ({ children, onClick }: any) => <div onClick={onClick} role="menuitem">{children}</div>,
 }));
 
 describe("Groups Page", () => {
@@ -127,6 +134,8 @@ describe("Groups Page", () => {
       },
       isPending: false,
     }));
+    // Mock navigator.vibrate
+    global.navigator.vibrate = vi.fn();
   });
 
   it("renders the list of groups with correct badges", () => {
@@ -140,14 +149,21 @@ describe("Groups Page", () => {
     expect(group2Card).toHaveTextContent(en.roles.member);
   });
 
-  it("shows Edit/Delete for owners and Leave for members", () => {
+  it("shows Edit/Delete for owners and Leave for members", async () => {
     render(<Groups />);
-    const group1Card = screen.getByText("Trip to Paris").closest('.rounded-lg');
-    expect(group1Card?.querySelector('button svg.lucide-pencil')).toBeInTheDocument();
-    expect(group1Card?.querySelector('button svg.lucide-trash2')).toBeInTheDocument();
+    const group1Card = screen.getByText("Trip to Paris").closest('[data-testid="group-card"]');
+    const meatball1 = within(group1Card as HTMLElement).getByTestId("group-menu-trigger");
+    expect(meatball1).toBeInTheDocument();
 
-    const group2Card = screen.getByText("Office Lunch").closest('.rounded-lg');
-    expect(group2Card?.querySelector('button svg.lucide-log-out')).toBeInTheDocument();
+    // For Mocked Dropdown, items are always in document
+    expect(screen.getByText(en.common.share)).toBeInTheDocument();
+    expect(screen.getByText(en.common.edit)).toBeInTheDocument();
+    expect(screen.getByText(en.common.delete)).toBeInTheDocument();
+
+    const group2Card = screen.getByText("Office Lunch").closest('[data-testid="group-card"]');
+    const meatball2 = within(group2Card as HTMLElement).getByTestId("group-menu-trigger");
+    expect(meatball2).toBeInTheDocument();
+    expect(screen.getByText(en.groups.leaveAction)).toBeInTheDocument();
   });
 
   it("prevents removing a member with existing expenses during edit", async () => {
@@ -156,14 +172,20 @@ describe("Groups Page", () => {
 
     render(<Groups />);
 
-    const group1Card = screen.getByText("Trip to Paris").closest('.rounded-lg');
-    const editBtn = group1Card!.querySelector('button svg.lucide-pencil')!.closest('button')!;
+    const group1Card = screen.getByText("Trip to Paris").closest('[data-testid="group-card"]');
+    const meatball = within(group1Card as HTMLElement).getByTestId("group-menu-trigger");
+    fireEvent.click(meatball);
+
+    const editBtn = screen.getByText(en.common.edit);
     fireEvent.click(editBtn);
 
     await waitFor(() => expect(screen.getByText(en.groups.edit)).toBeInTheDocument());
 
-    const membersInput = screen.getByLabelText(en.groups.membersLabel);
-    fireEvent.change(membersInput, { target: { value: "" } });
+    // Find Bob's chip and remove it
+    const bobChip = screen.getByText("bob@example.com").closest('.flex');
+    const removeBtn = bobChip?.querySelector('button');
+    expect(removeBtn).toBeInTheDocument();
+    fireEvent.click(removeBtn!);
 
     const saveBtn = screen.getByRole("button", { name: en.groups.update });
     fireEvent.click(saveBtn);
@@ -179,8 +201,11 @@ describe("Groups Page", () => {
 
   it("opens delete confirmation and triggers mutation", async () => {
     render(<Groups />);
-    const group1Card = screen.getByText("Trip to Paris").closest('.rounded-lg');
-    const deleteBtn = group1Card!.querySelector('button svg.lucide-trash2')!.closest('button')!;
+    const group1Card = screen.getByText("Trip to Paris").closest('[data-testid="group-card"]');
+    const meatball = within(group1Card as HTMLElement).getByTestId("group-menu-trigger");
+    fireEvent.click(meatball);
+
+    const deleteBtn = screen.getByText(en.common.delete);
     fireEvent.click(deleteBtn);
 
     const confirmBtn = screen.getByRole("button", { name: en.groups.deleteAction });

@@ -60,6 +60,8 @@
         "amountLow": "Monto (Menor a Mayor)",
         "me": "Yo",
         "all": "Todos",
+        "myActivity": "Mi Actividad",
+        "allActivity": "Toda la Actividad",
         "noTransfers": "No se encontraron transferencias",
         "noExpenses": "Aún no hay gastos",
         "startAdding": "Comienza añadiendo tu primer gasto para rastrear los costos del grupo"
@@ -85,6 +87,7 @@
         "leave": "Salir del Grupo",
         "switchTo": "Cambiar a",
         "noGroups": "Aún no hay grupos.",
+        "startCreating": "Comienza creando un nuevo grupo para compartir gastos con amigos.",
         "confirmDelete": "¿Seguro que quieres eliminar \"{{name}}\"?",
         "confirmDeleteDesc": "Esto eliminará permanentemente la hoja de cálculo de tu Drive.",
         "confirmLeave": "¿Seguro que quieres salir de \"{{name}}\"?",
@@ -100,6 +103,8 @@
         "loadError": "Error al cargar detalles del grupo.",
         "createError": "Error al crear el grupo.",
         "deleteError": "Error al eliminar el grupo.",
+        "current": "Actual",
+        "switched": "¡Grupo cambiado!",
         "invalidGroup": "Archivo Inválido",
         "validationError": "El archivo seleccionado no es un grupo válido de Quozen o le faltan metadatos."
     },

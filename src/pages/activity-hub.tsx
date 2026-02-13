@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
 import { googleApi } from "@/lib/drive";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -158,27 +157,21 @@ export default function ActivityHub() {
                                     </DropdownMenuContent>
                                 </DropdownMenu>
 
-                                {/* Me/All Toggle */}
-                                <div className="flex items-center space-x-2 bg-muted/50 p-1 rounded-full border border-border">
-                                    <span
-                                        className={cn("text-[10px] px-2 cursor-pointer transition-colors", filterMyExpenses ? "font-bold text-primary" : "text-muted-foreground")}
-                                        onClick={() => setFilterMyExpenses(true)}
-                                    >
-                                        {t("activity.me")}
-                                    </span>
-                                    <Switch
-                                        id="expenses-mode-switch"
-                                        className="scale-75"
-                                        checked={!filterMyExpenses}
-                                        onCheckedChange={(checked) => setFilterMyExpenses(!checked)}
-                                    />
-                                    <span
-                                        className={cn("text-[10px] px-2 cursor-pointer transition-colors", !filterMyExpenses ? "font-bold text-primary" : "text-muted-foreground")}
-                                        onClick={() => setFilterMyExpenses(false)}
-                                    >
-                                        {t("activity.all")}
-                                    </span>
-                                </div>
+                                {/* Me/All Toggle - Segmented Control */}
+                                <Tabs
+                                    value={filterMyExpenses ? "me" : "all"}
+                                    onValueChange={(v) => setFilterMyExpenses(v === "me")}
+                                    className="w-[220px]"
+                                >
+                                    <TabsList className="grid w-full grid-cols-2 h-8">
+                                        <TabsTrigger value="me" className="text-[10px] flex-1">
+                                            {t("activity.myActivity")}
+                                        </TabsTrigger>
+                                        <TabsTrigger value="all" className="text-[10px] flex-1">
+                                            {t("activity.allActivity")}
+                                        </TabsTrigger>
+                                    </TabsList>
+                                </Tabs>
                             </div>
                         </div>
 
@@ -220,16 +213,20 @@ export default function ActivityHub() {
                                     </DropdownMenuContent>
                                 </DropdownMenu>
 
-                                <div className="flex items-center space-x-2 bg-muted/50 p-1 rounded-full border border-border">
-                                    <span className={cn("text-[10px] px-2 cursor-pointer transition-colors", !showAllSettlements ? "font-bold text-primary" : "text-muted-foreground")} onClick={() => setShowAllSettlements(false)}>{t("activity.me")}</span>
-                                    <Switch
-                                        id="transfers-mode-switch"
-                                        className="scale-75"
-                                        checked={showAllSettlements}
-                                        onCheckedChange={setShowAllSettlements}
-                                    />
-                                    <span className={cn("text-[10px] px-2 cursor-pointer transition-colors", showAllSettlements ? "font-bold text-primary" : "text-muted-foreground")} onClick={() => setShowAllSettlements(true)}>{t("activity.all")}</span>
-                                </div>
+                                <Tabs
+                                    value={showAllSettlements ? "all" : "me"}
+                                    onValueChange={(v) => setShowAllSettlements(v === "all")}
+                                    className="w-[220px]"
+                                >
+                                    <TabsList className="grid w-full grid-cols-2 h-8">
+                                        <TabsTrigger value="me" className="text-[10px] flex-1">
+                                            {t("activity.myActivity")}
+                                        </TabsTrigger>
+                                        <TabsTrigger value="all" className="text-[10px] flex-1">
+                                            {t("activity.allActivity")}
+                                        </TabsTrigger>
+                                    </TabsList>
+                                </Tabs>
                             </div>
                         </div>
 

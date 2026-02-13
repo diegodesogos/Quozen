@@ -6,14 +6,14 @@
 | 1 | Universal Bottom Drawer Strategy | ✅ Completed |
 | 2 | Sticky Action Footers | ✅ Completed |
 | 3 | Standardize Navigation Header Pattern | ✅ Completed |
-| 4 | Expand Group Card Touch Target | ⏳ Pending |
-| 5 | Consolidate Secondary Actions (Meatball Menu) | ⏳ Pending |
-| 6 | Enforce Mobile-Safe Input Sizing | ⏳ Pending |
-| 7 | Convert "Split Between" to Tappable List Items | ⏳ Pending |
-| 8 | Smart "Members" Input | ⏳ Pending |
-| 9 | Implement Segmented Controls for Views | ⏳ Pending |
-| 10 | Empty State Illustration | ⏳ Pending |
-| 11 | Haptic Feedback Integration | ⏳ Pending |
+| 4 | Expand Group Card Touch Target | ✅ Completed |
+| 5 | Consolidate Secondary Actions (Meatball Menu) | ✅ Completed |
+| 6 | Enforce Mobile-Safe Input Sizing | ✅ Completed |
+| 7 | Convert "Split Between" to Tappable List Items | ✅ Completed |
+| 8 | Smart "Members" Input | ✅ Completed |
+| 9 | Implement Segmented Controls for Views | ✅ Completed |
+| 10 | Empty State Illustration | ✅ Completed |
+| 11 | Haptic Feedback Integration | ✅ Completed |
 | 12 | Redesign Dashboard "Settle Up" CTA | ⏳ Pending |
 | 13 | Refactor "Group Balances" Rows | ⏳ Pending |
 | 14 | Streamline Settlement Modal (Directional UI) | ⏳ Pending |

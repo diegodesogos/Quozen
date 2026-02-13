@@ -29,6 +29,7 @@ export default function AddExpense() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
+      navigator.vibrate?.(50);
       toast({
         title: t("common.success"),
         description: t("expenseForm.save"),

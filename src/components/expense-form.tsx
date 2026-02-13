@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Expense, Member } from "@/lib/storage/types";
 import { distributeAmount } from "@/lib/finance";
 import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/utils";
 
 interface ExpenseSplit {
   userId: string;
@@ -212,15 +213,25 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
           <Label className="mb-3 block">{t("expenseForm.splitBetween")}</Label>
           <div className="space-y-3">
             {splits.map((split) => (
-              <div key={split.userId} className="flex items-center justify-between p-3 bg-secondary rounded-lg" data-testid={`split-item-${split.userId}`}>
+              <div
+                key={split.userId}
+                className={cn(
+                  "flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer",
+                  split.selected ? "bg-primary/10 border-primary" : "bg-secondary border-transparent"
+                )}
+                onClick={() => handleSplitSelection(split.userId, !split.selected)}
+                data-testid={`split-item-${split.userId}`}
+              >
                 <div className="flex items-center space-x-3">
-                  <Checkbox
-                    checked={split.selected}
-                    onCheckedChange={(checked) => handleSplitSelection(split.userId, !!checked)}
-                    data-testid={`checkbox-split-${split.userId}`}
-                  />
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={split.selected}
+                      onCheckedChange={(checked) => handleSplitSelection(split.userId, !!checked)}
+                      data-testid={`checkbox-split-${split.userId}`}
+                    />
+                  </div>
                   <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shrink-0">
                       <span className="text-primary-foreground font-medium text-xs">
                         {users.find(u => u.userId === split.userId)?.name?.substring(0, 2)}
                       </span>
@@ -230,7 +241,7 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
                   <span className="text-xs text-muted-foreground">$</span>
                   <Input
                     type="number"

@@ -60,6 +60,8 @@
         "amountLow": "Amount (Low to High)",
         "me": "Me",
         "all": "All",
+        "myActivity": "My Activity",
+        "allActivity": "All Activity",
         "noTransfers": "No transfers found",
         "noExpenses": "No expenses yet",
         "startAdding": "Start by adding your first expense to track group spending"
@@ -85,6 +87,7 @@
         "leave": "Leave Group",
         "switchTo": "Switch To",
         "noGroups": "No groups yet.",
+        "startCreating": "Start by creating a new group to share expenses with friends.",
         "confirmDelete": "Are you sure you want to delete \"{{name}}\"?",
         "confirmDeleteDesc": "This will permanently delete the spreadsheet from your Drive.",
         "confirmLeave": "Are you sure you want to leave \"{{name}}\"?",
@@ -100,6 +103,8 @@
         "loadError": "Failed to load group details.",
         "createError": "Failed to create group.",
         "deleteError": "Failed to delete group.",
+        "current": "Current",
+        "switched": "Group switched!",
         "invalidGroup": "Invalid Group File",
         "validationError": "The selected file is not a valid Quozen group or is missing required metadata."
     },

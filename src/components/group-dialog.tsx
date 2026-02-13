@@ -8,6 +8,8 @@ import { parseMembers } from "@/lib/utils";
 import { MemberInput } from "@/lib/storage/types";
 import { useTranslation } from "react-i18next";
 import { useAutoSync } from "@/hooks/use-auto-sync";
+import { X, Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface GroupDialogProps {
   open: boolean;
@@ -29,7 +31,8 @@ export default function GroupDialog({
   onSubmit
 }: GroupDialogProps) {
   const [groupName, setGroupName] = useState(initialName);
-  const [membersInput, setMembersInput] = useState(initialMembers);
+  const [members, setMembers] = useState<MemberInput[]>([]);
+  const [newMember, setNewMember] = useState("");
   const { t } = useTranslation();
   const { setPaused } = useAutoSync();
 
@@ -41,18 +44,36 @@ export default function GroupDialog({
   useEffect(() => {
     if (open) {
       setGroupName(initialName);
-      setMembersInput(initialMembers);
+      setMembers(parseMembers(initialMembers));
+      setNewMember("");
     }
   }, [open, initialName, initialMembers]);
+
+  const handleAddMember = () => {
+    if (!newMember.trim()) return;
+    const parsed = parseMembers(newMember);
+    if (parsed.length > 0) {
+      setMembers(prev => [...prev, ...parsed]);
+      setNewMember("");
+    }
+  };
+
+  const handleRemoveMember = (index: number) => {
+    setMembers(prev => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!groupName.trim()) return;
 
-    const members = parseMembers(membersInput);
+    let finalMembers = [...members];
+    if (newMember.trim()) {
+      finalMembers = [...finalMembers, ...parseMembers(newMember)];
+    }
+
     onSubmit({
       name: groupName.trim(),
-      members
+      members: finalMembers
     });
   };
 
@@ -82,15 +103,43 @@ export default function GroupDialog({
               </div>
 
               <div>
-                <Label htmlFor="members">{t("groups.membersLabel")}</Label>
-                <Textarea
-                  id="members"
-                  placeholder={t("groups.membersHint")}
-                  value={membersInput}
-                  onChange={(e) => setMembersInput(e.target.value)}
-                  className="mt-1"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
+                <Label htmlFor="newMember">{t("groups.membersLabel")}</Label>
+                <div className="flex gap-2 mt-1">
+                  <Input
+                    id="newMember"
+                    placeholder={t("groups.membersHint")}
+                    value={newMember}
+                    onChange={(e) => setNewMember(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddMember();
+                      }
+                    }}
+                  />
+                  <Button type="button" onClick={handleAddMember} size="icon" variant="outline">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                {members.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {members.map((m, i) => (
+                      <Badge key={i} variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1">
+                        <span className="truncate max-w-[150px]">{m.email || m.username}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMember(i)}
+                          className="hover:bg-muted rounded-full p-0.5 transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
+                <p className="text-xs text-muted-foreground mt-2">
                   {t("groups.membersHint2")}
                 </p>
               </div>

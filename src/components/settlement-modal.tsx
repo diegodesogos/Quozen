@@ -97,6 +97,7 @@ export default function SettlementModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
+      navigator.vibrate?.(50);
       toast({
         title: t("common.success"),
       });
