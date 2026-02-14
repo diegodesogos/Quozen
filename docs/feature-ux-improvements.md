@@ -22,6 +22,9 @@
 | 17 | Implement Mobile "Cover" Login Layout | ✅ Completed |
 | 18 | "Wizard" UI for Manual Join Fix | ✅ Completed |
 | 19 | Convert Expense Forms to Drawers | ✅ Completed |
+| 20 | Refactor Group Switcher (Navigation Only) | ⬜ Todo|
+| 21 | Enhanced Groups Page (Management Hub)| ⬜ Todo| 
+| 22 | Empty State Guidance (Groups)|⬜ Todo|
 
 # Bugs
 
@@ -191,3 +194,34 @@ If you attempt a transfer amount lower than 0.5, the app records a 0.0 transacti
   * **Trigger:** Update the Bottom Navigation `+` button to open this Drawer instead of navigating.  
   * **Edit Flow:** For editing, since it requires a URL ID (`/edit-expense/:id`), we can keep the route *but* render the page inside a `Drawer` wrapper that opens automatically on mount, preserving the "Modal" feel while keeping deep-linking capabilities.
 
+### **Phase 7: Navigation & Discovery Refactor**
+
+**20\. Refactor Group Switcher (Navigation Only)**
+
+* **Target:** `src/components/group-switcher-modal.tsx`  
+* **Objective:** simplify the header modal to be strictly for **switching context**, reducing cognitive load.  
+* **Instruction:**  
+  * **Remove:** The "New Group" and "Import" buttons/logic (`useGooglePicker`).  
+  * **Add:** A "Manage Groups" button (Secondary/Outline variant) at the bottom footer.  
+  * **Action:** Clicking "Manage Groups" navigates to `/groups` and closes the modal.  
+  * **Visuals:** Ensure the active group is clearly highlighted. List items must have a minimum height of **44px** for touch accessibility.
+
+**21\. Enhanced Groups Page (Management Hub)**
+
+* **Target:** `src/pages/groups.tsx`  
+* **Objective:** Centralize all CRUD and discovery operations in the Groups page.  
+* **Instruction:**  
+  * **Move Logic:** Migrate the `useGooglePicker` (Import) logic from the switcher to this page.  
+  * **Secondary Action:** Add a "Find in Google Drive" (Import) button below the main group list. This acts as the "Recovery Path" for ghost files.  
+  * **Layout:** Keep "Create Group" as the primary header action. Place the Import/Find button in a discrete "Troubleshooting" or "Missing a group?" footer section below the list.
+
+**22\. Empty State Guidance (Groups)**
+
+* **Target:** `src/pages/groups.tsx` (Empty State)  
+* **Objective:** Educate users on the two ways to join (Magic Link vs. Import) when they have no groups.  
+* **Instruction:**  
+  * **Content:**  
+    * **Primary CTA:** "Create Group" (Button).  
+    * **Secondary Text:** "Invited by a friend? Ask them to share the **Magic Link** with you."  
+    * **Tertiary Action:** "Or find an existing file in Drive" (Link/Ghost Button triggering Import).  
+  * **Icon:** Use a large, muted `FolderSearch` or `Group` icon.
