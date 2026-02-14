@@ -1,11 +1,20 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Home, Plus, Users, User, Activity } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useAppContext } from "@/context/app-context";
 
 export default function BottomNavigation() {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { setIsAddExpenseOpen } = useAppContext();
+
+  const hiddenRoutes = ["/add-expense", "/edit-expense"];
+  const shouldHide = hiddenRoutes.some(route => location.pathname.startsWith(route));
+
+  if (shouldHide) {
+    return null;
+  }
 
   const tabs = [
     { id: "home", path: "/dashboard", icon: Home, label: t("nav.home") },
@@ -26,7 +35,13 @@ export default function BottomNavigation() {
           return (
             <button
               key={tab.id}
-              onClick={() => navigate(tab.path)}
+              onClick={() => {
+                if (isAddButton) {
+                  setIsAddExpenseOpen(true);
+                } else {
+                  navigate(tab.path);
+                }
+              }}
               className={`flex flex-col items-center py-2 px-4 ${isAddButton
                 ? "bg-primary text-primary-foreground rounded-full -mt-3 shadow-lg"
                 : isActive

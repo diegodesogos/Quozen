@@ -23,6 +23,7 @@ import { AutoSyncProvider } from "@/context/auto-sync-context";
 import { useTranslation } from "react-i18next";
 import PullToRefresh from "@/components/pull-to-refresh";
 import { useAutoSync } from "@/hooks/use-auto-sync";
+import AddExpenseDrawer from "@/components/add-expense-drawer";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -63,12 +64,14 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
         </PullToRefresh>
       </main>
       <BottomNavigation />
+      <AddExpenseDrawer />
     </div>
   );
 };
 
 export function AuthenticatedApp() {
   const [activeGroupId, setActiveGroupIdState] = useState("");
+  const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -149,7 +152,13 @@ export function AuthenticatedApp() {
   }
 
   return (
-    <AppContext.Provider value={{ activeGroupId, setActiveGroupId: handleSetActiveGroupId, currentUserId: user?.id || "" }}>
+    <AppContext.Provider value={{
+      activeGroupId,
+      setActiveGroupId: handleSetActiveGroupId,
+      currentUserId: user?.id || "",
+      isAddExpenseOpen,
+      setIsAddExpenseOpen
+    }}>
       <AutoSyncProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -163,10 +172,7 @@ export function AuthenticatedApp() {
             path="/expenses"
             element={<ProtectedRoute><AppLayout><ActivityHub /></AppLayout></ProtectedRoute>}
           />
-          <Route
-            path="/add-expense"
-            element={<ProtectedRoute><AppLayout><AddExpense /></AppLayout></ProtectedRoute>}
-          />
+
           <Route
             path="/edit-expense/:id"
             element={<ProtectedRoute><AppLayout><EditExpense /></AppLayout></ProtectedRoute>}

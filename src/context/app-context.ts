@@ -4,6 +4,8 @@ export interface AppState {
   activeGroupId: string;
   setActiveGroupId: (groupId: string) => void;
   currentUserId: string;
+  isAddExpenseOpen: boolean;
+  setIsAddExpenseOpen: (isOpen: boolean) => void;
 }
 
 export const AppContext = createContext<AppState | undefined>(undefined);

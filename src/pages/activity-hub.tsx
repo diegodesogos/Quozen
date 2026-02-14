@@ -1,14 +1,24 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
 import { googleApi } from "@/lib/drive";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Handshake, ArrowUpDown } from "lucide-react";
+import { ArrowRight, Handshake, ArrowUpDown, MoreVertical, Edit, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import SettlementModal from "@/components/settlement-modal";
 import ExpensesList from "./expenses";
 import { Member, Settlement, Expense } from "@/lib/storage/types";
@@ -36,6 +46,9 @@ export default function ActivityHub() {
     const [sortTransfersOption, setSortTransfersOption] = useState<SortOption>("date_desc");
     const [showAllSettlements, setShowAllSettlements] = useState(false); // false = Show Me Only
     const [editingSettlement, setEditingSettlement] = useState<Settlement | null>(null);
+    const [deletingSettlement, setDeletingSettlement] = useState<Settlement | null>(null);
+    const { toast } = useToast();
+    const queryClient = useQueryClient();
 
     // Fetch Data
     const { data: groupData, isLoading } = useQuery({
@@ -111,6 +124,22 @@ export default function ActivityHub() {
         return result;
     }, [settlements, showAllSettlements, sortTransfersOption, currentUserId]);
 
+    const deleteMutation = useMutation({
+        mutationFn: async (s: Settlement) => {
+            if (!s._rowIndex) throw new Error("Missing row index");
+            return await googleApi.deleteSettlement(activeGroupId, s._rowIndex, s.id);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
+            toast({ title: t("common.success") });
+            setDeletingSettlement(null);
+        },
+        onError: (error) => {
+            console.error(error);
+            toast({ title: t("common.error"), variant: "destructive" });
+        }
+    });
+
     const getMember = (id: string) => members.find(m => m.userId === id) || { name: "Unknown", userId: id } as Member;
 
     return (
@@ -158,27 +187,21 @@ export default function ActivityHub() {
                                     </DropdownMenuContent>
                                 </DropdownMenu>
 
-                                {/* Me/All Toggle */}
-                                <div className="flex items-center space-x-2 bg-muted/50 p-1 rounded-full border border-border">
-                                    <span
-                                        className={cn("text-[10px] px-2 cursor-pointer transition-colors", filterMyExpenses ? "font-bold text-primary" : "text-muted-foreground")}
-                                        onClick={() => setFilterMyExpenses(true)}
-                                    >
-                                        {t("activity.me")}
-                                    </span>
-                                    <Switch
-                                        id="expenses-mode-switch"
-                                        className="scale-75"
-                                        checked={!filterMyExpenses}
-                                        onCheckedChange={(checked) => setFilterMyExpenses(!checked)}
-                                    />
-                                    <span
-                                        className={cn("text-[10px] px-2 cursor-pointer transition-colors", !filterMyExpenses ? "font-bold text-primary" : "text-muted-foreground")}
-                                        onClick={() => setFilterMyExpenses(false)}
-                                    >
-                                        {t("activity.all")}
-                                    </span>
-                                </div>
+                                {/* Me/All Toggle - Segmented Control */}
+                                <Tabs
+                                    value={filterMyExpenses ? "me" : "all"}
+                                    onValueChange={(v) => setFilterMyExpenses(v === "me")}
+                                    className="w-[220px]"
+                                >
+                                    <TabsList className="grid w-full grid-cols-2 h-8">
+                                        <TabsTrigger value="me" className="text-[10px] flex-1">
+                                            {t("activity.myActivity")}
+                                        </TabsTrigger>
+                                        <TabsTrigger value="all" className="text-[10px] flex-1">
+                                            {t("activity.allActivity")}
+                                        </TabsTrigger>
+                                    </TabsList>
+                                </Tabs>
                             </div>
                         </div>
 
@@ -220,16 +243,20 @@ export default function ActivityHub() {
                                     </DropdownMenuContent>
                                 </DropdownMenu>
 
-                                <div className="flex items-center space-x-2 bg-muted/50 p-1 rounded-full border border-border">
-                                    <span className={cn("text-[10px] px-2 cursor-pointer transition-colors", !showAllSettlements ? "font-bold text-primary" : "text-muted-foreground")} onClick={() => setShowAllSettlements(false)}>{t("activity.me")}</span>
-                                    <Switch
-                                        id="transfers-mode-switch"
-                                        className="scale-75"
-                                        checked={showAllSettlements}
-                                        onCheckedChange={setShowAllSettlements}
-                                    />
-                                    <span className={cn("text-[10px] px-2 cursor-pointer transition-colors", showAllSettlements ? "font-bold text-primary" : "text-muted-foreground")} onClick={() => setShowAllSettlements(true)}>{t("activity.all")}</span>
-                                </div>
+                                <Tabs
+                                    value={showAllSettlements ? "all" : "me"}
+                                    onValueChange={(v) => setShowAllSettlements(v === "all")}
+                                    className="w-[220px]"
+                                >
+                                    <TabsList className="grid w-full grid-cols-2 h-8">
+                                        <TabsTrigger value="me" className="text-[10px] flex-1">
+                                            {t("activity.myActivity")}
+                                        </TabsTrigger>
+                                        <TabsTrigger value="all" className="text-[10px] flex-1">
+                                            {t("activity.allActivity")}
+                                        </TabsTrigger>
+                                    </TabsList>
+                                </Tabs>
                             </div>
                         </div>
 
@@ -299,6 +326,31 @@ export default function ActivityHub() {
                                                         {isMeReceiver ? t("dashboard.you") : to.name.split(' ')[0]}
                                                     </span>
                                                 </div>
+
+                                                {/* Meatball Menu */}
+                                                <div className="ml-2 shrink-0">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                                                                <MoreVertical className="w-4 h-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingSettlement(settlement); }}>
+                                                                <Edit className="w-4 h-4 mr-2" />
+                                                                {t("common.edit")}
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem
+                                                                className="text-destructive focus:text-destructive"
+                                                                onClick={(e) => { e.stopPropagation(); setDeletingSettlement(settlement); }}
+                                                            >
+                                                                <Trash2 className="w-4 h-4 mr-2" />
+                                                                {t("common.delete")}
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
                                             </CardContent>
                                         </Card>
                                     );
@@ -317,6 +369,27 @@ export default function ActivityHub() {
                     users={members}
                 />
             )}
+
+            <AlertDialog open={!!deletingSettlement} onOpenChange={(open) => !open && setDeletingSettlement(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{t("settlement.deleteTitle")}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {t("settlement.deleteDesc")}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => deletingSettlement && deleteMutation.mutate(deletingSettlement)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            disabled={deleteMutation.isPending}
+                        >
+                            {deleteMutation.isPending ? t("common.loading") : t("common.delete")}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

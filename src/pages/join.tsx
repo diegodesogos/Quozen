@@ -10,6 +10,7 @@ import { Loader2, AlertCircle, CheckCircle2, ExternalLink, Search } from "lucide
 import { useAppContext } from "@/context/app-context";
 import { useTranslation } from "react-i18next";
 import { useGooglePicker } from "@/hooks/use-google-picker";
+import { cn } from "@/lib/utils";
 
 export default function JoinPage() {
     const { id } = useParams<{ id: string }>();
@@ -172,28 +173,56 @@ export default function JoinPage() {
                             </div>
 
                             {error === t("join.accessDenied") ? (
-                                <div className="space-y-4 w-full">
-                                    <div>
+                                <div className="space-y-6 w-full py-4">
+                                    <div className="text-center mb-4">
                                         <h2 className="text-lg font-semibold">{t("join.accessRequired")}</h2>
-                                        <p className="text-muted-foreground text-xs mt-1 px-2">{t("join.accessRequiredDesc")}</p>
+                                        <p className="text-muted-foreground text-xs mt-1 px-4">{t("join.accessRequiredDesc")}</p>
                                     </div>
 
-                                    <div className="grid gap-3 text-left">
-                                        <Button variant="outline" className="h-auto py-3 px-4 justify-start flex-col items-start gap-1" asChild onClick={() => setHasOpenedDrive(true)}>
-                                            <a href={driveUrl} target="_blank" rel="noopener noreferrer">
-                                                <div className="flex items-center gap-2 font-semibold text-primary"><ExternalLink className="w-4 h-4" /> {t("join.step1")}</div>
-                                                <span className="text-xs text-muted-foreground font-normal">{t("join.step1Desc")}</span>
-                                            </a>
-                                        </Button>
+                                    <div className="relative">
+                                        {/* Step 1 */}
+                                        <div className="flex gap-4 relative">
+                                            <div className="flex flex-col items-center">
+                                                <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center relative z-10 shrink-0 shadow-sm">
+                                                    <ExternalLink className="w-5 h-5 text-primary-foreground" />
+                                                </div>
+                                                <div className="w-[2px] flex-1 bg-border my-1" />
+                                            </div>
+                                            <div className="flex-1 pb-8 text-left">
+                                                <div className="flex flex-col items-start gap-1">
+                                                    <h3 className="font-bold text-foreground text-sm uppercase tracking-tight">{t("join.step1")}</h3>
+                                                    <p className="text-xs text-muted-foreground mb-3 leading-relaxed">{t("join.step1Desc")}</p>
+                                                    <Button variant="outline" size="sm" className="h-9 px-4 font-semibold text-primary border-primary/20 hover:bg-primary/5" asChild onClick={() => setHasOpenedDrive(true)}>
+                                                        <a href={driveUrl} target="_blank" rel="noopener noreferrer">
+                                                            {t("join.openButton")}
+                                                        </a>
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                                        <Button
-                                            className="h-auto py-3 px-4 justify-start flex-col items-start gap-1"
-                                            onClick={() => openPicker()}
-                                            disabled={!hasOpenedDrive}
-                                        >
-                                            <div className="flex items-center gap-2 font-semibold"><Search className="w-4 h-4" /> {t("join.step2")}</div>
-                                            <span className="text-xs text-primary-foreground/80 font-normal">{t("join.step2Desc")}</span>
-                                        </Button>
+                                        {/* Step 2 */}
+                                        <div className={cn("flex gap-4 transition-all duration-300", !hasOpenedDrive && "opacity-50 grayscale")}>
+                                            <div className="flex flex-col items-center">
+                                                <div className={cn("w-10 h-10 rounded-full flex items-center justify-center relative z-10 shrink-0 shadow-sm", hasOpenedDrive ? "bg-primary" : "bg-muted")}>
+                                                    <Search className={cn("w-5 h-5", hasOpenedDrive ? "text-primary-foreground" : "text-muted-foreground")} />
+                                                </div>
+                                            </div>
+                                            <div className="flex-1 text-left">
+                                                <div className="flex flex-col items-start gap-1">
+                                                    <h3 className="font-bold text-foreground text-sm uppercase tracking-tight">{t("join.step2")}</h3>
+                                                    <p className="text-xs text-muted-foreground mb-3 leading-relaxed">{t("join.step2Desc")}</p>
+                                                    <Button
+                                                        size="sm"
+                                                        className="h-9 px-4 font-semibold shadow-md"
+                                                        onClick={() => openPicker()}
+                                                        disabled={!hasOpenedDrive}
+                                                    >
+                                                        {t("join.selectButton")}
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             ) : (

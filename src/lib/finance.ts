@@ -29,7 +29,8 @@ export function calculateBalances(
 
     if (expense.splits) {
       expense.splits.forEach((split: any) => {
-        const splitAmount = typeof split.amount === 'string' ? parseFloat(split.amount) : split.amount;
+        const rawAmount = typeof split.amount === 'string' ? split.amount : String(split.amount || 0);
+        const splitAmount = parseFloat(rawAmount.replace(',', '.'));
         const roundedAmount = roundCurrency(splitAmount);
 
         // If Payer is paying for themselves, no debt is created. Skip.
@@ -41,7 +42,7 @@ export function calculateBalances(
         if (bal[payerId] !== undefined) {
           bal[payerId] += roundedAmount;
         }
-        
+
         // Splitter borrows money
         if (bal[split.userId] !== undefined) {
           bal[split.userId] -= roundedAmount;
@@ -52,7 +53,8 @@ export function calculateBalances(
 
   // Process settlements
   settlements.forEach(settlement => {
-    const amount = typeof settlement.amount === 'string' ? parseFloat(settlement.amount) : settlement.amount;
+    const rawAmount = typeof settlement.amount === 'string' ? settlement.amount : String(settlement.amount || 0);
+    const amount = parseFloat(rawAmount.replace(',', '.'));
     const roundedAmount = roundCurrency(amount);
 
     if (bal[settlement.fromUserId] !== undefined) {
@@ -76,7 +78,7 @@ export function calculateTotalSpent(userId: string, expenses: Expense[]): number
     const mySplit = exp.splits?.find((s: any) => s.userId === userId);
     return sum + (mySplit?.amount || 0);
   }, 0);
-  
+
   return roundCurrency(total);
 }
 
@@ -86,23 +88,24 @@ export type ExpenseUserStatus =
   | { status: 'none' };
 
 export function getExpenseUserStatus(expense: Expense, userId: string): ExpenseUserStatus {
-  const amount = typeof expense.amount === 'string' ? parseFloat(expense.amount) : expense.amount;
+  const rawTotalAmount = typeof expense.amount === 'string' ? expense.amount : String(expense.amount || 0);
+  const amount = parseFloat(rawTotalAmount.replace(',', '.'));
   const userSplit = expense.splits?.find(s => s.userId === userId);
   const splitAmount = userSplit?.amount || 0;
 
   // Refactor logic to match calculateBalances (Consolidated view)
-  
+
   if (expense.paidBy === userId) {
     // I paid.
     // My "Lent Amount" is effectively the sum of everyone else's splits.
     // Or simpler: Total Amount - My Split.
     // To match calculateBalances exactly, we should sum others.
-    
+
     let lent = 0;
     if (expense.splits) {
-        lent = expense.splits
-            .filter((s: any) => s.userId !== userId)
-            .reduce((sum: number, s: any) => sum + (s.amount || 0), 0);
+      lent = expense.splits
+        .filter((s: any) => s.userId !== userId)
+        .reduce((sum: number, s: any) => sum + (s.amount || 0), 0);
     }
 
     return {
@@ -199,7 +202,7 @@ export function getDirectSettlementDetails(
  */
 export function distributeAmount(total: number, count: number): number[] {
   if (count <= 0) return [];
-  
+
   // Work with integers (cents) to avoid float errors
   const totalCents = Math.round(total * 100);
   const baseSplitCents = Math.floor(totalCents / count);
@@ -214,6 +217,6 @@ export function distributeAmount(total: number, count: number): number[] {
     }
     results.push(valCents / 100);
   }
-  
+
   return results;
 }

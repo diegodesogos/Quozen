@@ -116,7 +116,7 @@ describe("Finance Utilities", () => {
     it("BUG REPRO: returns 0 balance if expense ID does not match Member ID (Mismatch case)", () => {
       const members = [
         { userId: "u1", name: "Alice", role: "member", email: "", joinedAt: "" },
-        { userId: "u2", name: "Bob", role: "member", email: "", joinedAt: "" } 
+        { userId: "u2", name: "Bob", role: "member", email: "", joinedAt: "" }
       ];
 
       // Expense uses OLD ID (simulated mismatch)
@@ -130,6 +130,28 @@ describe("Finance Utilities", () => {
       expect(balances["u1"]).toBe(10);
       expect(balances["u2"]).toBe(0);
     });
+
+    it("BUG-01: handles small amounts (< 0.5) correctly", () => {
+      // Alice pays 0.4 for Bob
+      const e1 = createExpense("e1", 0.4, "u1", [{ userId: "u2", amount: 0.4 }]);
+      const balances = calculateBalances(users, [e1], []);
+
+      expect(balances["u1"]).toBe(0.4);
+      expect(balances["u2"]).toBe(-0.4);
+    });
+
+    it("BUG-01: handles localized string amounts with commas", () => {
+      // Alice pays 0,60 for Bob (localized string)
+      const e1 = createExpense("e1", 0.6, "u1", [{ userId: "u2", amount: "0,60" as any }]);
+      const s1 = createSettlement("u2", "u1", "0,25" as any); // Partial settlement
+
+      const balances = calculateBalances(users, [e1], [s1]);
+
+      // Alice: +0.60 (lent) - 0.25 (received) = 0.35
+      // Bob: -0.60 (owed) + 0.25 (paid) = -0.35
+      expect(balances["u1"]).toBe(0.35);
+      expect(balances["u2"]).toBe(-0.35);
+    });
   });
 
   // --- calculateTotalSpent ---
@@ -140,7 +162,7 @@ describe("Finance Utilities", () => {
 
     it("sums up only the user's split amounts (Consumption)", () => {
       const e1 = createExpense("e1", 100, "u2", [{ userId: "u1", amount: 25 }, { userId: "u2", amount: 75 }]);
-      const e2 = createExpense("e2", 50, "u1", [{ userId: "u1", amount: 50 }]); 
+      const e2 = createExpense("e2", 50, "u1", [{ userId: "u1", amount: 50 }]);
 
       const total = calculateTotalSpent("u1", [e1, e2]);
       expect(total).toBe(75); // 25 + 50
@@ -166,7 +188,7 @@ describe("Finance Utilities", () => {
       expect(status.status).toBe("payer");
       if (status.status === "payer") {
         expect(status.amountPaid).toBe(100);
-        expect(status.lentAmount).toBe(50); 
+        expect(status.lentAmount).toBe(50);
       }
     });
 
@@ -192,7 +214,7 @@ describe("Finance Utilities", () => {
 
     it("identifies uninvolved user", () => {
       const exp = createExpense("e1", 100, "u1", [{ userId: "u1", amount: 100 }]);
-      const status = getExpenseUserStatus(exp, "u3"); 
+      const status = getExpenseUserStatus(exp, "u3");
       expect(status.status).toBe("none");
     });
   });
@@ -234,7 +256,7 @@ describe("Finance Utilities", () => {
       expect(suggestion).toEqual({
         fromUserId: "u1",
         toUserId: "u3",
-        amount: 40 
+        amount: 40
       });
     });
 
@@ -250,7 +272,7 @@ describe("Finance Utilities", () => {
       // Scenario: Alice (u1) is logged in. She clicks settle on Bob (u2).
       // Balances: Bob (u2) owes 50. Charlie (u3) is owed 50. Alice (u1) is flat.
       const balances = { u1: 0, u2: -50, u3: 50 };
-      
+
       // We ask strategy for u2 (Bob)
       const suggestion = suggestSettlementStrategy("u2", balances, users);
 

@@ -74,14 +74,18 @@ test.describe('Functional Flow', () => {
 
         await expect(page.getByRole('heading', { name: 'Original Name', level: 3 })).toBeVisible();
 
-        // Click Edit
-        await page.locator('.rounded-lg', { hasText: 'Original Name' })
-            .getByRole('button', { name: 'Edit' })
-            .click();
+        // Click Meatball Menu and then Edit
+        const groupCard = page.getByTestId('group-card').filter({ hasText: 'Original Name' });
+        await groupCard.getByTestId('group-menu-trigger').click();
+        await page.getByRole('menuitem', { name: 'Edit' }).click();
 
         await expect(page.getByRole('heading', { name: 'Edit Group' })).toBeVisible();
         await page.getByLabel('Group Name').fill('Renamed Group');
+
+        // Handle new chip-based member input
         await page.getByLabel('Members (Optional)').fill('newuser@example.com');
+        await page.keyboard.press('Enter');
+
         await page.getByRole('button', { name: 'Update Group' }).click();
 
         await expect(page.getByRole('heading', { name: 'Edit Group' })).not.toBeVisible();
@@ -107,9 +111,9 @@ test.describe('Functional Flow', () => {
         const groupCard = page.locator('.rounded-lg', { hasText: 'Group To Delete' });
         await expect(groupCard).toBeVisible();
 
-        // 2. Find and click Delete (trash icon)
-        const deleteBtn = groupCard.locator('button svg.lucide-trash2').locator('..');
-        await deleteBtn.click();
+        // 2. Click Meatball Menu and then Delete
+        await groupCard.getByTestId('group-menu-trigger').click();
+        await page.getByRole('menuitem', { name: 'Delete' }).click();
 
         // 3. Confirm Dialog
         await expect(page.getByText('Delete Group')).toBeVisible();

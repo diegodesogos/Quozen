@@ -7,9 +7,16 @@ import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { googleApi } from "@/lib/drive";
-import { Users, Plus, Pencil, Shield, User, Trash2, LogOut, Share2 } from "lucide-react";
+import { Users, Plus, Pencil, Shield, User, Trash2, LogOut, Share2, MoreVertical } from "lucide-react";
 import { MemberInput, Group } from "@/lib/storage/types";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 import GroupDialog from "@/components/group-dialog";
 import ShareDialog from "@/components/share-dialog";
 import { useGroups } from "@/hooks/use-groups";
@@ -171,67 +178,105 @@ export default function Groups() {
       />
 
       <div className="space-y-4">
-        {groups.map((group) => (
-          <Card key={group.id} className={group.id === activeGroupId ? "ring-2 ring-primary" : ""}>
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex items-start space-x-3">
-                  <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center"><Users className="w-6 h-6 text-primary-foreground" /></div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-foreground">{group.name}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant={group.isOwner ? "secondary" : "outline"} className="text-[10px] px-1 py-0 h-5">
-                        {group.isOwner ? <Shield className="w-3 h-3 mr-1" /> : <User className="w-3 h-3 mr-1" />}
-                        {group.isOwner ? t("roles.owner") : t("roles.member")}
-                      </Badge>
+        {groups.map((group) => {
+          const isActive = group.id === activeGroupId;
+          return (
+            <Card
+              key={group.id}
+              data-testid="group-card"
+              data-group-name={group.name}
+              className={cn(
+                "cursor-pointer transition-all hover:bg-accent/50",
+                isActive ? "ring-2 ring-primary" : ""
+              )}
+              onClick={() => {
+                if (!isActive) {
+                  setActiveGroupId(group.id);
+                  toast({ title: t("groups.switched") });
+                }
+              }}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start space-x-3 overflow-hidden">
+                    <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center shrink-0">
+                      <Users className="w-6 h-6 text-primary-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-foreground truncate">{group.name}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant={group.isOwner ? "secondary" : "outline"} className="text-[10px] px-1 py-0 h-5">
+                          {group.isOwner ? <Shield className="w-3 h-3 mr-1" /> : <User className="w-3 h-3 mr-1" />}
+                          {group.isOwner ? t("roles.owner") : t("roles.member")}
+                        </Badge>
+                        {isActive && (
+                          <Badge variant="default" className="text-[10px] px-1 py-0 h-5 bg-primary/20 text-primary border-transparent">
+                            {t("groups.current")}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  <div className="flex gap-2">
-                    {group.isOwner ? (
-                      <>
+                  <div className="flex items-center gap-2">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={(e) => handleShareClick(e, group)}
-                          title={t("common.share")}
+                          onClick={(e) => e.stopPropagation()}
+                          data-testid="group-menu-trigger"
                         >
-                          <Share2 className="w-3.5 h-3.5" />
+                          <MoreVertical className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={(e) => handleEditClick(e, group)}
-                          title={t("common.edit")}
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={(e) => handleDeleteClick(e, group)}
-                          title={t("common.delete")}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </>
-                    ) : (
-                      <Button variant="outline" size="sm" className="h-8 text-destructive hover:text-destructive" onClick={(e) => handleLeaveClick(e, group)}><LogOut className="w-3 h-3 mr-1" />{t("groups.leaveAction")}</Button>
-                    )}
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {group.isOwner ? (
+                          <>
+                            <DropdownMenuItem onClick={(e) => handleShareClick(e, group)}>
+                              <Share2 className="w-4 h-4 mr-2" /> {t("common.share")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => handleEditClick(e, group)}>
+                              <Pencil className="w-4 h-4 mr-2" /> {t("common.edit")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={(e) => handleDeleteClick(e, group)}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" /> {t("common.delete")}
+                            </DropdownMenuItem>
+                          </>
+                        ) : (
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={(e) => handleLeaveClick(e, group)}
+                          >
+                            <LogOut className="w-4 h-4 mr-2" /> {t("groups.leaveAction")}
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                  {group.id !== activeGroupId && (
-                    <Button variant="ghost" size="sm" className="text-primary text-sm h-auto p-0" onClick={() => { setActiveGroupId(group.id); toast({ title: "Group switched" }); }}>{t("groups.switchTo")}</Button>
-                  )}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-        {groups.length === 0 && <div className="text-center p-8">{t("groups.noGroups")}</div>}
+              </CardContent>
+            </Card>
+          );
+        })}
+        {groups.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+              <Users className="w-8 h-8 text-muted-foreground/20" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">{t("groups.noGroups")}</h3>
+            <p className="text-sm text-muted-foreground mb-6 max-w-[250px]">
+              {t("groups.startCreating")}
+            </p>
+            <Button onClick={openCreateDialog}>
+              <Plus className="w-4 h-4 mr-2" />
+              {t("groups.create")}
+            </Button>
+          </div>
+        )}
       </div>
 
       <AlertDialog open={alertState.open} onOpenChange={(open) => !open && setAlertState(prev => ({ ...prev, open }))}>

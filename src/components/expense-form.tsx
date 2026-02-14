@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Expense, Member } from "@/lib/storage/types";
 import { distributeAmount } from "@/lib/finance";
 import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/utils";
 
 interface ExpenseSplit {
   userId: string;
@@ -22,10 +23,10 @@ interface ExpenseFormProps {
   currentUserId: string;
   onSubmit: (data: Partial<Expense>) => void;
   isPending: boolean;
-  title: string;
+  onCancel?: () => void;
 }
 
-export default function ExpenseForm({ initialData, users, currentUserId, onSubmit, isPending, title }: ExpenseFormProps) {
+export default function ExpenseForm({ initialData, users, currentUserId, onSubmit, isPending, onCancel }: ExpenseFormProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -67,7 +68,7 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
 
     if (!currentAmount) return;
 
-    const totalAmount = parseFloat(currentAmount);
+    const totalAmount = parseFloat(String(currentAmount).replace(',', '.'));
     if (isNaN(totalAmount)) return;
 
     const distributedAmounts = distributeAmount(totalAmount, count);
@@ -96,7 +97,7 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
   };
 
   const handleSplitAmountChange = (userId: string, newAmount: string) => {
-    const value = parseFloat(newAmount) || 0;
+    const value = parseFloat(String(newAmount).replace(',', '.')) || 0;
     setSplits(prev =>
       prev.map(split =>
         split.userId === userId ? { ...split, amount: value } : split
@@ -126,7 +127,7 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
       return;
     }
 
-    const expenseAmount = parseFloat(amount);
+    const expenseAmount = parseFloat(String(amount).replace(',', '.'));
     const totalSplit = splits.reduce((sum, s) => sum + (s.selected ? s.amount : 0), 0);
 
     if (Math.abs(totalSplit - expenseAmount) > 0.05) {
@@ -153,8 +154,7 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
   };
 
   return (
-    <div className="mx-4 mt-4">
-      <h2 className="text-xl font-bold mb-6">{title}</h2>
+    <div className="mx-4 mt-4 pb-32">
       <form onSubmit={handleSubmit} className="space-y-6" data-testid="form-expense">
         <div>
           <Label htmlFor="description">{t("expenseForm.description")} *</Label>
@@ -214,15 +214,25 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
           <Label className="mb-3 block">{t("expenseForm.splitBetween")}</Label>
           <div className="space-y-3">
             {splits.map((split) => (
-              <div key={split.userId} className="flex items-center justify-between p-3 bg-secondary rounded-lg" data-testid={`split-item-${split.userId}`}>
+              <div
+                key={split.userId}
+                className={cn(
+                  "flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer",
+                  split.selected ? "bg-primary/10 border-primary" : "bg-secondary border-transparent"
+                )}
+                onClick={() => handleSplitSelection(split.userId, !split.selected)}
+                data-testid={`split-item-${split.userId}`}
+              >
                 <div className="flex items-center space-x-3">
-                  <Checkbox
-                    checked={split.selected}
-                    onCheckedChange={(checked) => handleSplitSelection(split.userId, !!checked)}
-                    data-testid={`checkbox-split-${split.userId}`}
-                  />
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={split.selected}
+                      onCheckedChange={(checked) => handleSplitSelection(split.userId, !!checked)}
+                      data-testid={`checkbox-split-${split.userId}`}
+                    />
+                  </div>
                   <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shrink-0">
                       <span className="text-primary-foreground font-medium text-xs">
                         {users.find(u => u.userId === split.userId)?.name?.substring(0, 2)}
                       </span>
@@ -232,7 +242,7 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
                   <span className="text-xs text-muted-foreground">$</span>
                   <Input
                     type="number"
@@ -249,19 +259,12 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
             ))}
           </div>
         </div>
-        <div className="flex space-x-3">
-          <Button
-            type="button"
-            variant="secondary"
-            className="flex-1"
-            onClick={() => navigate(-1)}
-            data-testid="button-cancel-expense"
-          >
-            {t("common.cancel")}
-          </Button>
+
+        {/* Sticky Action Footer */}
+        <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md p-4 bg-background border-t shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-40">
           <Button
             type="submit"
-            className="flex-1"
+            className="w-full h-12"
             disabled={isPending}
             data-testid="button-submit-expense"
           >

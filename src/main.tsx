@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import App from "./App";
-import { ErrorBoundary } from "./components/error-boundary";
+import ErrorBoundary from "./components/error-boundary";
 import "./index.css";
 // Import i18n configuration
 import "./lib/i18n";

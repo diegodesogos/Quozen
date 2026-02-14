@@ -87,7 +87,9 @@ describe("Add Expense Page", () => {
     // Wait for the data to load and items to render
     await screen.findByTestId("split-item-user2");
 
-    expect(screen.getByRole("heading", { name: en.expenseForm.addTitle })).toBeInTheDocument();
+    // Check that form elements are present
+    expect(screen.getByTestId("form-expense")).toBeInTheDocument();
+
 
     // Labels in the form have " *" appended to them.
     // Use regex to match the label text flexibly.

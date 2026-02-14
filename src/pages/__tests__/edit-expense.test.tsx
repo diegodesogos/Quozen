@@ -126,7 +126,7 @@ describe("Edit Expense Page", () => {
 
     expect(screen.getByDisplayValue("Lunch")).toBeInTheDocument();
     expect(screen.getByDisplayValue("20")).toBeInTheDocument();
-    expect(screen.getByText(en.expenseForm.editTitle)).toBeInTheDocument();
+    expect(screen.getByTestId("form-expense")).toBeInTheDocument();
   });
 
   it("shows Not Found dialog if expense does not exist", () => {

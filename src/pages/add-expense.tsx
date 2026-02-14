@@ -29,6 +29,7 @@ export default function AddExpense() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
+      navigator.vibrate?.(50);
       toast({
         title: t("common.success"),
         description: t("expenseForm.save"),
@@ -52,7 +53,6 @@ export default function AddExpense() {
   return (
     <div data-testid="add-expense-view">
       <ExpenseForm
-        title={t("expenseForm.addTitle")}
         users={users}
         currentUserId={currentUserId}
         isPending={expenseMutation.isPending}

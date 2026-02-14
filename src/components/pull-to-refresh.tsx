@@ -142,11 +142,10 @@ export default function PullToRefresh({ children, onRefresh, enabled }: PullToRe
                 </div>
             )}
 
-            {/* Foreground Content */}
             <motion.div
                 animate={controls}
-                style={{ y }} // If disabled, y stays at 0, effectively just rendering children static
-                className="relative z-10 bg-background min-h-screen transition-transform will-change-transform shadow-sm"
+                style={isRefreshing ? { y: 60 } : { y }}
+                className={`relative z-10 bg-background min-h-screen shadow-sm ${isRefreshing ? 'transition-transform will-change-transform' : ''}`}
             >
                 {children}
             </motion.div>

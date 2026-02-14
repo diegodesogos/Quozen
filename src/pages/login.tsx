@@ -33,66 +33,54 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-teal-50 via-background to-teal-100 dark:from-slate-950 dark:via-background dark:to-teal-950/20 p-4">
+    <div className="h-screen flex flex-col bg-primary overflow-hidden">
+      {/* Top Section - Brand/Logo */}
+      <div className="flex-1 flex flex-col items-center justify-center p-8">
+        <div className="w-32 h-32 bg-white/10 rounded-full flex items-center justify-center p-6 backdrop-blur-md border border-white/20 shadow-2xl animate-in fade-in zoom-in duration-700">
+          <img
+            src="/logo.svg"
+            alt="Quozen Logo"
+            className="w-full h-full object-contain brightness-0 invert"
+          />
+        </div>
+        <div className="mt-6 text-center animate-in slide-in-from-bottom-4 duration-700 delay-200">
+          <h1 className="text-4xl font-black tracking-tight text-white mb-2">QUOZEN</h1>
+          <div className="h-1.5 w-12 bg-white/30 rounded-full mx-auto" />
+        </div>
+      </div>
 
-      <div className="w-full max-w-md space-y-8 animate-in fade-in zoom-in-95 duration-500">
-        {/* Brand Header */}
-        <div className="flex flex-col items-center text-center space-y-6">
-          <div className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-teal-400 to-emerald-400 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
-            <div className="relative w-24 h-24 bg-background rounded-full shadow-xl flex items-center justify-center p-5 ring-1 ring-border/50">
-              <img
-                src="/logo.svg"
-                alt="Quozen Logo"
-                className="w-full h-full object-contain"
-              />
-            </div>
-          </div>
-
+      {/* Bottom Section - Actions */}
+      <div className="bg-background rounded-t-[2.5rem] p-8 pb-12 shadow-[0_-20px_50px_-20px_rgba(0,0,0,0.3)] animate-in slide-in-from-bottom-full duration-700">
+        <div className="space-y-8">
           <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            <h2 className="text-2xl font-bold text-foreground">
               {t("login.welcome")}
-            </h1>
-            <p className="text-muted-foreground text-base max-w-xs mx-auto">
+            </h2>
+            <p className="text-muted-foreground text-sm leading-relaxed">
               {t("login.subtitle")}
             </p>
           </div>
+
+          <div className="space-y-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-14 text-base font-semibold border-2 border-border hover:bg-muted transition-all flex items-center justify-center gap-3"
+              onClick={() => login()}
+            >
+              <img
+                src="https://www.google.com/favicon.ico"
+                alt="Google"
+                className="w-5 h-5"
+              />
+              {t("login.continue")}
+            </Button>
+
+            <p className="text-[10px] text-center text-muted-foreground/60 leading-relaxed px-4">
+              {t("login.disclaimer")}
+            </p>
+          </div>
         </div>
-
-        {/* Login Card */}
-        <Card className="border-border/50 shadow-xl bg-card/80 backdrop-blur-sm overflow-hidden">
-          <CardContent className="pt-8 pb-8 px-8">
-            <div className="space-y-6">
-              <div className="space-y-2 text-center">
-                <h2 className="text-lg font-semibold text-foreground">{t("login.signIn")}</h2>
-                <p className="text-sm text-muted-foreground">
-                  {t("login.connect")}
-                </p>
-              </div>
-
-              <div className="pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="lg"
-                  className="w-full py-6 text-base font-medium relative overflow-hidden transition-all hover:border-teal-500/50 hover:bg-teal-50/50 dark:hover:bg-teal-950/30 group"
-                  onClick={() => login()}
-                >
-                  <img
-                    src="https://www.google.com/favicon.ico"
-                    alt="Google"
-                    className="w-5 h-5 mr-3 relative z-10"
-                  />
-                  <span className="relative z-10">{t("login.continue")}</span>
-                </Button>
-              </div>
-
-              <div className="text-[10px] text-center text-muted-foreground/60 px-4 leading-relaxed">
-                {t("login.disclaimer")}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
