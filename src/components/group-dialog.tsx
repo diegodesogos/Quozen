@@ -3,7 +3,6 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, Dr
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { parseMembers } from "@/lib/utils";
 import { MemberInput } from "@/lib/storage/types";
 import { useTranslation } from "react-i18next";
@@ -80,90 +79,92 @@ export default function GroupDialog({
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent>
-        <div className="mx-auto w-full max-w-md">
-          <DrawerHeader>
-            <DrawerTitle>{mode === 'create' ? t("groups.create") : t("groups.edit")}</DrawerTitle>
-            <DrawerDescription>
-              {mode === 'create'
-                ? t("groups.new")
-                : t("groups.update")}
-            </DrawerDescription>
-          </DrawerHeader>
-          <form onSubmit={handleSubmit} className="p-4 pb-28">
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="groupName">{t("groups.nameLabel")} *</Label>
-                <Input
-                  id="groupName"
-                  placeholder="e.g., Weekend Trip"
-                  value={groupName}
-                  onChange={(e) => setGroupName(e.target.value)}
-                  required
-                />
-              </div>
+        <DrawerHeader>
+          <DrawerTitle>{mode === 'create' ? t("groups.create") : t("groups.edit")}</DrawerTitle>
+          <DrawerDescription>
+            {mode === 'create' ? t("groups.new") : t("groups.update")}
+          </DrawerDescription>
+        </DrawerHeader>
 
-              <div>
-                <Label htmlFor="newMember">{t("groups.membersLabel")}</Label>
-                <div className="flex gap-2 mt-1">
-                  <Input
-                    id="newMember"
-                    placeholder={t("groups.membersHint")}
-                    value={newMember}
-                    onChange={(e) => setNewMember(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddMember();
-                      }
-                    }}
-                  />
-                  <Button type="button" onClick={handleAddMember} size="icon" variant="outline">
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
-
-                {members.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {members.map((m, i) => (
-                      <Badge key={i} variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1">
-                        <span className="truncate max-w-[150px]">{m.email || m.username}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveMember(i)}
-                          className="hover:bg-muted rounded-full p-0.5 transition-colors"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-
-                <p className="text-xs text-muted-foreground mt-2">
-                  {t("groups.membersHint2")}
-                </p>
-              </div>
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto px-4 pb-4">
+          <form id="group-form" onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="groupName">{t("groups.nameLabel")} *</Label>
+              <Input
+                id="groupName"
+                placeholder="e.g., Weekend Trip"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                required
+              />
             </div>
 
-            <DrawerFooter className="fixed bottom-0 left-0 right-0 flex-row space-x-3 bg-background border-t shadow-[0_-4px_10px_rgba(0,0,0,0.05)] px-4 pb-8 z-10">
-              <Button
-                type="button"
-                variant="secondary"
-                className="flex-1 h-12"
-                onClick={() => onOpenChange(false)}
-              >
-                {t("common.cancel")}
-              </Button>
-              <Button
-                type="submit"
-                className="flex-1 h-12"
-                disabled={isPending}
-              >
-                {isPending ? t("expenseForm.saving") : (mode === 'create' ? t("groups.create") : t("groups.update"))}
-              </Button>
-            </DrawerFooter>
+            <div>
+              <Label htmlFor="newMember">{t("groups.membersLabel")}</Label>
+              <div className="flex gap-2 mt-1">
+                <Input
+                  id="newMember"
+                  placeholder={t("groups.membersHint")}
+                  value={newMember}
+                  onChange={(e) => setNewMember(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddMember();
+                    }
+                  }}
+                />
+                <Button type="button" onClick={handleAddMember} size="icon" variant="outline">
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+
+              {members.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {members.map((m, i) => (
+                    <Badge key={i} variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1">
+                      <span className="truncate max-w-[150px]">{m.email || m.username}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveMember(i)}
+                        className="hover:bg-muted rounded-full p-0.5 transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground mt-2">
+                {t("groups.membersHint2")}
+              </p>
+            </div>
           </form>
         </div>
+
+        {/* Sticky Footer */}
+        <DrawerFooter className="border-t bg-background">
+          <div className="flex gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              className="flex-1 h-12"
+              onClick={() => onOpenChange(false)}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              type="submit"
+              form="group-form"
+              className="flex-1 h-12"
+              disabled={isPending}
+            >
+              {isPending ? t("expenseForm.saving") : (mode === 'create' ? t("groups.create") : t("groups.update"))}
+            </Button>
+          </div>
+        </DrawerFooter>
       </DrawerContent>
     </Drawer>
   );

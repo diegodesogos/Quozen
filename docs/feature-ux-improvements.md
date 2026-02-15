@@ -22,10 +22,10 @@
 | 17 | Implement Mobile "Cover" Login Layout | ✅ Completed |
 | 18 | "Wizard" UI for Manual Join Fix | ✅ Completed |
 | 19 | Convert Expense Forms to Drawers | ✅ Completed |
-| 20 | Refactor Group Switcher (Navigation Only) | ⬜ Todo|
-| 21 | Enhanced Groups Page (Management Hub)| ⬜ Todo| 
-| 22 | Empty State Guidance (Groups)|⬜ Todo|
-| 23 | Standardize Expense Card Actions (Meatball Menu) | ⬜ Todo |
+| 20 | Refactor Group Switcher (Navigation Only) |✅ Completed |
+| 21 | Enhanced Groups Page (Management Hub)| ✅ Completed | 
+| 22 | Empty State Guidance (Groups)|✅ Completed |
+| 23 | Standardize Expense Card Actions (Meatball Menu) | ✅ Completed |
 
 # Bugs
 

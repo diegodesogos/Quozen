@@ -97,7 +97,7 @@
         "leaveAction": "Leave",
         "import": "Import Shared Group",
         "switchModalTitle": "Switch Group",
-        "switchModalDesc": "Select a group or create/import new.",
+        "switchModalDesc": "Select a group to view.",
         "nameLabel": "Group Name",
         "membersLabel": "Members (Optional)",
         "membersHint": "Enter emails or usernames, separated by commas (e.g., alice@gmail.com, bob123)",
@@ -108,7 +108,16 @@
         "current": "Current",
         "switched": "Group switched!",
         "invalidGroup": "Invalid Group File",
-        "validationError": "The selected file is not a valid Quozen group or is missing required metadata."
+        "validationError": "The selected file is not a valid Quozen group or is missing required metadata.",
+        "manage": "Manage Groups",
+        "recover": "Missing a group?",
+        "findInDrive": "Find in Google Drive",
+        "empty": {
+            "title": "No groups found",
+            "create": "Create Group",
+            "magicLinkHint": "Invited by a friend? Ask them to share the Magic Link with you.",
+            "recoverHint": "Or find an existing file in Drive"
+        }
     },
     "expenseForm": {
         "addTitle": "Add Expense",

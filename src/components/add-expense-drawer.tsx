@@ -55,25 +55,26 @@ export default function AddExpenseDrawer() {
 
     return (
         <Drawer open={isAddExpenseOpen} onOpenChange={setIsAddExpenseOpen}>
-            <DrawerContent className="max-h-[85vh]"
+            <DrawerContent
                 onCloseAutoFocus={(event) => {
                     if (event.defaultPrevented) return;
                 }}
             >
-                <div className="mx-auto w-full max-w-md overflow-y-auto pb-8">
-                    <DrawerHeader>
-                        <DrawerTitle>{t("expenseForm.addTitle")}</DrawerTitle>
-                        <DrawerDescription>
-                            {t("expenseForm.missingInfoDesc")}
-                        </DrawerDescription>
-                    </DrawerHeader>
+                <DrawerHeader>
+                    <DrawerTitle>{t("expenseForm.addTitle")}</DrawerTitle>
+                    <DrawerDescription>
+                        {t("expenseForm.missingInfoDesc")}
+                    </DrawerDescription>
+                </DrawerHeader>
 
+                <div className="flex-1 overflow-y-auto px-4 pb-0">
                     <ExpenseForm
                         users={users}
                         currentUserId={currentUserId}
                         isPending={expenseMutation.isPending}
                         onSubmit={(data) => expenseMutation.mutate(data)}
                         onCancel={() => setIsAddExpenseOpen(false)}
+                        isDrawer // Prop to tell form it's in a drawer (handles footer differently if needed)
                     />
                 </div>
             </DrawerContent>

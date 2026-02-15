@@ -91,15 +91,16 @@ export default function ShareDialog({ isOpen, onClose, groupId, groupName }: Sha
                     if (event.defaultPrevented) return;
                 }}
             >
-                <div className="mx-auto w-full max-w-md">
-                    <DrawerHeader>
-                        <DrawerTitle>{t("share.title", { name: groupName })}</DrawerTitle>
-                        <DrawerDescription>
-                            {t("share.description")}
-                        </DrawerDescription>
-                    </DrawerHeader>
+                <DrawerHeader>
+                    <DrawerTitle>{t("share.title", { name: groupName })}</DrawerTitle>
+                    <DrawerDescription>
+                        {t("share.description")}
+                    </DrawerDescription>
+                </DrawerHeader>
 
-                    <div className="space-y-6 p-4 pb-12">
+                {/* Scrollable Content */}
+                <div className="flex-1 overflow-y-auto px-4 pb-8">
+                    <div className="space-y-6">
                         <div className="flex items-center justify-between space-x-2">
                             <div className="flex flex-col space-y-1">
                                 <Label htmlFor="public-access" className="flex items-center gap-2">

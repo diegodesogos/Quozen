@@ -97,7 +97,7 @@
         "leaveAction": "Salir",
         "import": "Importar Grupo Compartido",
         "switchModalTitle": "Cambiar Grupo",
-        "switchModalDesc": "Selecciona un grupo o crea/importa uno nuevo.",
+        "switchModalDesc": "Selecciona un grupo para ver.",
         "nameLabel": "Nombre del Grupo",
         "membersLabel": "Miembros (Opcional)",
         "membersHint": "Ingresa correos o usuarios, separados por comas (ej. ana@gmail.com, beto123)",
@@ -108,7 +108,16 @@
         "current": "Actual",
         "switched": "¡Grupo cambiado!",
         "invalidGroup": "Archivo Inválido",
-        "validationError": "El archivo seleccionado no es un grupo válido de Quozen o le faltan metadatos."
+        "validationError": "El archivo seleccionado no es un grupo válido de Quozen o le faltan metadatos.",
+        "manage": "Administrar Grupos",
+        "recover": "¿Falta un grupo?",
+        "findInDrive": "Buscar en Google Drive",
+        "empty": {
+            "title": "No se encontraron grupos",
+            "create": "Crear Grupo",
+            "magicLinkHint": "¿Te invitaron? Pide que te compartan el Enlace Mágico.",
+            "recoverHint": "O busca un archivo existente en Drive"
+        }
     },
     "expenseForm": {
         "addTitle": "Añadir Gasto",

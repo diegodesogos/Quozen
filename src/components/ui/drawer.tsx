@@ -43,13 +43,16 @@ const DrawerContent = React.forwardRef<
     <DrawerPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
+        "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto max-h-[96vh] flex-col rounded-t-[10px] border bg-background outline-none",
         className
       )}
       {...props}
     >
-      <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
-      {children}
+      <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted shrink-0" />
+      {/* We wrap children in a flex-1 container to manage internal scrolling if structured correctly by the consumer */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden w-full max-w-md mx-auto">
+        {children}
+      </div>
     </DrawerPrimitive.Content>
   </DrawerPortal>
 ))
@@ -60,7 +63,7 @@ const DrawerHeader = ({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn("grid gap-1.5 p-4 text-center sm:text-left", className)}
+    className={cn("grid gap-1.5 p-4 text-center sm:text-left shrink-0", className)}
     {...props}
   />
 )
@@ -71,7 +74,7 @@ const DrawerFooter = ({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn("mt-auto flex flex-col gap-2 p-4", className)}
+    className={cn("mt-auto flex flex-col gap-2 p-4 shrink-0", className)}
     {...props}
   />
 )

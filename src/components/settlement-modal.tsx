@@ -165,15 +165,16 @@ export default function SettlementModal({
             if (event.defaultPrevented) return;
           }}
         >
-          <div className="mx-auto w-full max-w-md">
-            <DrawerHeader>
-              <DrawerTitle className="text-center">{initialData ? t("settlement.editTitle") : t("settlement.title")}</DrawerTitle>
-              <DrawerDescription className="text-center">
-                {initialData ? t("settlement.editDesc") : t("settlement.desc")}
-              </DrawerDescription>
-            </DrawerHeader>
+          <DrawerHeader>
+            <DrawerTitle className="text-center">{initialData ? t("settlement.editTitle") : t("settlement.title")}</DrawerTitle>
+            <DrawerDescription className="text-center">
+              {initialData ? t("settlement.editDesc") : t("settlement.desc")}
+            </DrawerDescription>
+          </DrawerHeader>
 
-            <form onSubmit={handleSubmit} className="space-y-4 p-4 pb-0" data-testid="form-settlement">
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto px-4 pb-4">
+            <form id="settlement-form" onSubmit={handleSubmit} className="space-y-4" data-testid="form-settlement">
 
               <div className="flex items-center justify-between gap-2 py-6 px-2 bg-muted/20 rounded-2xl relative border border-border/50">
                 <div className="flex-1">
@@ -281,41 +282,45 @@ export default function SettlementModal({
                   data-testid="textarea-settlement-notes"
                 />
               </div>
-
-              <DrawerFooter className="flex-row space-x-3 px-0 pb-8">
-                {initialData && (
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="shrink-0"
-                    onClick={() => setShowDeleteConfirm(true)}
-                    title={t("common.delete")}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                )}
-
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="flex-1"
-                  onClick={onClose}
-                  data-testid="button-cancel-settlement"
-                >
-                  {t("common.cancel")}
-                </Button>
-                <Button
-                  type="submit"
-                  className="flex-1"
-                  disabled={saveMutation.isPending}
-                  data-testid="button-record-payment"
-                >
-                  {saveMutation.isPending ? t("expenseForm.saving") : (initialData ? t("settlement.update") : t("settlement.record"))}
-                </Button>
-              </DrawerFooter>
             </form>
           </div>
+
+          {/* Sticky Footer */}
+          <DrawerFooter className="border-t bg-background">
+            <div className="flex gap-3">
+              {initialData && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="shrink-0"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  title={t("common.delete")}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+
+              <Button
+                type="button"
+                variant="secondary"
+                className="flex-1"
+                onClick={onClose}
+                data-testid="button-cancel-settlement"
+              >
+                {t("common.cancel")}
+              </Button>
+              <Button
+                type="submit"
+                form="settlement-form"
+                className="flex-1"
+                disabled={saveMutation.isPending}
+                data-testid="button-record-payment"
+              >
+                {saveMutation.isPending ? t("expenseForm.saving") : (initialData ? t("settlement.update") : t("settlement.record"))}
+              </Button>
+            </div>
+          </DrawerFooter>
         </DrawerContent>
       </Drawer>
 

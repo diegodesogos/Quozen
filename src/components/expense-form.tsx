@@ -24,9 +24,10 @@ interface ExpenseFormProps {
   onSubmit: (data: Partial<Expense>) => void;
   isPending: boolean;
   onCancel?: () => void;
+  isDrawer?: boolean; // New prop
 }
 
-export default function ExpenseForm({ initialData, users, currentUserId, onSubmit, isPending, onCancel }: ExpenseFormProps) {
+export default function ExpenseForm({ initialData, users, currentUserId, onSubmit, isPending, onCancel, isDrawer }: ExpenseFormProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -154,7 +155,7 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
   };
 
   return (
-    <div className="mx-4 mt-4 pb-32">
+    <div className={cn("mx-auto", !isDrawer && "mx-4 mt-4 pb-32")}>
       <form onSubmit={handleSubmit} className="space-y-6" data-testid="form-expense">
         <div>
           <Label htmlFor="description">{t("expenseForm.description")} *</Label>
@@ -212,7 +213,7 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
         </div>
         <div>
           <Label className="mb-3 block">{t("expenseForm.splitBetween")}</Label>
-          <div className="space-y-3">
+          <div className="space-y-3 pb-24"> {/* Add padding for footer */}
             {splits.map((split) => (
               <div
                 key={split.userId}
@@ -260,8 +261,11 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
           </div>
         </div>
 
-        {/* Sticky Action Footer */}
-        <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md p-4 bg-background border-t shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-40">
+        {/* Action Footer */}
+        <div className={cn(
+          "w-full bg-background border-t shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-40 p-4",
+          isDrawer ? "sticky bottom-0 -mx-4 px-8" : "fixed bottom-0 left-1/2 transform -translate-x-1/2 max-w-md"
+        )}>
           <Button
             type="submit"
             className="w-full h-12"

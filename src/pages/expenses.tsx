@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import {
   Utensils, Car, Bed, ShoppingBag,
-  Gamepad2, MoreHorizontal, Trash2, Pencil, Wallet, Plus, Receipt
+  Gamepad2, MoreHorizontal, Trash2, Pencil, Receipt, Plus, MoreVertical, Edit
 } from "lucide-react";
 import { googleApi } from "@/lib/drive";
 import { useNavigate } from "react-router-dom";
@@ -28,6 +28,13 @@ import { useTranslation } from "react-i18next";
 import { useDateFormatter } from "@/hooks/use-date-formatter";
 import { formatCurrency } from "@/lib/format-currency";
 import { useSettings } from "@/hooks/use-settings";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Interface for props passed from ActivityHub
 interface ExpensesListProps {
@@ -58,7 +65,7 @@ export default function ExpensesList({ expenses = [], members = [], isLoading = 
       queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
       toast({
         title: t("common.success"),
-        description: t("expenseItem.deleteTitle") // Reusing title concept or generic message
+        description: t("expenseItem.deleteTitle")
       });
       setExpenseToDelete(null);
     },
@@ -142,59 +149,71 @@ export default function ExpensesList({ expenses = [], members = [], isLoading = 
         const status = getExpenseUserStatus(expense, currentUserId);
 
         return (
-          <Card key={expense.id} data-testid={`card-expense-${expense.id}`}>
-            <CardContent className="p-4">
+          <Card key={expense.id} data-testid={`card-expense-${expense.id}`} className="hover:shadow-md transition-all">
+            <CardContent className="p-4 cursor-pointer" onClick={() => navigate(`/edit-expense/${expense.id}`)}>
               <div className="flex items-start justify-between">
                 <div className="flex items-start space-x-3">
-                  <div className="w-12 h-12 bg-secondary rounded-lg flex items-center justify-center border border-border">
+                  <div className="w-12 h-12 bg-secondary/50 rounded-xl flex items-center justify-center border border-border shrink-0">
                     <Icon className="w-6 h-6 text-muted-foreground" />
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-foreground line-clamp-1">{expense.description}</h3>
-                    <p className="text-xs text-muted-foreground mt-1">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-foreground line-clamp-1 text-sm">{expense.description}</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
                       {paidByUser?.name || 'Unknown'} • {formatDate(expense.date)}
                     </p>
                     <div className="flex flex-wrap gap-1 mt-2">
-                      <Badge variant="secondary" className={`font-normal text-[10px] px-1.5 py-0 ${getCategoryColor(expense.category)}`}>
+                      <Badge variant="secondary" className={`font-normal text-[10px] px-1.5 py-0 border-0 ${getCategoryColor(expense.category)}`}>
                         {expense.category}
                       </Badge>
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-col items-end">
-                  <div className="font-bold text-lg text-foreground">
-                    {formatCurrency(Number(expense.amount), currencyCode, i18n.language)}
-                  </div>
+                <div className="flex flex-col items-end gap-1">
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <div className="font-bold text-base text-foreground">
+                        {formatCurrency(Number(expense.amount), currencyCode, i18n.language)}
+                      </div>
+                      {status.status === 'payer' && (
+                        <div className="text-[10px] expense-positive font-medium">{t("expenseItem.paid")}</div>
+                      )}
+                      {status.status === 'debtor' && (
+                        <div className="text-[10px] expense-negative font-medium">{t("expenseItem.owe", { amount: formatCurrency(status.amountOwed, currencyCode, i18n.language) })}</div>
+                      )}
+                      {status.status === 'none' && (
+                        <div className="text-[10px] text-muted-foreground">{t("expenseItem.notInvolved")}</div>
+                      )}
+                    </div>
 
-                  {status.status === 'payer' && (
-                    <div className="text-xs expense-positive mb-2 font-medium">{t("expenseItem.paid")}</div>
-                  )}
-                  {status.status === 'debtor' && (
-                    <div className="text-xs expense-negative mb-2 font-medium">{t("expenseItem.owe", { amount: formatCurrency(status.amountOwed, currencyCode, i18n.language) })}</div>
-                  )}
-                  {status.status === 'none' && (
-                    <div className="text-xs text-muted-foreground mb-2">{t("expenseItem.notInvolved")}</div>
-                  )}
-
-                  <div className="flex gap-1">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => navigate(`/edit-expense/${expense.id}`)}
-                      data-testid={`button-edit-expense-${expense.id}`}
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => setExpenseToDelete(expense)}
-                      data-testid={`button-delete-expense-${expense.id}`}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 -mr-2 text-muted-foreground hover:text-foreground"
+                            aria-label={`Options for ${expense.description}`}
+                            data-testid={`button-options-expense-${expense.id}`}
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/edit-expense/${expense.id}`); }}>
+                            <Edit className="w-4 h-4 mr-2" />
+                            {t("common.edit")}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={(e) => { e.stopPropagation(); setExpenseToDelete(expense); }}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            {t("common.delete")}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
                 </div>
               </div>
