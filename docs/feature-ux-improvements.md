@@ -25,6 +25,7 @@
 | 20 | Refactor Group Switcher (Navigation Only) | ⬜ Todo|
 | 21 | Enhanced Groups Page (Management Hub)| ⬜ Todo| 
 | 22 | Empty State Guidance (Groups)|⬜ Todo|
+| 23 | Standardize Expense Card Actions (Meatball Menu) | ⬜ Todo |
 
 # Bugs
 
@@ -225,3 +226,18 @@ If you attempt a transfer amount lower than 0.5, the app records a 0.0 transacti
     * **Secondary Text:** "Invited by a friend? Ask them to share the **Magic Link** with you."  
     * **Tertiary Action:** "Or find an existing file in Drive" (Link/Ghost Button triggering Import).  
   * **Icon:** Use a large, muted `FolderSearch` or `Group` icon.
+
+**23. Standardize Expense Card Actions (Meatball Menu)**
+
+* **Target:** `src/pages/expenses.tsx` (Component: `ExpensesList`)
+* **Context:** Currently, Expense cards display distinct "Edit" (Pencil) and "Delete" (Trash) buttons, whereas Transfer cards in the Activity Hub use a "Meatball" (Ellipsis) menu. This creates interaction friction.
+* **Objective:** Unify the list item behavior pattern across the application.
+* **Instruction:**
+    * **Remove:** The visible `div` container holding the `Pencil` and `Trash2` buttons on the right side of the card.
+    * **Implement:** A `DropdownMenu` triggered by a `MoreVertical` (Ghost variant) button, identical to the implementation in `activity-hub.tsx`.
+    * **Menu Items:**
+        1.  **Edit:** Icon: `Edit` | Label: "Edit" | Action: Navigate to `/edit-expense/:id`.
+        2.  **Separator:** `<DropdownMenuSeparator />`
+        3.  **Delete:** Icon: `Trash2` | Label: "Delete" | Action: Trigger delete confirmation dialog | Style: `text-destructive`.
+    * **Interaction Logic:** Ensure `onClick` events on the Menu Trigger and Menu Items call `e.stopPropagation()` to prevent triggering the parent Card's navigation event.
+    * **Accessibility:** Ensure the Trigger button has `aria-label="Options for [Expense Description]"`.
