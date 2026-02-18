@@ -17,8 +17,8 @@ test.describe('Functional Flow', () => {
         // 2. Verify we are redirected to Groups page (because no groups exist)
         await expect(page).toHaveURL(/.*groups/);
         if (isMockMode) {
-            // matches "No groups yet."
-            await expect(page.getByText('No groups yet')).toBeVisible();
+            // matches "No groups found" (Updated after UX refactor)
+            await expect(page.getByText('No groups found')).toBeVisible();
         }
 
         // 3. Create a Group
@@ -44,7 +44,9 @@ test.describe('Functional Flow', () => {
 
         // 5. Add Expense
         await page.getByTestId('button-nav-add').click();
-        await expect(page).toHaveURL(/.*add-expense/);
+
+        // Wait for Add Expense Drawer (converted from page to drawer in UX refactor)
+        await expect(page.getByRole('heading', { name: 'Add Expense' })).toBeVisible();
 
         await page.getByTestId('input-expense-description').fill('Dinner');
         await page.getByTestId('input-expense-amount').fill('50');
@@ -52,7 +54,14 @@ test.describe('Functional Flow', () => {
         await page.getByRole('option', { name: 'Food & Dining' }).click();
         await page.getByTestId('button-submit-expense').click();
 
+        // Wait for drawer to close after submission
+        await expect(page.getByRole('heading', { name: 'Add Expense' })).not.toBeVisible();
+
         // 6. Verify in List (Dashboard)
+        // Since we are currently on the groups page and the drawer just closed, navigate to the Dashboard to see the expense.
+        await page.getByTestId('button-nav-home').click();
+        await expect(page).toHaveURL(/.*dashboard/);
+
         await expect(page.getByText('Dinner')).toBeVisible();
         await expect(page.getByText('$50.00').first()).toBeVisible();
     });
