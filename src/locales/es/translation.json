@@ -203,6 +203,8 @@
         "title": "Perfil",
         "preferences": "Preferencias y Datos",
         "currency": "Moneda Predeterminada",
+        "popularCurrencies": "Populares",
+        "allCurrencies": "Todas las monedas",
         "language": "Idioma",
         "selectLanguage": "Seleccionar idioma",
         "reconcile": "Sincronizar Grupos",

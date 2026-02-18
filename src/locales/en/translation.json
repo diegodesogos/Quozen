@@ -203,6 +203,8 @@
         "title": "Profile",
         "preferences": "Preferences & Data",
         "currency": "Default Currency",
+        "popularCurrencies": "Popular",
+        "allCurrencies": "All Currencies",
         "language": "Language",
         "selectLanguage": "Select language",
         "reconcile": "Reconcile Groups",
