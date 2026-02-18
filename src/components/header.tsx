@@ -117,11 +117,13 @@ export default function Header() {
               </button>
             )}
 
+            {/* TODO: Re-enable notifications bell when feature is fully defined
             {!isSubPage && (
               <button className="w-8 h-8 rounded-full bg-muted flex items-center justify-center" data-testid="button-notifications">
                 <Bell className="w-4 h-4 text-muted-foreground" />
               </button>
             )}
+            */}
           </div>
         </div>
       </header>
