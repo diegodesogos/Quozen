@@ -51,7 +51,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Run client tests
-        run: npm run test
+        run: npm run test --workspace=@quozen/webapp
 
   # Job 2: Run Playwright E2E Tests (Conditionally)
   test-e2e:
@@ -84,7 +84,7 @@ jobs:
         # Provide a dummy JWT_SECRET for the test env
         env:
           JWT_SECRET: "test-secret-for-ci" 
-        run: npm run test:e2e #
+        run: npm run test:e2e --workspace=@quozen/webapp
 
       - name: Upload Playwright report
         # This step runs even if the tests fail, to store the report

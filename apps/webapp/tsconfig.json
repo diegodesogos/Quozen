@@ -23,10 +23,10 @@
         "src/*"
       ],
       "@quozen/core": [
-        "packages/core/src"
+        "../../packages/core/src"
       ],
       "@quozen/core/*": [
-        "packages/core/src/*"
+        "../../packages/core/src/*"
       ]
     },
     "types": [

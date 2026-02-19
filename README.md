@@ -49,14 +49,14 @@ To function, Quozen requests these specific permissions:
 Quozen is built as a **monorepo**, decoupling core business logic from the UI layer to enable portability (e.g., for AI agents, MCP servers, or Node.js integrations).
 
 ### Project Structure
+- **`apps/webapp`**: The main React web application.
+    - UI components using Shadcn UI and Framer Motion.
+    - React Hooks for state management and data fetching.
+    - Browser-specific integration (Local Storage, OAuth UI).
 - **`packages/core`**: The heart of Quozen. An isomorphic TypeScript library containing:
     - Split-bill algorithms and financial math.
     - Generalized Storage Adapters (Google Drive, In-Memory).
     - Domain types and error definitions.
-- **`src/`**: The main React web application.
-    - UI components using Shadcn UI and Framer Motion.
-    - React Hooks for state management and data fetching.
-    - Browser-specific integration (Local Storage, OAuth UI).
 
 ### Core Technologies
 * **Frontend**: React, TypeScript, Vite

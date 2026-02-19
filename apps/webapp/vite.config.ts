@@ -36,6 +36,7 @@ export default defineConfig({
     },
   },
   root: "./", // Entry point is now in the project root
+  envDir: "../../", // .env is in the monorepo root
   build: {
     outDir: "dist", // Standard output directory at root
     emptyOutDir: true,
