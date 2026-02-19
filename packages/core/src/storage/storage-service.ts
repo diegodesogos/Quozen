@@ -126,7 +126,7 @@ export class StorageService implements IStorageProvider {
 
             for (const member of members) {
                 let memberName = member.username || member.email || "Unknown";
-                let memberId = member.email || member.username || `user-${self.crypto.randomUUID()}`;
+                let memberId = member.email || member.username || `user-${crypto.randomUUID()}`;
                 if (member.email) {
                     const displayName = await this.adapter.shareFile(fileId, member.email, "writer");
                     if (displayName) memberName = displayName;
@@ -360,7 +360,7 @@ export class StorageService implements IStorageProvider {
                     processedIds.add(existing.userId);
                 } else {
                     let memberName = desired.username || desired.email || "Unknown";
-                    let memberId = desired.email || desired.username || `user-${self.crypto.randomUUID()}`;
+                    let memberId = desired.username || desired.email || `user-${crypto.randomUUID()}`;
                     if (desired.email) {
                         const displayName = await this.adapter.shareFile(groupId, desired.email, "writer");
                         if (displayName) memberName = displayName;
@@ -472,7 +472,7 @@ export class StorageService implements IStorageProvider {
 
     async addExpense(spreadsheetId: string, expenseData: Partial<Expense>): Promise<void> {
         const expense = {
-            id: self.crypto.randomUUID(),
+            id: crypto.randomUUID(),
             ...expenseData,
             splits: expenseData.splits || [],
             meta: { createdAt: new Date().toISOString(), lastModified: new Date().toISOString() }
@@ -514,7 +514,7 @@ export class StorageService implements IStorageProvider {
 
     async addSettlement(spreadsheetId: string, settlementData: Partial<Settlement>): Promise<void> {
         const settlement = {
-            id: self.crypto.randomUUID(),
+            id: crypto.randomUUID(),
             ...settlementData,
             date: settlementData.date || new Date().toISOString()
         };

@@ -15,7 +15,8 @@
     "scripts": {
         "build": "tsup src/index.ts --format esm --dts",
         "dev": "tsup src/index.ts --format esm --watch --dts",
-        "lint": "tsc --noEmit"
+        "lint": "tsc --noEmit",
+        "test": "vitest run"
     },
     "devDependencies": {
         "tsup": "^8.0.0",

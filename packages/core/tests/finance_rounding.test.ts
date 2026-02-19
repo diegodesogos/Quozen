@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { calculateBalances, calculateTotalSpent, roundCurrency, Member, Expense } from "@quozen/core"
+import { calculateBalances, calculateTotalSpent, roundCurrency, Member, Expense } from "@/";
 
 describe("Finance Rounding Consistency", () => {
   const users: Member[] = [

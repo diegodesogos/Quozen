@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { distributeAmount } from "@quozen/core";
+import { distributeAmount } from "@/";
 
 describe("distributeAmount", () => {
   it("distributes amounts equally when possible", () => {

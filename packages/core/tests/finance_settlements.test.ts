@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calculateBalances, Settlement, Member, Expense } from "@quozen/core";
+import { calculateBalances, Settlement, Member, Expense } from "@/";
 
 describe("Finance Settlements Logic", () => {
   const users: Member[] = [

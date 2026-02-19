@@ -8,7 +8,7 @@ import {
   Member,
   Expense,
   Settlement
-} from "@quozen/core";
+} from "@/";
 
 describe("Finance Utilities", () => {
   // --- Mock Data Helpers ---

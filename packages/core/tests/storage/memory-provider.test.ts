@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { StorageService, InMemoryAdapter, Expense, ConflictError, NotFoundError, UserSettings } from '@quozen/core';
+import { StorageService, InMemoryAdapter, Expense, ConflictError, NotFoundError, UserSettings } from '@/';
 
 interface User {
     id: string;

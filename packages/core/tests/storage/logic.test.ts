@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { StorageService, InMemoryAdapter, IStorageAdapter, Member, UserSettings } from '@quozen/core';
+import { StorageService, InMemoryAdapter, IStorageAdapter, Member, UserSettings } from '@/';
 
 interface User {
     id: string;
