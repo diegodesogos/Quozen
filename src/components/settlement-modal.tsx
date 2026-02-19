@@ -98,8 +98,7 @@ export default function SettlementModal({
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
       if (initialData) {
-        if (!initialData._rowIndex) throw new Error("Missing row index");
-        return await googleApi.updateSettlement(activeGroupId, initialData._rowIndex, { ...initialData, ...data });
+        return await googleApi.updateSettlement(activeGroupId, initialData.id, { ...initialData, ...data });
       } else {
         return await googleApi.addSettlement(activeGroupId, data);
       }
@@ -124,8 +123,8 @@ export default function SettlementModal({
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      if (!initialData || !initialData._rowIndex) throw new Error("Missing row index");
-      return await googleApi.deleteSettlement(activeGroupId, initialData._rowIndex, initialData.id);
+      if (!initialData) throw new Error("Missing initialData");
+      return await googleApi.deleteSettlement(activeGroupId, initialData.id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });

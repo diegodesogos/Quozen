@@ -470,6 +470,44 @@ export class StorageService implements IStorageProvider {
         return this.adapter.readGroupData(spreadsheetId);
     }
 
+    async getGroups(userEmail: string): Promise<Group[]> {
+        const settings = await this.getSettings(userEmail);
+        return settings.groupCache.map(cg => ({
+            id: cg.id,
+            name: cg.name,
+            description: "Google Sheet Group",
+            createdBy: "Unknown",
+            participants: [],
+            createdAt: cg.lastAccessed || new Date().toISOString(),
+            isOwner: cg.role === "owner"
+        }));
+    }
+
+    async getExpenses(groupId: string): Promise<Expense[]> {
+        const data = await this.getGroupData(groupId);
+        return data?.expenses || [];
+    }
+
+    async getSettlements(groupId: string): Promise<Settlement[]> {
+        const data = await this.getGroupData(groupId);
+        return data?.settlements || [];
+    }
+
+    async getMembers(groupId: string): Promise<Member[]> {
+        const data = await this.getGroupData(groupId);
+        return data?.members || [];
+    }
+
+    async getExpense(groupId: string, expenseId: string): Promise<Expense | null> {
+        const expenses = await this.getExpenses(groupId);
+        return expenses.find(e => e.id === expenseId) || null;
+    }
+
+    async getSettlement(groupId: string, settlementId: string): Promise<Settlement | null> {
+        const settlements = await this.getSettlements(groupId);
+        return settlements.find(s => s.id === settlementId) || null;
+    }
+
     async addExpense(spreadsheetId: string, expenseData: Partial<Expense>): Promise<void> {
         const expense = {
             id: crypto.randomUUID(),
@@ -480,35 +518,42 @@ export class StorageService implements IStorageProvider {
         await this.adapter.appendRow(spreadsheetId, "Expenses", expense);
     }
 
-    async updateExpense(spreadsheetId: string, rowIndex: number, expenseData: Partial<Expense>, expectedLastModified?: string): Promise<void> {
+    async updateExpense(spreadsheetId: string, expenseId: string, expenseData: Partial<Expense>, expectedLastModified?: string): Promise<void> {
         return this._runExclusive(async () => {
-            const currentRow = await this.adapter.readRow(spreadsheetId, "Expenses", rowIndex);
-            if (!currentRow) throw new NotFoundError();
+            const data = await this.adapter.readGroupData(spreadsheetId);
+            if (!data) throw new NotFoundError("Group not found");
+            const currentRow = data.expenses.find(e => e.id === expenseId);
+            if (!currentRow || !currentRow._rowIndex) throw new NotFoundError("Expense not found");
 
-            const currentId = currentRow.id;
-            if (currentId !== expenseData.id) throw new ConflictError("ID Mismatch");
+            const rowIndex = currentRow._rowIndex;
 
             if (expectedLastModified && currentRow.meta?.lastModified) {
                 if (new Date(currentRow.meta.lastModified).getTime() > new Date(expectedLastModified).getTime()) {
-                    throw new ConflictError();
+                    throw new ConflictError("Conflict: Outdated version");
                 }
             }
 
             const updates = {
+                ...currentRow,
                 ...expenseData,
-                splits: expenseData.splits || [],
+                splits: expenseData.splits || currentRow.splits || [],
                 meta: { ...currentRow.meta, lastModified: new Date().toISOString() }
             };
+            // Remove _rowIndex before sending to adapter to avoid saving it back to the sheet
+            delete (updates as any)._rowIndex;
 
             await this.adapter.updateRow(spreadsheetId, "Expenses", rowIndex, updates);
         });
     }
 
-    async deleteExpense(spreadsheetId: string, rowIndex: number, expenseId: string): Promise<void> {
+    async deleteExpense(spreadsheetId: string, expenseId: string): Promise<void> {
         return this._runExclusive(async () => {
-            const currentRow = await this.adapter.readRow(spreadsheetId, "Expenses", rowIndex);
-            if (!currentRow || currentRow.id !== expenseId) throw new ConflictError();
-            await this.adapter.deleteRow(spreadsheetId, "Expenses", rowIndex);
+            const data = await this.adapter.readGroupData(spreadsheetId);
+            if (!data) throw new NotFoundError("Group not found");
+            const currentRow = data.expenses.find(e => e.id === expenseId);
+            if (!currentRow || !currentRow._rowIndex) throw new NotFoundError("Expense not found");
+
+            await this.adapter.deleteRow(spreadsheetId, "Expenses", currentRow._rowIndex);
         });
     }
 
@@ -521,23 +566,31 @@ export class StorageService implements IStorageProvider {
         await this.adapter.appendRow(spreadsheetId, "Settlements", settlement);
     }
 
-    async updateSettlement(spreadsheetId: string, rowIndex: number, settlementData: Partial<Settlement>): Promise<void> {
+    async updateSettlement(spreadsheetId: string, settlementId: string, settlementData: Partial<Settlement>): Promise<void> {
         return this._runExclusive(async () => {
-            const currentRow = await this.adapter.readRow(spreadsheetId, "Settlements", rowIndex);
-            if (!currentRow) throw new NotFoundError();
+            const data = await this.adapter.readGroupData(spreadsheetId);
+            if (!data) throw new NotFoundError("Group not found");
+            const currentRow = data.settlements.find(s => s.id === settlementId);
+            if (!currentRow || !currentRow._rowIndex) throw new NotFoundError("Settlement not found");
 
-            if (currentRow.id !== settlementData.id) throw new ConflictError("ID Mismatch or row shifted");
+            const updates = {
+                ...currentRow,
+                ...settlementData
+            };
+            delete (updates as any)._rowIndex;
 
-            const updates = { ...currentRow, ...settlementData };
-            await this.adapter.updateRow(spreadsheetId, "Settlements", rowIndex, updates);
+            await this.adapter.updateRow(spreadsheetId, "Settlements", currentRow._rowIndex, updates);
         });
     }
 
-    async deleteSettlement(spreadsheetId: string, rowIndex: number, settlementId: string): Promise<void> {
+    async deleteSettlement(spreadsheetId: string, settlementId: string): Promise<void> {
         return this._runExclusive(async () => {
-            const currentRow = await this.adapter.readRow(spreadsheetId, "Settlements", rowIndex);
-            if (!currentRow || currentRow.id !== settlementId) throw new ConflictError("ID Mismatch or row shifted");
-            await this.adapter.deleteRow(spreadsheetId, "Settlements", rowIndex);
+            const data = await this.adapter.readGroupData(spreadsheetId);
+            if (!data) throw new NotFoundError("Group not found");
+            const currentRow = data.settlements.find(s => s.id === settlementId);
+            if (!currentRow || !currentRow._rowIndex) throw new NotFoundError("Settlement not found");
+
+            await this.adapter.deleteRow(spreadsheetId, "Settlements", currentRow._rowIndex);
         });
     }
 

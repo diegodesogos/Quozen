@@ -125,8 +125,7 @@ export default function ActivityHub() {
 
     const deleteMutation = useMutation({
         mutationFn: async (s: Settlement) => {
-            if (!s._rowIndex) throw new Error("Missing row index");
-            return await googleApi.deleteSettlement(activeGroupId, s._rowIndex, s.id);
+            return await googleApi.deleteSettlement(activeGroupId, s.id);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });

@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "check": "tsc --noEmit",
     "test": "vitest run",
+    "test:all": "npm test --workspaces",
     "test:watch": "vitest",
     "test:e2e": "cross-env VITE_USE_MOCK_STORAGE=true VITE_E2E_MOCK=true playwright test",
     "test:e2e:ui": "cross-env VITE_USE_MOCK_STORAGE=true VITE_E2E_MOCK=true playwright test --ui",

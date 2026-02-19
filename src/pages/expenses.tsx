@@ -62,8 +62,7 @@ export default function ExpensesList({ expenses = [], members = [], isLoading = 
 
   const deleteMutation = useMutation({
     mutationFn: (expense: Expense) => {
-      if (!expense._rowIndex) throw new Error("Expense missing row index");
-      return googleApi.deleteExpense(activeGroupId, expense._rowIndex, expense.id);
+      return googleApi.deleteExpense(activeGroupId, expense.id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });

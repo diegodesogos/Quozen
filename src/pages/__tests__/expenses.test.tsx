@@ -76,8 +76,7 @@ describe("Expenses Page", () => {
       category: "Food",
       date: new Date().toISOString(),
       splits: [{ userId: "user1", amount: 25 }, { userId: "user2", amount: 25 }],
-      meta: { createdAt: new Date().toISOString() },
-      _rowIndex: 2,
+      meta: { createdAt: new Date().toISOString() }
     },
     {
       id: "exp2",
@@ -87,8 +86,7 @@ describe("Expenses Page", () => {
       category: "Transportation",
       date: new Date().toISOString(),
       splits: [{ userId: "user1", amount: 7.5 }, { userId: "user2", amount: 7.5 }],
-      meta: { createdAt: new Date().toISOString() },
-      _rowIndex: 3,
+      meta: { createdAt: new Date().toISOString() }
     },
   ];
 

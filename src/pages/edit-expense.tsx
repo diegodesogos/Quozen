@@ -37,11 +37,11 @@ export default function EditExpense() {
 
   const editMutation = useMutation({
     mutationFn: (updatedData: any) => {
-      if (!activeGroupId || !expense || typeof expense._rowIndex !== 'number') throw new Error("Missing required data");
+      if (!activeGroupId || !expense) throw new Error("Missing required data");
 
       return googleApi.updateExpense(
         activeGroupId,
-        expense._rowIndex,
+        expense.id,
         { ...expense, ...updatedData },
         expense.meta?.lastModified
       );

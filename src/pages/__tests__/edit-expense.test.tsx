@@ -68,8 +68,7 @@ describe("Edit Expense Page", () => {
     category: "Food",
     date: new Date().toISOString(),
     splits: [{ userId: "user1", amount: 20 }], // Valid split
-    meta: { lastModified: "2023-01-01T10:00:00Z" },
-    _rowIndex: 2
+    meta: { lastModified: "2023-01-01T10:00:00Z" }
   };
 
   const mockGroupData = {

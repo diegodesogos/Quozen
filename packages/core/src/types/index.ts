@@ -165,6 +165,36 @@ export interface IStorageProvider {
     getGroupData(spreadsheetId: string): Promise<GroupData | null>;
 
     /**
+     * Get the user's groups directly
+     */
+    getGroups(userEmail: string): Promise<Group[]>;
+
+    /**
+     * Get all expenses for a group
+     */
+    getExpenses(groupId: string): Promise<Expense[]>;
+
+    /**
+     * Get all settlements for a group
+     */
+    getSettlements(groupId: string): Promise<Settlement[]>;
+
+    /**
+     * Get all members of a group
+     */
+    getMembers(groupId: string): Promise<Member[]>;
+
+    /**
+     * Get a specific expense by ID
+     */
+    getExpense(groupId: string, expenseId: string): Promise<Expense | null>;
+
+    /**
+     * Get a specific settlement by ID
+     */
+    getSettlement(groupId: string, settlementId: string): Promise<Settlement | null>;
+
+    /**
      * Add a new expense
      */
     addExpense(spreadsheetId: string, expenseData: Partial<Expense>): Promise<void>;
@@ -174,15 +204,15 @@ export interface IStorageProvider {
      */
     updateExpense(
         spreadsheetId: string,
-        rowIndex: number,
+        expenseId: string,
         expenseData: Partial<Expense>,
         expectedLastModified?: string
     ): Promise<void>;
 
     /**
-     * Delete an expense by row index with existence check
+     * Delete an expense by ID with existence check
      */
-    deleteExpense(spreadsheetId: string, rowIndex: number, expenseId: string): Promise<void>;
+    deleteExpense(spreadsheetId: string, expenseId: string): Promise<void>;
 
     /**
      * Add a new settlement
@@ -192,12 +222,12 @@ export interface IStorageProvider {
     /**
      * Update an existing settlement (ID verification only, no timestamp check available in schema)
      */
-    updateSettlement(spreadsheetId: string, rowIndex: number, settlementData: Partial<Settlement>): Promise<void>;
+    updateSettlement(spreadsheetId: string, settlementId: string, settlementData: Partial<Settlement>): Promise<void>;
 
     /**
-     * Delete a settlement by row index with existence check
+     * Delete a settlement by ID with existence check
      */
-    deleteSettlement(spreadsheetId: string, rowIndex: number, settlementId: string): Promise<void>;
+    deleteSettlement(spreadsheetId: string, settlementId: string): Promise<void>;
 
     /**
      * Update a row in any sheet (Generic, use updateExpense for conflict checks)
