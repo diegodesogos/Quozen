@@ -48,6 +48,7 @@ vi.mock("@tanstack/react-query", async (importOriginal) => {
 // Mock UI components
 vi.mock("@/components/header", () => ({ default: () => <div data-testid="header">Header</div> }));
 vi.mock("@/components/bottom-navigation", () => ({ default: () => <div data-testid="bottom-nav">Nav</div> }));
+vi.mock("@/components/add-expense-drawer", () => ({ default: () => <div data-testid="add-expense-drawer">Add Drawer</div> }));
 vi.mock("@/components/pull-to-refresh", () => ({
   default: ({ children }: any) => <div data-testid="pull-to-refresh">{children}</div>
 }));

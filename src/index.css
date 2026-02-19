@@ -121,6 +121,13 @@
     /* Prevent native pull-to-refresh behavior on mobile */
     overscroll-behavior-y: contain;
   }
+
+  /* Enforce mobile-safe input sizing (min 16px to prevent iOS zoom) */
+  @media screen and (max-width: 767px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+  }
 }
 
 .expense-positive {

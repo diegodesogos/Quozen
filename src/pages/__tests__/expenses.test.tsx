@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import ExpensesList from "../expenses";
 import { useAppContext } from "@/context/app-context";
@@ -51,6 +51,14 @@ vi.mock("@/lib/drive", () => ({
     getGroupData: vi.fn(),
     deleteExpense: vi.fn(),
   },
+}));
+
+vi.mock("@/components/ui/dropdown-menu", () => ({
+  DropdownMenu: ({ children }: any) => <>{children}</>,
+  DropdownMenuTrigger: ({ children }: any) => <>{children}</>,
+  DropdownMenuContent: ({ children }: any) => <>{children}</>,
+  DropdownMenuItem: ({ children, onClick }: any) => <div onClick={onClick} role="menuitem">{children}</div>,
+  DropdownMenuSeparator: () => <hr />,
 }));
 
 describe("Expenses Page", () => {
@@ -129,7 +137,8 @@ describe("Expenses Page", () => {
         <ExpensesList expenses={mockExpenses} members={mockUsers} />
       </MemoryRouter>
     );
-    const deleteBtn = screen.getByTestId("button-delete-expense-exp1");
+    const expenseCard = screen.getByTestId("card-expense-exp1");
+    const deleteBtn = within(expenseCard).getByText(en.common.delete);
     fireEvent.click(deleteBtn);
 
     expect(screen.getByText(en.expenseItem.deleteTitle)).toBeInTheDocument();
@@ -141,7 +150,8 @@ describe("Expenses Page", () => {
         <ExpensesList expenses={mockExpenses} members={mockUsers} />
       </MemoryRouter>
     );
-    const editBtn = screen.getByTestId("button-edit-expense-exp1");
+    const expenseCard = screen.getByTestId("card-expense-exp1");
+    const editBtn = within(expenseCard).getByText(en.common.edit);
     fireEvent.click(editBtn);
 
     expect(mockNavigate).toHaveBeenCalledWith("/edit-expense/exp1");

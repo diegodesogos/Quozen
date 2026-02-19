@@ -8,6 +8,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useState, useEffect } from "react";
 import { ConflictError, NotFoundError } from "@/lib/errors";
 import { useTranslation } from "react-i18next";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 
 export default function EditExpense() {
   const { id } = useParams();
@@ -47,6 +48,7 @@ export default function EditExpense() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
+      navigator.vibrate?.(50);
       toast({ title: t("common.success") });
       navigate("/expenses");
     },
@@ -107,14 +109,23 @@ export default function EditExpense() {
 
   return (
     <>
-      <ExpenseForm
-        title={t("expenseForm.editTitle")}
-        initialData={expense}
-        users={groupData.members}
-        currentUserId={currentUserId}
-        isPending={editMutation.isPending}
-        onSubmit={(data) => editMutation.mutate(data)}
-      />
+      <Drawer open={true} onOpenChange={(open) => !open && handleBack()}>
+        <DrawerContent className="max-h-[85vh]">
+          <div className="mx-auto w-full max-w-md overflow-y-auto pb-8">
+            <DrawerHeader>
+              <DrawerTitle>{t("expenseForm.editTitle")}</DrawerTitle>
+            </DrawerHeader>
+            <ExpenseForm
+              initialData={expense}
+              users={groupData.members}
+              currentUserId={currentUserId}
+              isPending={editMutation.isPending}
+              onSubmit={(data) => editMutation.mutate(data)}
+              onCancel={handleBack}
+            />
+          </div>
+        </DrawerContent>
+      </Drawer>
 
       <AlertDialog open={!!conflictError}>
         <AlertDialogContent>

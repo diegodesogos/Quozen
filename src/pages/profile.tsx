@@ -8,9 +8,46 @@ import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/use-settings";
 import { useGroups } from "@/hooks/use-groups";
 import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useTranslation } from "react-i18next";
+
+const POPULAR_CURRENCIES = [
+  "USD", "EUR", "GBP", "JPY", "CAD", "AUD", "INR", "CNY", "BRL", "MXN", "ARS", "CHF"
+];
+
+const ALL_CURRENCY_CODES = [
+  // North & South America, West Europe, Asia, Oceania (Curated)
+  "ARS", "AUD", "BOB", "BRL", "CAD", "CHF", "CLP", "CNY", "COP", "DKK",
+  "EUR", "FJD", "GBP", "GYD", "HKD", "IDR", "INR", "JPY", "KRW", "MXN",
+  "MYR", "NOK", "NZD", "PEN", "PHP", "PYG", "SEK", "SGD", "SRD", "THB",
+  "TWD", "USD", "UYU", "VES", "VND"
+];
+
+const OTHER_CURRENCIES = ALL_CURRENCY_CODES.filter(c => !POPULAR_CURRENCIES.includes(c));
+
+const currencyLabelCache: Record<string, string> = {};
+
+const getCurrencyLabel = (code: string) => {
+  if (currencyLabelCache[code]) return currencyLabelCache[code];
+  try {
+    const formatter = new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: code,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
+    const parts = formatter.formatToParts(0);
+    const symbolPart = parts.find(p => p.type === 'currency');
+    const symbol = symbolPart ? symbolPart.value : code;
+    const label = `${code} (${symbol})`;
+    currencyLabelCache[code] = label;
+    return label;
+  } catch (e) {
+    currencyLabelCache[code] = code;
+    return code;
+  }
+};
 
 export default function Profile() {
   const { user, logout } = useAuth();
@@ -155,12 +192,19 @@ export default function Profile() {
                 <SelectValue placeholder="Select currency" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="USD">USD ($)</SelectItem>
-                <SelectItem value="EUR">EUR (€)</SelectItem>
-                <SelectItem value="GBP">GBP (£)</SelectItem>
-                <SelectItem value="JPY">JPY (¥)</SelectItem>
-                <SelectItem value="CAD">CAD ($)</SelectItem>
-                <SelectItem value="AUD">AUD ($)</SelectItem>
+                <SelectGroup>
+                  <SelectLabel>{t("profile.popularCurrencies")}</SelectLabel>
+                  {POPULAR_CURRENCIES.map(code => (
+                    <SelectItem key={code} value={code}>{getCurrencyLabel(code)}</SelectItem>
+                  ))}
+                </SelectGroup>
+                <SelectSeparator />
+                <SelectGroup>
+                  <SelectLabel>{t("profile.allCurrencies")}</SelectLabel>
+                  {OTHER_CURRENCIES.map(code => (
+                    <SelectItem key={code} value={code}>{getCurrencyLabel(code)}</SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
           </div>

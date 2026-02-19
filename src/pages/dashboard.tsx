@@ -5,7 +5,7 @@ import SettlementModal from "@/components/settlement-modal";
 import { useState, useMemo } from "react";
 import {
   Utensils, Car, Bed, ShoppingBag, Gamepad2, MoreHorizontal,
-  Wallet, Handshake, ChevronDown, ChevronRight, ArrowRight
+  Wallet, Handshake, ChevronDown, ChevronRight, ArrowRight, Banknote
 } from "lucide-react";
 import { googleApi } from "@/lib/drive";
 import { useNavigate } from "react-router-dom";
@@ -25,7 +25,7 @@ import { formatCurrency } from "@/lib/format-currency";
 import { useSettings } from "@/hooks/use-settings";
 
 export default function Dashboard() {
-  const { activeGroupId, currentUserId } = useAppContext();
+  const { activeGroupId, currentUserId, setIsAddExpenseOpen } = useAppContext();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const { formatDate } = useDateFormatter();
@@ -170,16 +170,6 @@ export default function Dashboard() {
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <Wallet className="w-5 h-5 text-primary" /> {t("dashboard.balance")}
             </h2>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-primary hover:text-primary border-primary/20 hover:bg-primary/10"
-              onClick={handleSettleUp}
-              disabled={!settlementSuggestion}
-              data-testid="button-settle-up"
-            >
-              {t("dashboard.settleUp")}
-            </Button>
           </div>
           <div className="text-center py-2">
             <div
@@ -195,6 +185,22 @@ export default function Dashboard() {
             <div className="mt-4 pt-4 border-t border-dashed border-border flex justify-between items-center px-8">
               <span className="text-xs text-muted-foreground uppercase tracking-wider">{t("dashboard.totalSpent")}</span>
               <span className="font-medium text-foreground">{formatCurrency(totalSpent, currencyCode, i18n.language)}</span>
+            </div>
+
+            <div className="mt-6">
+              <Button
+                variant={userBalance < 0 ? "default" : "outline"}
+                size="lg"
+                className={cn(
+                  "w-full font-semibold",
+                  userBalance < 0 ? "bg-primary text-primary-foreground shadow-md hover:bg-primary/90" : "text-primary border-primary/20 hover:bg-primary/10"
+                )}
+                onClick={handleSettleUp}
+                disabled={!settlementSuggestion}
+                data-testid="button-settle-up"
+              >
+                {userBalance < 0 ? t("dashboard.payDebt") : t("dashboard.requestSettlement")}
+              </Button>
             </div>
           </div>
         </div>
@@ -230,21 +236,24 @@ export default function Dashboard() {
                             )}
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div
-                            className={`font-semibold ${balance >= 0 ? 'expense-positive' : 'expense-negative'}`}
-                            data-testid={`text-balance-${u.userId}`}
-                          >
-                            {balance >= 0 ? '+' : ''}{formatCurrency(Math.abs(balance), currencyCode, i18n.language)}
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <div
+                              className={`font-semibold ${balance >= 0 ? 'expense-positive' : 'expense-negative'}`}
+                              data-testid={`text-balance-${u.userId}`}
+                            >
+                              {balance >= 0 ? '+' : ''}{formatCurrency(Math.abs(balance), currencyCode, i18n.language)}
+                            </div>
                           </div>
                           <Button
-                            variant="link"
-                            size="sm"
-                            className="text-xs text-muted-foreground h-auto p-0 hover:text-primary"
+                            variant="outline"
+                            size="icon"
+                            className="h-11 w-11 rounded-full text-primary border-primary/20 hover:bg-primary/10 transition-colors"
                             onClick={() => handleSettleWith(u.userId)}
                             data-testid={`button-settle-with-${u.userId}`}
+                            title={t("dashboard.settle")}
                           >
-                            {t("dashboard.settle")}
+                            <Banknote className="w-5 h-5" />
                           </Button>
                         </div>
                       </div>
@@ -270,7 +279,7 @@ export default function Dashboard() {
                   {recentActivity.length === 0 ? (
                     <div className="p-8 text-center">
                       <p className="text-muted-foreground text-sm">{t("dashboard.noActivity")}</p>
-                      <Button variant="link" onClick={() => navigate('/add-expense')} className="mt-2">{t("dashboard.addFirst")}</Button>
+                      <Button variant="link" onClick={() => setIsAddExpenseOpen(true)} className="mt-2">{t("dashboard.addFirst")}</Button>
                     </div>
                   ) : (
                     recentActivity.map((item) => {

@@ -1,14 +1,8 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, DrawerFooter } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { Users, Check, Plus, Download, AlertCircle } from "lucide-react";
+import { Users, Check, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { googleApi } from "@/lib/drive";
-import { useGooglePicker } from "@/hooks/use-google-picker";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/context/auth-provider";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useGroups } from "@/hooks/use-groups";
 import { useTranslation } from "react-i18next";
 import { useAutoSync } from "@/hooks/use-auto-sync";
@@ -16,10 +10,7 @@ import { useEffect } from "react";
 
 export default function GroupSwitcherModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { activeGroupId, setActiveGroupId } = useAppContext();
-  const { user } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
   const { groups } = useGroups();
   const { t } = useTranslation();
   const { setPaused } = useAutoSync();
@@ -34,58 +25,57 @@ export default function GroupSwitcherModal({ isOpen, onClose }: { isOpen: boolea
     onClose();
   };
 
-  const { openPicker, error: pickerError } = useGooglePicker({
-    onPick: async (doc) => {
-      toast({ title: t("common.loading") });
-      if (!user) return;
-
-      try {
-        const group = await googleApi.importGroup(doc.id, user);
-
-        await queryClient.invalidateQueries({ queryKey: ["drive", "settings"] });
-        await queryClient.invalidateQueries({ queryKey: ["drive", "group", group.id] });
-
-        setActiveGroupId(group.id);
-        toast({ title: t("common.success") });
-      } catch (e: any) {
-        toast({ title: t("common.error"), description: e.message, variant: "destructive" });
-      }
-    }
-  });
-
-  const handleImportClick = () => {
+  const handleManageClick = () => {
     onClose();
-    setTimeout(() => openPicker(), 100);
+    navigate("/groups");
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-center">{t("groups.switchModalTitle")}</DialogTitle>
-          <DialogDescription>{t("groups.switchModalDesc")}</DialogDescription>
-        </DialogHeader>
-        {pickerError && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{pickerError}</AlertDescription></Alert>}
+    <Drawer open={isOpen} onOpenChange={onClose}>
+      <DrawerContent>
+        <DrawerHeader>
+          <DrawerTitle className="text-center">{t("groups.switchModalTitle")}</DrawerTitle>
+          <DrawerDescription className="text-center">{t("groups.switchModalDesc")}</DrawerDescription>
+        </DrawerHeader>
 
-        <div className="space-y-3 max-h-96 overflow-y-auto">
-          {groups.map((group) => (
-            <button key={group.id} onClick={() => handleSelectGroup(group.id)} className="w-full p-4 bg-secondary rounded-lg text-left hover:bg-accent transition-colors">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center"><Users className="w-6 h-6 text-primary-foreground" /></div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-foreground">{group.name}</h4>
+        {/* Scrollable List */}
+        <div className="flex-1 overflow-y-auto px-4 pb-4">
+          <div className="space-y-3">
+            {groups.map((group) => (
+              <button
+                key={group.id}
+                onClick={() => handleSelectGroup(group.id)}
+                className="w-full p-4 bg-secondary/50 rounded-xl text-left hover:bg-accent transition-colors border border-transparent hover:border-border active:scale-[0.98] duration-200"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-background rounded-full flex items-center justify-center border border-border shrink-0">
+                    <Users className="w-6 h-6 text-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-semibold text-foreground text-sm truncate">{group.name}</h4>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {group.isOwner ? t("roles.owner") : t("roles.member")}
+                    </p>
+                  </div>
+                  {group.id === activeGroupId && (
+                    <div className="bg-primary/20 p-1.5 rounded-full">
+                      <Check className="w-4 h-4 text-primary" />
+                    </div>
+                  )}
                 </div>
-                {group.id === activeGroupId && <Check className="w-4 h-4 text-primary" />}
-              </div>
-            </button>
-          ))}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="flex flex-col gap-2 mt-6">
-          <Button onClick={handleImportClick} variant="secondary" className="w-full"><Download className="w-4 h-4 mr-2" />{t("groups.import")}</Button>
-          <Button onClick={() => { onClose(); navigate("/groups"); }} className="w-full"><Plus className="w-4 h-4 mr-2" />{t("groups.new")}</Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+        {/* Sticky Footer */}
+        <DrawerFooter className="border-t bg-background">
+          <Button onClick={handleManageClick} variant="outline" className="w-full h-12 text-muted-foreground hover:text-foreground">
+            <Settings className="w-4 h-4 mr-2" />
+            {t("groups.manage")}
+          </Button>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
   );
 }

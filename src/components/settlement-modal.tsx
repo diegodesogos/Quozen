@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, DrawerFooter } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { googleApi } from "@/lib/drive";
 import { Member, Settlement } from "@/lib/storage/types";
-import { ArrowRight, Trash2 } from "lucide-react";
+import { ArrowRightLeft, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -86,6 +86,15 @@ export default function SettlementModal({
     }
   }, [isOpen, initialData, suggestedAmount, fromUser, toUser]);
 
+  const handleSwap = () => {
+    setSelectedFromId(selectedToId);
+    setSelectedToId(selectedFromId);
+  };
+
+  const getMember = (userId: string) => users.find(u => u.userId === userId);
+  const fromMember = getMember(selectedFromId);
+  const toMember = getMember(selectedToId);
+
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
       if (initialData) {
@@ -97,6 +106,7 @@ export default function SettlementModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
+      navigator.vibrate?.(50);
       toast({
         title: t("common.success"),
       });
@@ -139,7 +149,7 @@ export default function SettlementModal({
     saveMutation.mutate({
       fromUserId: selectedFromId,
       toUserId: selectedToId,
-      amount: parseFloat(amount),
+      amount: parseFloat(String(amount).replace(',', '.')),
       method,
       notes: notes.trim() || undefined,
       date: initialData ? initialData.date : new Date().toISOString(),
@@ -148,107 +158,136 @@ export default function SettlementModal({
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-md" data-testid="modal-settlement">
-          <DialogHeader>
-            <DialogTitle className="text-center">{initialData ? t("settlement.editTitle") : t("settlement.title")}</DialogTitle>
-            <DialogDescription className="text-center">
+      <Drawer open={isOpen} onOpenChange={onClose}>
+        <DrawerContent
+          data-testid="modal-settlement"
+          onCloseAutoFocus={(event) => {
+            if (event.defaultPrevented) return;
+          }}
+        >
+          <DrawerHeader>
+            <DrawerTitle className="text-center">{initialData ? t("settlement.editTitle") : t("settlement.title")}</DrawerTitle>
+            <DrawerDescription className="text-center">
               {initialData ? t("settlement.editDesc") : t("settlement.desc")}
-            </DialogDescription>
-          </DialogHeader>
+            </DrawerDescription>
+          </DrawerHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-4" data-testid="form-settlement">
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto px-4 pb-4">
+            <form id="settlement-form" onSubmit={handleSubmit} className="space-y-4" data-testid="form-settlement">
 
-            <div className="grid grid-cols-[1fr,auto,1fr] gap-2 items-end">
-              <div className="space-y-2">
-                <Label>{t("settlement.payer")}</Label>
-                <Select value={selectedFromId} onValueChange={setSelectedFromId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("settlement.whoPaid")} />
+              <div className="flex items-center justify-between gap-2 py-6 px-2 bg-muted/20 rounded-2xl relative border border-border/50">
+                <div className="flex-1">
+                  <Select value={selectedFromId} onValueChange={setSelectedFromId}>
+                    <SelectTrigger className="h-auto p-0 border-none bg-transparent hover:bg-transparent shadow-none focus:ring-0 flex flex-col items-center gap-2">
+                      <div className="w-16 h-16 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center text-xl font-bold text-primary shadow-sm">
+                        {fromMember?.name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || "?"}
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm font-semibold truncate max-w-[100px]">{fromMember?.name || t("settlement.whoPaid")}</div>
+                        <div className="text-[10px] uppercase tracking-tighter text-muted-foreground font-medium">{t("settlement.payer")}</div>
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {users.map(u => (
+                        <SelectItem key={u.userId} value={u.userId}>
+                          {u.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-11 z-10">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 rounded-full bg-background shadow-sm border-border hover:bg-muted"
+                    onClick={handleSwap}
+                  >
+                    <ArrowRightLeft className="w-3.5 h-3.5 text-primary" />
+                  </Button>
+                </div>
+
+                <div className="flex-1">
+                  <Select value={selectedToId} onValueChange={setSelectedToId}>
+                    <SelectTrigger className="h-auto p-0 border-none bg-transparent hover:bg-transparent shadow-none focus:ring-0 flex flex-col items-center gap-2">
+                      <div className="w-16 h-16 rounded-full bg-secondary/50 border-2 border-border flex items-center justify-center text-xl font-bold text-foreground shadow-sm">
+                        {toMember?.name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || "?"}
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm font-semibold truncate max-w-[100px]">{toMember?.name || t("settlement.whoReceived")}</div>
+                        <div className="text-[10px] uppercase tracking-tighter text-muted-foreground font-medium">{t("settlement.receiver")}</div>
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {users.map(u => (
+                        <SelectItem key={u.userId} value={u.userId}>
+                          {u.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="amount">{t("expenseForm.amount")}</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-3 text-muted-foreground">$</span>
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="pl-8"
+                    placeholder="0.00"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    data-testid="input-settlement-amount"
+                  />
+                </div>
+                {!initialData && suggestedAmount > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {t("settlement.suggested")}: ${suggestedAmount.toFixed(2)}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="method">{t("settlement.method")}</Label>
+                <Select value={method} onValueChange={setMethod}>
+                  <SelectTrigger data-testid="select-payment-method">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {users.map(u => (
-                      <SelectItem key={u.userId} value={u.userId}>
-                        {u.name}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="venmo">Venmo</SelectItem>
+                    <SelectItem value="paypal">PayPal</SelectItem>
+                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="pb-3 text-muted-foreground">
-                <ArrowRight className="w-5 h-5" />
-              </div>
-
-              <div className="space-y-2">
-                <Label>{t("settlement.receiver")}</Label>
-                <Select value={selectedToId} onValueChange={setSelectedToId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("settlement.whoReceived")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.map(u => (
-                      <SelectItem key={u.userId} value={u.userId}>
-                        {u.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="amount">{t("expenseForm.amount")}</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-3 text-muted-foreground">$</span>
-                <Input
-                  id="amount"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  className="pl-8"
-                  placeholder="0.00"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  data-testid="input-settlement-amount"
+              <div>
+                <Label htmlFor="notes">{t("settlement.notes")}</Label>
+                <Textarea
+                  id="notes"
+                  rows={2}
+                  placeholder={t("settlement.notesPlaceholder")}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  data-testid="textarea-settlement-notes"
                 />
               </div>
-              {!initialData && suggestedAmount > 0 && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("settlement.suggested")}: ${suggestedAmount.toFixed(2)}
-                </p>
-              )}
-            </div>
+            </form>
+          </div>
 
-            <div>
-              <Label htmlFor="method">{t("settlement.method")}</Label>
-              <Select value={method} onValueChange={setMethod}>
-                <SelectTrigger data-testid="select-payment-method">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="venmo">Venmo</SelectItem>
-                  <SelectItem value="paypal">PayPal</SelectItem>
-                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="notes">{t("settlement.notes")}</Label>
-              <Textarea
-                id="notes"
-                rows={2}
-                placeholder={t("settlement.notesPlaceholder")}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                data-testid="textarea-settlement-notes"
-              />
-            </div>
-
-            <div className="flex space-x-3 pt-2">
+          {/* Sticky Footer */}
+          <DrawerFooter className="border-t bg-background">
+            <div className="flex gap-3">
               {initialData && (
                 <Button
                   type="button"
@@ -273,6 +312,7 @@ export default function SettlementModal({
               </Button>
               <Button
                 type="submit"
+                form="settlement-form"
                 className="flex-1"
                 disabled={saveMutation.isPending}
                 data-testid="button-record-payment"
@@ -280,9 +320,9 @@ export default function SettlementModal({
                 {saveMutation.isPending ? t("expenseForm.saving") : (initialData ? t("settlement.update") : t("settlement.record"))}
               </Button>
             </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
 
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>
