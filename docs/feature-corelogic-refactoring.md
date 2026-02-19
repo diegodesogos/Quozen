@@ -30,17 +30,18 @@ This plan details the steps required to extract Quozen's core business logic (Dr
   * Configure the root `tsconfig.json` `paths` or `vite.config.ts` to resolve `@quozen/core` directly to `packages/core/src` for seamless local development without constant rebuilds.
 
 
-### Phase 2: Decoupling and Extraction
+### Phase 2: Decoupling and Extraction [COMPLETED]
 **Objective:** Move the pure logic files into the new library structure.
 
-* **Task 2.1: Extract Types and Interfaces**
+* **Task 2.1: Extract Types and Interfaces** [DONE]
   * Move domain models and types (e.g., from `src/lib/storage/types.ts`) to `packages/core/src/types`.
   * Create proper exports in `packages/core/src/index.ts`.
-* **Task 2.2: Extract Financial Math & Logic**
+* **Task 2.2: Extract Financial Math & Logic** [DONE]
   * Relocate split-bill algorithms, rounding logic, and currency formatters from `src/lib/finance.ts` to `packages/core/src/finance`.
-* **Task 2.3: Extract Storage & Drive Adapters**
+* **Task 2.3: Extract Storage & Drive Adapters** [DONE]
   * Move generic storage adapters (`memory-adapter.ts`, `google-drive-adapter.ts`) and Google Drive API wrappers to `packages/core/src/storage` and `packages/core/src/drive`.
   * Clean up any hardcoded browser-specific dependencies, ensuring they are injected if needed.
+
 
 ### Phase 3: Update Imports Across the Codebase
 **Objective:** Wire the existing application and tests to use the newly extracted library.
