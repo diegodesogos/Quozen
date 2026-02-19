@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,11 +25,12 @@ import {
 import {
   ConflictError,
   NotFoundError,
-  getExpenseUserStatus,
+  GroupLedger,
   Expense,
   Member,
   formatCurrency
 } from "@quozen/core";
+
 import { useTranslation } from "react-i18next";
 import { useDateFormatter } from "@/hooks/use-date-formatter";
 import { useSettings } from "@/hooks/use-settings";
@@ -115,6 +117,8 @@ export default function ExpensesList({ expenses = [], members = [], isLoading = 
     }
   };
 
+  const ledger = useMemo(() => new GroupLedger({ expenses, members, settlements: [] }), [expenses, members]);
+
   if (isLoading) {
     return (
       <div className="space-y-4 p-4">
@@ -149,7 +153,8 @@ export default function ExpensesList({ expenses = [], members = [], isLoading = 
         const paidByUser = getUserById(expense.paidBy);
         const Icon = getExpenseIcon(expense.category);
 
-        const status = getExpenseUserStatus(expense, currentUserId);
+        const status = ledger.getExpenseStatus(expense.id, currentUserId);
+
 
         return (
           <Card key={expense.id} data-testid={`card-expense-${expense.id}`} className="hover:shadow-md transition-all">

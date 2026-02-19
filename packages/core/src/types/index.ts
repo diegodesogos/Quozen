@@ -165,6 +165,11 @@ export interface IStorageProvider {
     getGroupData(spreadsheetId: string): Promise<GroupData | null>;
 
     /**
+     * Get a fully hydrated analytics object for a group
+     */
+    getGroupLedger(groupId: string): Promise<any>;
+
+    /**
      * Get the user's groups directly
      */
     getGroups(userEmail: string): Promise<Group[]>;

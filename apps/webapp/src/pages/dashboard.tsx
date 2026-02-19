@@ -10,16 +10,13 @@ import {
 import { googleApi } from "@/lib/drive";
 import { useNavigate } from "react-router-dom";
 import {
-  calculateBalances,
-  suggestSettlementStrategy,
-  calculateTotalSpent,
-  getExpenseUserStatus,
-  getDirectSettlementDetails,
+  GroupLedger,
   Expense,
   Settlement,
   Member,
   formatCurrency
 } from "@quozen/core";
+
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
@@ -68,15 +65,10 @@ export default function Dashboard() {
     return u ? u.name : "Unknown";
   };
 
-  const balances = useMemo(() => {
-    return calculateBalances(users, expenses, settlements);
-  }, [expenses, settlements, users]);
-
-  const totalSpent = useMemo(() => {
-    return calculateTotalSpent(currentUserId, expenses);
-  }, [expenses, currentUserId]);
-
-  const userBalance = balances[currentUserId] || 0;
+  const ledger = useMemo(() => groupData ? new GroupLedger(groupData) : null, [groupData]);
+  const balances = useMemo(() => ledger?.getBalances() || {}, [ledger]);
+  const totalSpent = useMemo(() => ledger?.getTotalSpent(currentUserId) || 0, [ledger, currentUserId]);
+  const userBalance = ledger?.getUserBalance(currentUserId) || 0;
 
   const recentActivity = useMemo(() => {
     const combined = [
@@ -100,10 +92,8 @@ export default function Dashboard() {
     }
   };
 
-  const settlementSuggestion = useMemo(() => {
-    if (!users.length) return null;
-    return suggestSettlementStrategy(currentUserId, balances, users);
-  }, [currentUserId, balances, users]);
+  const settlementSuggestion = useMemo(() => ledger?.getSettleUpSuggestion(currentUserId), [ledger, currentUserId]);
+
 
   const handleSettleUp = () => {
     if (!currentUser || !settlementSuggestion) return;
@@ -123,36 +113,25 @@ export default function Dashboard() {
   };
 
   const handleSettleWith = (targetUserId: string) => {
-    if (!currentUser) return;
+    if (!currentUser || !ledger) return;
     const targetUser = getUserById(targetUserId);
     if (!targetUser) return;
 
-    const smartStrategy = suggestSettlementStrategy(targetUserId, balances, users);
-    let settlement;
+    const settlement = ledger.getSettleUpSuggestion(targetUserId);
 
-    if (smartStrategy) {
-      settlement = smartStrategy;
-    } else {
-      const otherBalance = balances[targetUserId] || 0;
-      settlement = getDirectSettlementDetails(
-        currentUser.userId,
-        userBalance,
-        targetUserId,
-        otherBalance
-      );
-    }
+    if (settlement) {
+      const fromUser = getUserById(settlement.fromUserId);
+      const toUser = getUserById(settlement.toUserId);
 
-    const fromUser = getUserById(settlement.fromUserId);
-    const toUser = getUserById(settlement.toUserId);
-
-    if (fromUser && toUser) {
-      setSettlementModal({
-        isOpen: true,
-        fromUser,
-        toUser,
-        suggestedAmount: settlement.amount,
-        initialData: undefined
-      });
+      if (fromUser && toUser) {
+        setSettlementModal({
+          isOpen: true,
+          fromUser,
+          toUser,
+          suggestedAmount: settlement.amount,
+          initialData: undefined
+        });
+      }
     }
   };
 
@@ -331,7 +310,7 @@ export default function Dashboard() {
                       const e = item as Expense;
                       const paidByUser = getUserById(e.paidBy);
                       const Icon = getExpenseIcon(e.category);
-                      const status = getExpenseUserStatus(e, currentUserId);
+                      const status = ledger?.getExpenseStatus(e.id, currentUserId) || { status: 'none' };
 
                       return (
                         <div key={e.id} className="p-4 hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => navigate(`/edit-expense/${e.id}`)} data-testid={`expense-item-${e.id}`}>

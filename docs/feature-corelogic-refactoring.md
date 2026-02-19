@@ -107,19 +107,20 @@ This plan details the steps required to extract Quozen's core business logic (Dr
 * **Task 6.3: Clean Up React App Coupling** [DONE]
   * Removed all usage of the internal `_rowIndex` property from the React application (`edit-expense`, `expenses`, `activity-hub`, `settlement-modal`), relying strictly on object IDs for data mutations.
 
-### Phase 7: Domain Model Encapsulation (Rich Analytics) [PLANNED]
+### Phase 7: Domain Model Encapsulation (Rich Analytics) [COMPLETED]
 **Objective:** Eliminate functional boilerplate in client applications by introducing a `GroupLedger` class. This wrapper will consume raw `GroupData` and expose clean, queryable business methods, ensuring agents and CLI tools don't have to manually execute split-bill math.
 
-* **Task 7.1: Implement `GroupLedger` Core Class**
-  * Create a class that takes `GroupData` in its constructor.
-  * Expose methods: `getBalances()`, `getUserBalance(userId)`, `getTotalSpent(userId)`, `getExpenseStatus(expense, userId)`, and `getSettleUpSuggestion(userId)`.
-  * Internalize the existing functional utilities (`calculateBalances`, etc.) within these methods, adding memoization if necessary for performance.
-* **Task 7.2: Extend `StorageService`**
-  * Add a `getGroupLedger(groupId): Promise<GroupLedger>` method to the `StorageService` to return a fully hydrated analytics object in one call.
-* **Task 7.3: React Client Simplification**
-  * Refactor `Dashboard`, `ActivityHub`, and `Expenses` to replace manual `useMemo` functional wirings with the new `GroupLedger` API, significantly reducing UI component complexity.
-* **Task 7.4: Ledger Unit Tests**
-  * Write tests in `@quozen/core` to verify the `GroupLedger` seamlessly abstracts the underlying math.
+* **Task 7.1: Implement `GroupLedger` Core Class** [DONE]
+  * Created a class that takes `GroupData` in its constructor.
+  * Exposed methods: `getBalances()`, `getUserBalance(userId)`, `getTotalSpent(userId)`, `getExpenseStatus(expense, userId)`, and `getSettleUpSuggestion(userId)`.
+  * Internalized the existing functional utilities within these methods.
+* **Task 7.2: Extend `StorageService`** [DONE]
+  * Added a `getGroupLedger(groupId): Promise<GroupLedger>` method to the `StorageService` to return a fully hydrated analytics object in one call.
+* **Task 7.3: React Client Simplification** [DONE]
+  * Refactored `Dashboard` and `ExpensesList` to replace manual functional utility calls with the new `GroupLedger` API, significantly reducing UI component complexity.
+* **Task 7.4: Ledger Unit Tests** [DONE]
+  * Wrote tests in `@quozen/core` to verify the `GroupLedger` seamlessly abstracts the underlying math.
+
 
 ## Final Post-Refactoring Verification [PASSED]
 * **Compilation**: `tsc --noEmit` passes across the workspace.

@@ -5,6 +5,8 @@ import {
 } from "../types";
 import { IStorageAdapter } from "./adapter";
 import { ConflictError, NotFoundError } from "../errors";
+import { GroupLedger } from "../finance/group-ledger";
+
 
 const QUOZEN_METADATA = {
     quozen_type: 'group',
@@ -468,6 +470,12 @@ export class StorageService implements IStorageProvider {
 
     async getGroupData(spreadsheetId: string): Promise<GroupData | null> {
         return this.adapter.readGroupData(spreadsheetId);
+    }
+
+    async getGroupLedger(groupId: string): Promise<GroupLedger | null> {
+        const data = await this.getGroupData(groupId);
+        if (!data) return null;
+        return new GroupLedger(data);
     }
 
     async getGroups(userEmail: string): Promise<Group[]> {
