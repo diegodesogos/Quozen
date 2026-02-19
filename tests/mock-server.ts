@@ -1,5 +1,5 @@
 import { Route, Request } from '@playwright/test';
-import { InMemoryAdapter } from '../src/lib/storage/memory-adapter';
+import { InMemoryAdapter } from '@quozen/core';
 
 // Polyfill self.crypto for Node environment if needed
 if (typeof self === 'undefined') {

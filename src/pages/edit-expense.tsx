@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import ExpenseForm from "@/components/expense-form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useState, useEffect } from "react";
-import { ConflictError, NotFoundError } from "@/lib/errors";
+import { ConflictError, NotFoundError } from "@quozen/core";
 import { useTranslation } from "react-i18next";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 

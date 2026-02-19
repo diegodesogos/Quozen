@@ -1,7 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { StorageService } from './storage-service';
-import { InMemoryAdapter } from './memory-adapter';
-import { User, QUOZEN_PREFIX } from './types';
+import { StorageService, InMemoryAdapter, User, QUOZEN_PREFIX } from '@quozen/core';
 
 describe('StorageService Metadata & Reconciliation', () => {
     let adapter: InMemoryAdapter;

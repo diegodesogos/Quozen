@@ -14,14 +14,16 @@ import {
   suggestSettlementStrategy,
   calculateTotalSpent,
   getExpenseUserStatus,
-  getDirectSettlementDetails
-} from "@/lib/finance";
-import { Expense, Settlement, Member } from "@/lib/storage/types";
+  getDirectSettlementDetails,
+  Expense,
+  Settlement,
+  Member,
+  formatCurrency
+} from "@quozen/core";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { useDateFormatter } from "@/hooks/use-date-formatter";
-import { formatCurrency } from "@/lib/format-currency";
 import { useSettings } from "@/hooks/use-settings";
 
 export default function Dashboard() {

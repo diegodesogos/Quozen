@@ -4,7 +4,7 @@ import { MemoryRouter, Routes, Route } from "react-router-dom";
 import EditExpense from "../edit-expense";
 import { useAppContext } from "@/context/app-context";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { ConflictError } from "@/lib/errors";
+import { ConflictError } from "@quozen/core";
 import { googleApi } from "@/lib/drive";
 import en from "@/locales/en/translation.json";
 

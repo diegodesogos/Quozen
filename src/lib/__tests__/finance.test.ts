@@ -5,9 +5,10 @@ import {
   getExpenseUserStatus,
   suggestSettlementStrategy,
   getDirectSettlementDetails,
-  ExpenseUserStatus
-} from "../finance";
-import { Member, Expense, Settlement } from "../storage/types";
+  Member,
+  Expense,
+  Settlement
+} from "@quozen/core";
 
 describe("Finance Utilities", () => {
   // --- Mock Data Helpers ---

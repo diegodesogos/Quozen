@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { parseMembers } from "@/lib/utils";
-import { MemberInput } from "@/lib/storage/types";
+import { MemberInput } from "@quozen/core";
 import { useTranslation } from "react-i18next";
 import { useAutoSync } from "@/hooks/use-auto-sync";
 import { X, Plus } from "lucide-react";

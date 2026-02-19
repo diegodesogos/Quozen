@@ -6,8 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { Expense, Member } from "@/lib/storage/types";
-import { distributeAmount } from "@/lib/finance";
+import { Expense, Member, distributeAmount } from "@quozen/core";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 

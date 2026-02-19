@@ -21,11 +21,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import SettlementModal from "@/components/settlement-modal";
 import ExpensesList from "./expenses";
-import { Member, Settlement, Expense } from "@/lib/storage/types";
+import { Member, Settlement, Expense, formatCurrency } from "@quozen/core";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "react-i18next";
 import { useDateFormatter } from "@/hooks/use-date-formatter";
-import { formatCurrency } from "@/lib/format-currency";
 import { useSettings } from "@/hooks/use-settings";
 
 type SortOption = "date_desc" | "date_asc" | "amount_desc" | "amount_asc";

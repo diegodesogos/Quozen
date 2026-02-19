@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { distributeAmount } from "../finance";
+import { distributeAmount } from "@quozen/core";
 
 describe("distributeAmount", () => {
   it("distributes amounts equally when possible", () => {
@@ -11,11 +11,11 @@ describe("distributeAmount", () => {
   it("handles penny distribution correctly (100 / 3)", () => {
     // 100 / 3 = 33.333... -> 33.34, 33.33, 33.33
     const result = distributeAmount(100, 3);
-    
+
     // Check sum
     const sum = result.reduce((a, b) => a + b, 0);
     expect(sum).toBeCloseTo(100, 2);
-    
+
     // Check individual values
     expect(result).toContain(33.34);
     expect(result.filter(x => x === 33.33).length).toBe(2);
@@ -35,15 +35,15 @@ describe("distributeAmount", () => {
   it("handles zero amount", () => {
     expect(distributeAmount(0, 3)).toEqual([0, 0, 0]);
   });
-  
+
   it("handles precision correctly with small float inputs", () => {
-      // Input might be a float string parsed
-      const result = distributeAmount(33.89, 3);
-      // 33.89 / 3 = 11.2966...
-      // Should be 11.30, 11.30, 11.29 (Sum 33.89)
-      const sum = result.reduce((a, b) => a + b, 0);
-      expect(sum).toBeCloseTo(33.89, 2);
-      expect(result).toContain(11.30);
-      expect(result).toContain(11.29);
+    // Input might be a float string parsed
+    const result = distributeAmount(33.89, 3);
+    // 33.89 / 3 = 11.2966...
+    // Should be 11.30, 11.30, 11.29 (Sum 33.89)
+    const sum = result.reduce((a, b) => a + b, 0);
+    expect(sum).toBeCloseTo(33.89, 2);
+    expect(result).toContain(11.30);
+    expect(result).toContain(11.29);
   });
 });

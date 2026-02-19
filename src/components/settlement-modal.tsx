@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { googleApi } from "@/lib/drive";
-import { Member, Settlement } from "@/lib/storage/types";
+import { Member, Settlement } from "@quozen/core";
 import { ArrowRightLeft, Trash2 } from "lucide-react";
 import {
   AlertDialog,

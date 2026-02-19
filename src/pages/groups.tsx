@@ -8,7 +8,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { googleApi } from "@/lib/drive";
 import { Users, Plus, Pencil, Shield, User, Trash2, LogOut, Share2, MoreVertical, FolderSearch, Download, AlertCircle } from "lucide-react";
-import { MemberInput, Group } from "@/lib/storage/types";
+import { MemberInput, Group } from "@quozen/core";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,

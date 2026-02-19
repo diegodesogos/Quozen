@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { googleApi, UserSettings } from "@/lib/drive";
+import { googleApi } from "@/lib/drive";
+import { UserSettings } from "@quozen/core";
 import { useAuth } from "@/context/auth-provider";
 import { useEffect } from "react";
 import i18n from "@/lib/i18n";

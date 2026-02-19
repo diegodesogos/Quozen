@@ -1,5 +1,5 @@
 import { useSettings } from "./use-settings";
-import { Group } from "@/lib/storage/types";
+import { Group } from "@quozen/core";
 
 export function useGroups() {
     const { settings, isLoading, error } = useSettings();

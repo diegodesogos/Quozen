@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { execSync } from "child_process";
+import tsconfigPaths from "vite-tsconfig-paths";
 
 // Helper to get git hash
 const getGitHash = () => {
@@ -28,11 +29,10 @@ const commitHash = getGitHash().substring(0, 7);
 const VITE_PORT = Number(process.env.VITE_PORT || process.env.PORT || 3001);
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tsconfigPaths()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"), // Pointing directly to root src
-      "@quozen/core": path.resolve(__dirname, "packages/core/src"),
     },
   },
   root: "./", // Entry point is now in the project root

@@ -2,7 +2,7 @@ import { createContext, useContext, useState, ReactNode, useEffect } from 'react
 import { useGoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
 import { setAuthToken, getAuthToken as getTokenFromStore } from '../lib/tokenStore';
-import { User } from '../lib/storage/types';
+import { User } from '@quozen/core';
 
 const USER_STORAGE_KEY = "quozen_user_profile";
 
