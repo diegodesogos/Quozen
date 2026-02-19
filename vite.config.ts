@@ -32,6 +32,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"), // Pointing directly to root src
+      "@quozen/core": path.resolve(__dirname, "packages/core/src"),
     },
   },
   root: "./", // Entry point is now in the project root

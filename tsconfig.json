@@ -21,6 +21,12 @@
     "paths": {
       "@/*": [
         "src/*"
+      ],
+      "@quozen/core": [
+        "packages/core/src"
+      ],
+      "@quozen/core/*": [
+        "packages/core/src/*"
       ]
     },
     "types": [

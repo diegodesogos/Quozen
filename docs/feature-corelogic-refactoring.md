@@ -15,19 +15,20 @@ This plan details the steps required to extract Quozen's core business logic (Dr
 
 **Constraint Update:** We are permitted to update import paths across the test suite and application components to point directly to the new library namespace.
 
-### Phase 1: Library Infrastructure & Workspace Setup
+### Phase 1: Library Infrastructure & Workspace Setup [COMPLETED]
 **Objective:** Create the foundational structure for the new core library and configure the repository to recognize it as a local workspace package.
 
-* **Task 1.1: Initialize the Monorepo Structure**
+* **Task 1.1: Initialize the Monorepo Structure** [DONE]
   * Create a `packages/core` directory.
   * Initialize a `package.json` inside `packages/core` with the name `@quozen/core`.
   * Update the root `package.json` to configure npm/pnpm/yarn workspaces (e.g., `"workspaces": ["packages/*"]`).
-* **Task 1.2: Configure Library Build & TypeScript**
+* **Task 1.2: Configure Library Build & TypeScript** [DONE]
   * Set up a `tsconfig.json` in `packages/core` targeting both Node.js and Browser environments.
   * Configure Vite/TSup in the core package for independent bundling and type declarations (`.d.ts` generation).
-* **Task 1.3: Link Workspace Package**
+* **Task 1.3: Link Workspace Package** [DONE]
   * Add `@quozen/core` as a dependency in the main application's `package.json` using the workspace protocol (`"workspace:*"` or specific version).
   * Configure the root `tsconfig.json` `paths` or `vite.config.ts` to resolve `@quozen/core` directly to `packages/core/src` for seamless local development without constant rebuilds.
+
 
 ### Phase 2: Decoupling and Extraction
 **Objective:** Move the pure logic files into the new library structure.
