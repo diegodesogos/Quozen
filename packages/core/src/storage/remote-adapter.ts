@@ -1,9 +1,10 @@
 import { IStorageAdapter } from "./adapter";
+import { IStorageLayer } from "../infrastructure/IStorageLayer";
 import { UserSettings, GroupData, SchemaType } from "../types";
 
 const MOCK_API_BASE = "/_test/storage";
 
-export class RemoteMockAdapter implements IStorageAdapter {
+export class RemoteMockAdapter implements IStorageAdapter, IStorageLayer {
     constructor(private getToken?: () => string | null) {
         console.log("[RemoteMockAdapter] Initialized. Requests will be forwarded to " + MOCK_API_BASE);
     }
@@ -101,6 +102,78 @@ export class RemoteMockAdapter implements IStorageAdapter {
         const res = await this.fetch(`/files/${fileId}/modifiedTime`);
         const data = await res.json();
         return data.modifiedTime;
+    }
+
+    // --- IStorageLayer Additional Methods ---
+
+    async getFile(fileId: string, options?: { alt?: string; fields?: string }): Promise<any> {
+        const opts = encodeURIComponent(JSON.stringify(options || {}));
+        const res = await this.fetch(`/files/${fileId}?options=${opts}`, { method: "GET" });
+        return await res.json();
+    }
+
+    async updateFile(fileId: string, metadata?: any, content?: string): Promise<any> {
+        const res = await this.fetch(`/files/${fileId}`, {
+            method: "PATCH",
+            body: JSON.stringify({ metadata, content })
+        });
+        return await res.json();
+    }
+
+    async createPermission(fileId: string, role: string, type: string, emailAddress?: string): Promise<any> {
+        const res = await this.fetch(`/files/${fileId}/permissions`, {
+            method: "POST",
+            body: JSON.stringify({ role, type, emailAddress })
+        });
+        return await res.json();
+    }
+
+    async listPermissions(fileId: string): Promise<any[]> {
+        const res = await this.fetch(`/files/${fileId}/permissions`, { method: "GET" });
+        const data = await res.json();
+        return data.permissions || [];
+    }
+
+    async deletePermission(fileId: string, permissionId: string): Promise<void> {
+        await this.fetch(`/files/${fileId}/permissions/${permissionId}`, { method: "DELETE" });
+    }
+
+    async createSpreadsheet(title: string, sheetTitles: string[], properties?: Record<string, string>): Promise<string> {
+        const res = await this.fetch(`/spreadsheets`, {
+            method: "POST",
+            body: JSON.stringify({ title, sheetTitles, properties })
+        });
+        const data = await res.json();
+        return data.id;
+    }
+
+    async getSpreadsheet(spreadsheetId: string, fields?: string): Promise<any> {
+        const f = encodeURIComponent(fields || '');
+        const res = await this.fetch(`/spreadsheets/${spreadsheetId}?fields=${f}`, { method: "GET" });
+        return await res.json();
+    }
+
+    async batchGetValues(spreadsheetId: string, ranges: string[]): Promise<any[]> {
+        const r = encodeURIComponent(JSON.stringify(ranges));
+        const res = await this.fetch(`/spreadsheets/${spreadsheetId}/values:batchGet?ranges=${r}`, { method: "GET" });
+        const data = await res.json();
+        return data.valueRanges || [];
+    }
+
+    async batchUpdateValues(spreadsheetId: string, data: { range: string; values: any[][] }[]): Promise<void> {
+        await this.fetch(`/spreadsheets/${spreadsheetId}/values:batchUpdate`, { method: "POST", body: JSON.stringify({ data }) });
+    }
+
+    async appendValues(spreadsheetId: string, range: string, values: any[][]): Promise<void> {
+        await this.fetch(`/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}:append`, { method: "POST", body: JSON.stringify({ values }) });
+    }
+
+    async updateValues(spreadsheetId: string, range: string, values: any[][]): Promise<void> {
+        await this.fetch(`/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}`, { method: "PUT", body: JSON.stringify({ values }) });
+    }
+
+    async batchUpdateSpreadsheet(spreadsheetId: string, requests: any[]): Promise<void> {
+        await this.fetch(`/spreadsheets/${spreadsheetId}:batchUpdate`, { method: "POST", body: JSON.stringify({ requests }) });
     }
 
     // --- Content / Data ---

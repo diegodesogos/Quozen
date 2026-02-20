@@ -1,4 +1,5 @@
 import { IStorageAdapter } from "./adapter";
+import { IStorageLayer } from "../infrastructure/IStorageLayer";
 import { UserSettings, GroupData, SchemaType, Expense, Settlement, Member } from "../types";
 
 interface MockSheet {
@@ -12,11 +13,15 @@ interface MockSheet {
     content?: any;
     isPublic?: boolean;
     properties?: Record<string, string>;
+    sheetData?: Record<string, any[][]>;
+    sheetIds?: Record<string, number>;
 }
 
-export class InMemoryAdapter implements IStorageAdapter {
+export class InMemoryAdapter implements IStorageAdapter, IStorageLayer {
     private sheets: Map<string, MockSheet> = new Map();
     private userSettings: Map<string, UserSettings> = new Map();
+    private globalSheetData = new Map<string, Record<string, any[][]>>();
+    private globalSheetIds = new Map<string, Record<string, number>>();
 
     constructor() {
         console.log("[MemoryAdapter] Initialized.");
@@ -58,17 +63,23 @@ export class InMemoryAdapter implements IStorageAdapter {
 
     // --- File Operations ---
 
-    async createFile(name: string, sheetNames: string[], properties?: Record<string, string>): Promise<string> {
+    async createFile(name: string, mimeTypeOrSheetNames: string | string[], properties?: Record<string, string>, content?: string): Promise<string> {
         const id = "mock-sheet-" + (typeof crypto !== 'undefined' ? crypto.randomUUID() : Math.random().toString(36).substring(7));
+        const sheetNames = Array.isArray(mimeTypeOrSheetNames) ? mimeTypeOrSheetNames : [];
+        let parsedContent = content;
+        if (typeof content === 'string') {
+            try { parsedContent = JSON.parse(content); } catch { parsedContent = content; }
+        }
         this.sheets.set(id, {
             name,
-            sheetNames, // Store the sheet names
+            sheetNames,
             expenses: [],
             settlements: [],
             members: [],
             createdTime: new Date().toISOString(),
             modifiedTime: new Date().toISOString(),
-            properties: properties || {}
+            properties: properties || {},
+            content: parsedContent
         });
         return id;
     }
@@ -105,24 +116,30 @@ export class InMemoryAdapter implements IStorageAdapter {
         }
     }
 
-    async listFiles(options: { nameContains?: string; properties?: Record<string, string> } = {}): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any, properties?: Record<string, string> }>> {
+    async listFiles(queryOrOptions: string | { nameContains?: string; properties?: Record<string, string> } = {}, fields?: string): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any, properties?: Record<string, string> }>> {
         const files: any[] = [];
 
         for (const [id, sheet] of this.sheets.entries()) {
             let match = true;
 
-            if (options.properties) {
-                // strict match for all provided properties
-                for (const [key, value] of Object.entries(options.properties)) {
-                    if (sheet.properties?.[key] !== value) {
-                        match = false;
-                        break;
+            if (typeof queryOrOptions === 'string') {
+                if (queryOrOptions.includes("name = 'quozen-settings.json'") && sheet.name !== "quozen-settings.json") match = false;
+                if (queryOrOptions.includes("properties has { key='quozen_type' and value='group' }") && sheet.properties?.['quozen_type'] !== 'group') match = false;
+            } else {
+                const options = queryOrOptions;
+                if (options.properties) {
+                    // strict match for all provided properties
+                    for (const [key, value] of Object.entries(options.properties)) {
+                        if (sheet.properties?.[key] !== value) {
+                            match = false;
+                            break;
+                        }
                     }
-                }
-            } else if (options.nameContains) {
-                // fallback to name search
-                if (!sheet.name.includes(options.nameContains)) {
-                    match = false;
+                } else if (options.nameContains) {
+                    // fallback to name search
+                    if (!sheet.name.includes(options.nameContains)) {
+                        match = false;
+                    }
                 }
             }
 
@@ -153,6 +170,145 @@ export class InMemoryAdapter implements IStorageAdapter {
             sheetNames: sheet.sheetNames, // Return actual stored sheets
             properties: sheet.properties
         };
+    }
+
+    // --- IStorageLayer Additions (SDK Backend Mock) ---
+
+    async getFile(fileId: string, options?: { alt?: string; fields?: string }): Promise<any> {
+        const sheet = this.sheets.get(fileId);
+        if (!sheet) throw new Error("File not found");
+        if (options?.alt === 'media') {
+            return typeof sheet.content === 'string' ? JSON.parse(sheet.content) : (sheet.content || {});
+        }
+        return {
+            id: fileId,
+            name: sheet.name,
+            properties: sheet.properties,
+            modifiedTime: sheet.modifiedTime
+        };
+    }
+
+    async updateFile(fileId: string, metadata?: any, content?: string): Promise<any> {
+        const sheet = this.getAndTouch(fileId);
+        if (!sheet) throw new Error("File not found");
+        if (metadata?.name) sheet.name = metadata.name;
+        if (metadata?.properties) sheet.properties = { ...sheet.properties, ...metadata.properties };
+        if (content) sheet.content = typeof content === 'string' ? JSON.parse(content) : content;
+        return { id: fileId, name: sheet.name };
+    }
+
+    async createPermission(fileId: string, role: string, type: string, emailAddress?: string): Promise<any> {
+        return { id: "perm-" + Math.random(), role, type, emailAddress, displayName: emailAddress ? emailAddress.split('@')[0] : "User" };
+    }
+
+    async listPermissions(fileId: string): Promise<any[]> {
+        return [];
+    }
+
+    async deletePermission(fileId: string, permissionId: string): Promise<void> { }
+
+    async createSpreadsheet(title: string, sheetTitles: string[], properties?: Record<string, string>): Promise<string> {
+        const id = await this.createFile(title, sheetTitles, properties);
+        const sData: Record<string, any[][]> = {};
+        const sIds: Record<string, number> = {};
+        sheetTitles.forEach((t, i) => {
+            sData[t] = [];
+            sIds[t] = i + 1;
+        });
+        this.globalSheetData.set(id, sData);
+        this.globalSheetIds.set(id, sIds);
+        return id;
+    }
+
+    async getSpreadsheet(spreadsheetId: string, fields?: string): Promise<any> {
+        const sheet = this.sheets.get(spreadsheetId);
+        if (!sheet) throw new Error("File not found");
+        const sIds = this.globalSheetIds.get(spreadsheetId) || {};
+        const sheetNames = sheet.sheetNames || Object.keys(sIds);
+        return {
+            spreadsheetId,
+            properties: { title: sheet.name },
+            sheets: sheetNames.map(title => ({
+                properties: { title, sheetId: sIds[title] || 0 }
+            }))
+        };
+    }
+
+    async batchGetValues(spreadsheetId: string, ranges: string[]): Promise<any[]> {
+        const sData = this.globalSheetData.get(spreadsheetId);
+        if (!sData) return [];
+        return ranges.map(range => {
+            const [sheetName, cellRange] = range.split('!');
+            const rows = sData[sheetName] || [];
+            let startIndex = 0;
+            if (cellRange) {
+                const match = cellRange.match(/\d+/);
+                if (match) startIndex = parseInt(match[0]) - 1;
+            }
+            return { values: rows.slice(startIndex).filter(r => r !== undefined) };
+        });
+    }
+
+    async batchUpdateValues(spreadsheetId: string, data: { range: string; values: any[][] }[]): Promise<void> {
+        const sData = this.globalSheetData.get(spreadsheetId);
+        if (!sData) return;
+        data.forEach(d => {
+            const [sheetName, cellRange] = d.range.split('!');
+            if (!sData[sheetName]) sData[sheetName] = [];
+            let startIndex = 0;
+            if (cellRange) {
+                const match = cellRange.match(/\d+/);
+                if (match) startIndex = parseInt(match[0]) - 1;
+            }
+            d.values.forEach((row, i) => {
+                sData[sheetName][startIndex + i] = row;
+            });
+        });
+        this.getAndTouch(spreadsheetId);
+    }
+
+    async appendValues(spreadsheetId: string, range: string, values: any[][]): Promise<void> {
+        const sheetName = range.split('!')[0];
+        const sData = this.globalSheetData.get(spreadsheetId);
+        if (!sData) return;
+        if (!sData[sheetName]) sData[sheetName] = [];
+        sData[sheetName].push(...values);
+        this.getAndTouch(spreadsheetId);
+    }
+
+    async updateValues(spreadsheetId: string, range: string, values: any[][]): Promise<void> {
+        const sheetName = range.split('!')[0];
+        const cellRange = range.split('!')[1];
+        let startIndex = 0;
+        if (cellRange) {
+            const match = cellRange.match(/\d+/);
+            if (match) startIndex = parseInt(match[0]) - 1;
+        }
+        const sData = this.globalSheetData.get(spreadsheetId);
+        if (!sData) return;
+        if (!sData[sheetName]) sData[sheetName] = [];
+        values.forEach((row, i) => {
+            sData[sheetName][startIndex + i] = row;
+        });
+        this.getAndTouch(spreadsheetId);
+    }
+
+    async batchUpdateSpreadsheet(spreadsheetId: string, requests: any[]): Promise<void> {
+        const sData = this.globalSheetData.get(spreadsheetId);
+        const sIds = this.globalSheetIds.get(spreadsheetId);
+        if (!sData || !sIds) return;
+        requests.forEach(req => {
+            if (req.deleteDimension) {
+                const sheetId = req.deleteDimension.range.sheetId;
+                const startIndex = req.deleteDimension.range.startIndex;
+                const endIndex = req.deleteDimension.range.endIndex;
+                const sheetName = Object.keys(sIds).find(k => sIds[k] === sheetId);
+                if (sheetName && sData[sheetName]) {
+                    sData[sheetName].splice(startIndex, endIndex - startIndex);
+                }
+            }
+        });
+        this.getAndTouch(spreadsheetId);
     }
 
     // --- Data Operations ---

@@ -6,9 +6,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { Expense, Member, distributeAmount } from "@quozen/core";
+import { Expense, Member } from "@quozen/core";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+
+const distributeAmount = (total: number, count: number): number[] => {
+  if (count <= 0) return [];
+
+  const totalCents = Math.round(total * 100);
+  const baseSplitCents = Math.floor(totalCents / count);
+  const remainderCents = totalCents % count;
+
+  const results = [];
+  for (let i = 0; i < count; i++) {
+    let valCents = baseSplitCents;
+    if (i < remainderCents) valCents += 1;
+    results.push(valCents / 100);
+  }
+
+  return results;
+};
 
 interface ExpenseSplit {
   userId: string;

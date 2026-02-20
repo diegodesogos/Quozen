@@ -91,8 +91,17 @@ class MockServer {
                 await this.adapter.deleteFile(id);
                 result = { success: true };
             } else if (method === 'PATCH') {
-                await this.adapter.renameFile(id, body.name);
-                result = { success: true };
+                if (body && (body.metadata || body.content)) {
+                    result = await this.adapter.updateFile(id, body.metadata, body.content);
+                } else {
+                    await this.adapter.renameFile(id, body.name);
+                    result = { success: true };
+                }
+            } else if (method === 'GET') {
+                const optionsParam = url.searchParams.get('options');
+                let options: any = {};
+                if (optionsParam) try { options = JSON.parse(optionsParam); } catch { }
+                result = await this.adapter.getFile(id, options);
             }
         }
         else if (path.match(/\/files\/[^\/]+\/share$/)) {
@@ -103,11 +112,14 @@ class MockServer {
         else if (path.match(/\/files\/[^\/]+\/permissions$/)) {
             const id = path.split('/')[2];
             if (method === 'GET') {
-                const access = await this.adapter.getFilePermissions(id);
-                result = { access };
+                result = { permissions: await this.adapter.listPermissions(id) };
             } else if (method === 'POST') {
-                await this.adapter.setFilePermissions(id, body.access);
-                result = { success: true };
+                if (body.access) {
+                    await this.adapter.setFilePermissions(id, body.access);
+                    result = { success: true };
+                } else {
+                    result = await this.adapter.createPermission(id, body.role, body.type, body.emailAddress);
+                }
             }
         }
         else if (path.match(/\/files\/[^\/]+\/properties$/)) {
@@ -137,6 +149,49 @@ class MockServer {
         // --- Rows ---
         else if (path.match(/\/files\/[^\/]+\/rows\/[^\/]+$/)) {
             // /files/:id/rows/:sheetName
+        // --- Low-Level Spreadsheets (IStorageLayer) ---
+        else if (path === '/spreadsheets') {
+                if (method === 'POST') {
+                    const id = await this.adapter.createSpreadsheet(body.title, body.sheetTitles, body.properties);
+                    result = { id };
+                }
+            }
+            else if (path.match(/\/spreadsheets\/[^\/]+$/)) {
+                const id = path.split('/')[2];
+                if (method === 'GET') {
+                    const fields = url.searchParams.get('fields');
+                    result = await this.adapter.getSpreadsheet(id, fields || undefined);
+                }
+            }
+            else if (path.match(/\/spreadsheets\/[^\/]+\/values:batchGet$/)) {
+                const id = path.split('/')[2];
+                const rangesParam = url.searchParams.get('ranges');
+                const ranges = rangesParam ? JSON.parse(rangesParam) : [];
+                const valueRanges = await this.adapter.batchGetValues(id, ranges);
+                result = { valueRanges };
+            }
+            else if (path.match(/\/spreadsheets\/[^\/]+\/values:batchUpdate$/)) {
+                const id = path.split('/')[2];
+                await this.adapter.batchUpdateValues(id, body.data);
+                result = { success: true };
+            }
+            else if (path.match(/\/spreadsheets\/[^\/]+\/values\/[^:]+:append$/)) {
+                const id = path.split('/')[2];
+                const range = decodeURIComponent(path.split('/')[4].replace(':append', ''));
+                await this.adapter.appendValues(id, range, body.values);
+                result = { success: true };
+            }
+            else if (path.match(/\/spreadsheets\/[^\/]+\/values\/[^\?]+$/) && method === 'PUT') {
+                const id = path.split('/')[2];
+                const range = decodeURIComponent(path.split('/')[4]);
+                await this.adapter.updateValues(id, range, body.values);
+                result = { success: true };
+            }
+            else if (path.match(/\/spreadsheets\/[^\/]+:batchUpdate$/)) {
+                const id = path.split('/')[2];
+                await this.adapter.batchUpdateSpreadsheet(id, body.requests);
+                result = { success: true };
+            }
             const parts = path.split('/');
             const id = parts[2];
             const sheetName = parts[4] as any;
