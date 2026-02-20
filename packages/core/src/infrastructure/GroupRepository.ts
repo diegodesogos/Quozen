@@ -88,7 +88,9 @@ export class GroupRepository {
         await this.storage.batchUpdateValues(fileId, dataToUpdate);
 
         const settings = await this.getSettings();
-        settings.groupCache.unshift({ id: fileId, name, role: "owner", lastAccessed: new Date().toISOString() });
+        if (!settings.groupCache.some(g => g.id === fileId)) {
+            settings.groupCache.unshift({ id: fileId, name, role: "owner", lastAccessed: new Date().toISOString() });
+        }
         settings.activeGroupId = fileId;
         await this.saveSettings(settings);
 

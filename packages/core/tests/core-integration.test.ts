@@ -21,23 +21,22 @@ describe('Core Integration Flow', () => {
         await ledger.addExpense({
             description: "Dinner",
             amount: 100,
-            paidBy: 'u1',
+            paidByUserId: 'u1',
             category: "Food",
-            date: new Date().toISOString(),
+            date: new Date(),
             splits: [
                 { userId: 'u1', amount: 50 },
-                { userId: 'bob', amount: 50 } // ID assigned during creation
+                { userId: 'bob@example.com', amount: 50 } // ID assigned during creation
             ]
         });
 
         // 3. Get group data
-        const expenses = await ledger.getExpenses();
-        const members = await ledger.getMembers();
-        expect(expenses).toHaveLength(1);
+        const domainLedger = await ledger.getLedger();
+        expect(domainLedger.expenses).toHaveLength(1);
 
         // 4. Calculate balances
-        const status = ledger.getUserStatus('u1', members, expenses, []);
+        const balance = domainLedger.getUserBalance('u1');
 
-        expect(status.balance).toBe(50); // Alice paid 100, consumed 50
+        expect(balance).toBe(50); // Alice paid 100, consumed 50
     });
 });
