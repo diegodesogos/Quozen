@@ -1,6 +1,6 @@
 # **Feature Core Logic Component**
 
-**Status**: To be done
+**Status**: Completed
 
 **Title:** Core logic library
 
