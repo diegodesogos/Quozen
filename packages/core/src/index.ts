@@ -1,19 +1,17 @@
-export * from "./types";
-export * from "./finance";
-export * from "./infrastructure";
-export * from "./finance/format-currency";
-export * from "./storage/adapter";
-export * from "./storage/storage-service";
-export * from "./storage/memory-adapter";
-export * from "./storage/google-drive-adapter";
-export * from "./storage/remote-adapter";
-export * from "./errors";
+// 1. Core SDK Facade
+export { QuozenClient, QuozenConfig } from "./QuozenClient";
 
-export * from "./QuozenClient";
-export * from "./infrastructure/IStorageLayer";
-export * from "./infrastructure/GoogleDriveStorageLayer";
-export * from "./infrastructure/GroupRepository";
-export * from "./infrastructure/LedgerRepository";
-export * from "./finance/LedgerService";
-export * from "./domain/Ledger";
-export * from "./infrastructure/StorageCacheProxy";
+// 2. Domain Models & DTOs
+export * from "./domain";
+export { Ledger } from "./domain/Ledger";
+
+// 3. Configuration & Adapters (Required to instantiate QuozenClient)
+export { IStorageLayer } from "./infrastructure/IStorageLayer";
+export { GoogleDriveStorageLayer } from "./infrastructure/GoogleDriveStorageLayer";
+export { InMemoryAdapter } from "./storage/memory-adapter"; // Legacy/Test
+export { RemoteMockAdapter } from "./storage/remote-adapter"; // Legacy/Test
+
+// 4. Shared Utilities & Errors
+export { formatCurrency } from "./finance/format-currency";
+export { distributeAmount } from "./finance/index";
+export * from "./errors";
