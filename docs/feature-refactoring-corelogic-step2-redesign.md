@@ -193,10 +193,10 @@ This breakdown organizes the refactoring into logical phases to ensure the appli
 
 ### **Phase 4: Webapp Migration & Cleanup**
 
-**Task [WEB-01]: Migrate Webapp Contexts to QuozenClient** [IN PROGRESS]
+**Task [WEB-01]: Migrate Webapp Contexts to QuozenClient** [COMPLETED]
 * **Description**: Update `apps/webapp/src/lib/drive.ts` and `queryClient.ts`. Instead of exporting singleton functions from `@quozen/core/StorageService`, instantiate `QuozenClient` using the token from `tokenStore`.
 * **Definition of Done**: The React application compiles and runs using the new SDK interface. All existing unit tests and integration tests pass.
 
-**Task [WEB-02]: Remove Leaked Abstractions in UI Components** [IN PROGRESS]
+**Task [WEB-02]: Remove Leaked Abstractions in UI Components** [COMPLETED]
 * **Description**: Audit all React components (`ExpensesList`, `EditExpense`, etc.). Ensure no component relies on `_rowIndex`. Update components to consume the clean `Ledger` object instead of manually calculating balances on the frontend.
 * **Definition of Done**: End-to-End tests pass. React UI code is significantly smaller and purely focused on presentation.

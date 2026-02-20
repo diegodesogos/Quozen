@@ -1,3 +1,8 @@
+export * from "./QuozenClient";
+export * from "./domain/models";
+export * from "./domain/dtos";
+export * from "./errors";
+export { SCHEMAS } from "./infrastructure/SheetDataMapper";
 // 1. Core SDK Facade
 export { QuozenClient } from "./QuozenClient";
 export type { QuozenConfig } from "./QuozenClient";

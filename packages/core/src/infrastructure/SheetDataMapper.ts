@@ -5,6 +5,13 @@ export interface SheetRow<T> {
     rowIndex: number;
 }
 
+export const SCHEMAS = {
+    EXPENSES: 'Expenses!A:Z',
+    SETTLEMENTS: 'Settlements!A:Z',
+    GROUPS: 'Groups!A:Z',
+    METADATA: 'Metadata!A:B'
+};
+
 export class SheetDataMapper {
     static mapToExpense(row: any[], rowIndex: number): SheetRow<Expense> {
         const [id, date, description, amountRaw, paidByUserId, category, splitsRaw, metaRaw] = row;
