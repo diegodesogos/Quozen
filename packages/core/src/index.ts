@@ -1,5 +1,6 @@
 export * from "./types";
 export * from "./finance";
+export * from "./infrastructure";
 export * from "./finance/format-currency";
 export * from "./storage/adapter";
 export * from "./storage/storage-service";

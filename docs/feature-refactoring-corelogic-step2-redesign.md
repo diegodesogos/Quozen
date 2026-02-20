@@ -145,12 +145,12 @@ This breakdown organizes the refactoring into logical phases to ensure the appli
 
 ### **Phase 1: Domain Modeling & Data Mappers**
 
-**Task \[CORE-01\]: Define Pure Domain Entities & DTOs**
+**Task \[CORE-01\]: Define Pure Domain Entities & DTOs** [COMPLETED]
 
 * **Description**: Create strict interfaces for Group, Expense, Settlement, and User in packages/core/src/domain/. Remove all storage-leaking properties like \_rowIndex and JSON stringified arrays from these public interfaces. Create Data Transfer Objects (DTOs) for creation and updates (e.g., CreateExpenseDTO).  
 * **Definition of Done**: Interfaces defined and exported. No dependencies on Google APIs.
 
-**Task \[CORE-02\]: Implement SheetDataMapper**
+**Task \[CORE-02\]: Implement SheetDataMapper** [COMPLETED]
 
 * **Description**: Create a Mapper class (packages/core/src/infrastructure/SheetDataMapper.ts). It must contain the logic to transform a flat string array from Google Sheets into the Domain Entities, and vice versa. It must securely manage \_rowIndex mapping privately (e.g., returning a wrapper object internally) so the Domain layer never sees it.  
 * **Definition of Done**: Mapper is fully unit-tested with complex stringified JSONs and float values.
