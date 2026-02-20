@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { InMemoryAdapter, Expense, ConflictError, NotFoundError, UserSettings } from '../../src';
-import { StorageService } from '../../src/storage/storage-service';
+import { QuozenClient, InMemoryAdapter } from '../../src';
 
 interface User {
     id: string;
@@ -9,8 +8,8 @@ interface User {
     email: string;
 }
 
-describe('StorageService (with InMemoryAdapter)', () => {
-    let service: StorageService;
+describe('QuozenClient GroupRepository Integration', () => {
+    let client: QuozenClient;
     const mockUser: User = {
         id: 'user1',
         username: 'testuser',
@@ -19,23 +18,23 @@ describe('StorageService (with InMemoryAdapter)', () => {
     };
 
     beforeEach(() => {
-        service = new StorageService(new InMemoryAdapter());
+        client = new QuozenClient({ storage: new InMemoryAdapter(), user: mockUser });
     });
 
-    it('createGroupSheet creates a new group and updates settings', async () => {
-        const group = await service.createGroupSheet("Test Group", mockUser);
+    it('create group creates a new group and updates settings', async () => {
+        const group = await client.groups.create("Test Group");
         expect(group).toBeDefined();
         expect(group.name).toBe("Test Group");
         expect(group.isOwner).toBe(true);
 
-        const settings = await service.getSettings(mockUser.email);
+        const settings = await client.groups.getSettings();
         expect(settings.groupCache).toHaveLength(1);
         expect(settings.groupCache[0].id).toBe(group.id);
         expect(settings.groupCache[0].role).toBe("owner");
     });
 
-    it('addExpense adds an expense to the group', async () => {
-        const group = await service.createGroupSheet("Test Group", mockUser);
+    it('add expense adds an expense to the group', async () => {
+        const group = await client.groups.create("Test Group");
 
         const expenseData = {
             description: "Lunch",
@@ -45,40 +44,39 @@ describe('StorageService (with InMemoryAdapter)', () => {
             date: "2023-01-01"
         };
 
-        await service.addExpense(group.id, expenseData);
+        const ledger = client.ledger(group.id);
+        await ledger.addExpense(expenseData);
 
-        const data = await service.getGroupData(group.id);
-        expect(data).not.toBeNull();
-        expect(data!.expenses).toHaveLength(1);
-        expect(data!.expenses[0].description).toBe("Lunch");
-        expect(data!.expenses[0].amount).toBe(20);
-        expect(data!.expenses[0]._rowIndex).toBeDefined();
+        const expenses = await ledger.getExpenses();
+        expect(expenses).toHaveLength(1);
+        expect(expenses[0].description).toBe("Lunch");
+        expect(expenses[0].amount).toBe(20);
     });
 
-    it('updateGroup updates name and settings', async () => {
-        const group = await service.createGroupSheet("Original Name", mockUser, [{ username: "old-member" }]);
+    it('update group updates name and settings', async () => {
+        const group = await client.groups.create("Original Name", [{ username: "old-member" }]);
 
-        await service.updateGroup(group.id, "Updated Name", [{ username: "new-member" }], mockUser.email);
+        await client.groups.updateGroup(group.id, "Updated Name", [{ username: "new-member" }]);
 
-        const settings = await service.getSettings(mockUser.email);
+        const settings = await client.groups.getSettings();
         const cached = settings.groupCache.find((g: any) => g.id === group.id);
         expect(cached?.name).toBe("Updated Name");
     });
 
-    it('deleteGroup removes from settings', async () => {
-        const group = await service.createGroupSheet("To Delete", mockUser);
+    it('delete group removes from settings', async () => {
+        const group = await client.groups.create("To Delete");
 
-        await service.deleteGroup(group.id, mockUser.email);
+        await client.groups.deleteGroup(group.id);
 
-        const settings = await service.getSettings(mockUser.email);
+        const settings = await client.groups.getSettings();
         expect(settings.groupCache).toHaveLength(0);
     });
 
-    it('getSettings initializes settings if file is missing (reconcileGroups)', async () => {
+    it('getSettings initializes settings if file is missing', async () => {
         // Create a group first
-        await service.createGroupSheet("Group Initial", mockUser);
+        await client.groups.create("Group Initial");
 
-        const settings = await service.getSettings(mockUser.email);
+        const settings = await client.groups.getSettings();
 
         expect(settings.version).toBe(1);
         expect(settings.groupCache).toHaveLength(1);
@@ -86,14 +84,14 @@ describe('StorageService (with InMemoryAdapter)', () => {
         expect(settings.preferences.defaultCurrency).toBe("USD");
     });
 
-    it('saveSettings updates settings for specific user', async () => {
+    it('saveSettings updates settings', async () => {
         // Initial reconcile
-        let settings = await service.getSettings(mockUser.email);
+        let settings = await client.groups.getSettings();
         settings.preferences.theme = "dark";
 
-        await service.saveSettings(mockUser.email, settings);
+        await client.groups.saveSettings(settings);
 
-        settings = await service.getSettings(mockUser.email);
+        settings = await client.groups.getSettings();
         expect(settings.preferences.theme).toBe("dark");
     });
 });

@@ -10,7 +10,6 @@ export { IStorageLayer } from "./infrastructure/IStorageLayer";
 export { GoogleDriveStorageLayer } from "./infrastructure/GoogleDriveStorageLayer";
 export { InMemoryAdapter } from "./storage/memory-adapter"; // Legacy/Test
 export { RemoteMockAdapter } from "./storage/remote-adapter"; // Legacy/Test
-export { StorageService } from "./storage/storage-service";
 
 // 4. Shared Utilities & Errors
 export { formatCurrency } from "./finance/format-currency";

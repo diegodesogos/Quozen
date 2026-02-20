@@ -1,10 +1,9 @@
-import { IStorageAdapter } from "./adapter";
 import { IStorageLayer } from "../infrastructure/IStorageLayer";
-import { UserSettings, GroupData, SchemaType, Expense, Settlement, Member } from "../types";
+import { Expense, Settlement, Member } from "../types";
 
 interface MockSheet {
     name: string;
-    sheetNames: string[]; // Added this field
+    sheetNames: string[];
     expenses: Expense[];
     settlements: Settlement[];
     members: Member[];
@@ -17,48 +16,13 @@ interface MockSheet {
     sheetIds?: Record<string, number>;
 }
 
-export class InMemoryAdapter implements IStorageAdapter, IStorageLayer {
+export class InMemoryAdapter implements IStorageLayer {
     private sheets: Map<string, MockSheet> = new Map();
-    private userSettings: Map<string, UserSettings> = new Map();
     private globalSheetData = new Map<string, Record<string, any[][]>>();
     private globalSheetIds = new Map<string, Record<string, number>>();
 
     constructor() {
         console.log("[MemoryAdapter] Initialized.");
-    }
-
-    // --- Settings ---
-
-    async loadSettings(userEmail: string): Promise<UserSettings | null> {
-        return this.userSettings.get(userEmail) || null;
-    }
-
-    async saveSettings(userEmail: string, settings: UserSettings): Promise<void> {
-        if (!userEmail) {
-            console.warn("[MemoryAdapter] Cannot save settings without email.");
-            return;
-        }
-        this.userSettings.set(userEmail, settings);
-
-        // Also save as a file for listFiles consistency if needed
-        const settingsName = "quozen-settings.json";
-        let existingId = Array.from(this.sheets.entries()).find(([_, s]) => s.name === settingsName)?.[0];
-        if (!existingId) {
-            existingId = "mock-settings-" + (typeof crypto !== 'undefined' ? crypto.randomUUID() : Math.random().toString(36).substring(7));
-            this.sheets.set(existingId, {
-                name: settingsName,
-                sheetNames: [],
-                expenses: [],
-                settlements: [],
-                members: [],
-                createdTime: new Date().toISOString(),
-                modifiedTime: new Date().toISOString(),
-                content: settings
-            });
-        } else {
-            const sheet = this.sheets.get(existingId);
-            if (sheet) sheet.content = settings;
-        }
     }
 
     // --- File Operations ---
@@ -93,10 +57,6 @@ export class InMemoryAdapter implements IStorageAdapter, IStorageLayer {
         if (sheet) sheet.name = newName;
     }
 
-    async shareFile(fileId: string, email: string, role: "writer" | "reader"): Promise<string | null> {
-        return email;
-    }
-
     async setFilePermissions(fileId: string, access: 'public' | 'restricted'): Promise<void> {
         const sheet = this.getAndTouch(fileId);
         if (sheet) {
@@ -128,7 +88,6 @@ export class InMemoryAdapter implements IStorageAdapter, IStorageLayer {
             } else {
                 const options = queryOrOptions;
                 if (options.properties) {
-                    // strict match for all provided properties
                     for (const [key, value] of Object.entries(options.properties)) {
                         if (sheet.properties?.[key] !== value) {
                             match = false;
@@ -136,7 +95,6 @@ export class InMemoryAdapter implements IStorageAdapter, IStorageLayer {
                         }
                     }
                 } else if (options.nameContains) {
-                    // fallback to name search
                     if (!sheet.name.includes(options.nameContains)) {
                         match = false;
                     }
@@ -160,16 +118,6 @@ export class InMemoryAdapter implements IStorageAdapter, IStorageLayer {
     async getLastModified(fileId: string): Promise<string> {
         const sheet = this.sheets.get(fileId);
         return sheet?.modifiedTime || new Date().toISOString();
-    }
-
-    async getFileMeta(fileId: string): Promise<{ title: string; sheetNames: string[]; properties?: Record<string, string> }> {
-        const sheet = this.sheets.get(fileId);
-        if (!sheet) throw new Error("File not found");
-        return {
-            title: sheet.name,
-            sheetNames: sheet.sheetNames, // Return actual stored sheets
-            properties: sheet.properties
-        };
     }
 
     // --- IStorageLayer Additions (SDK Backend Mock) ---
@@ -309,69 +257,6 @@ export class InMemoryAdapter implements IStorageAdapter, IStorageLayer {
             }
         });
         this.getAndTouch(spreadsheetId);
-    }
-
-    // --- Data Operations ---
-
-    async readGroupData(fileId: string): Promise<GroupData | null> {
-        const sheet = this.sheets.get(fileId);
-        if (!sheet) return null;
-        return JSON.parse(JSON.stringify(sheet));
-    }
-
-    async initializeGroup(fileId: string, data: GroupData): Promise<void> {
-        const sheet = this.getAndTouch(fileId);
-        if (sheet) {
-            sheet.expenses = data.expenses;
-            sheet.settlements = data.settlements;
-            sheet.members = data.members;
-        }
-    }
-
-    // --- Row Operations ---
-
-    async appendRow(fileId: string, sheetName: SchemaType, data: any): Promise<void> {
-        const sheet = this.getAndTouch(fileId);
-        if (!sheet) throw new Error(`Sheet not found: ${fileId}`);
-
-        const collection = this.getCollection(sheet, sheetName);
-        const rowIndex = collection.length + 2;
-        collection.push({ ...data, _rowIndex: rowIndex });
-    }
-
-    async updateRow(fileId: string, sheetName: SchemaType, rowIndex: number, data: any): Promise<void> {
-        const sheet = this.getAndTouch(fileId);
-        if (!sheet) throw new Error(`Sheet not found: ${fileId}`);
-
-        const collection = this.getCollection(sheet, sheetName);
-        const arrayIndex = rowIndex - 2;
-        if (arrayIndex >= 0 && arrayIndex < collection.length) {
-            collection[arrayIndex] = { ...collection[arrayIndex], ...data };
-        }
-    }
-
-    async deleteRow(fileId: string, sheetName: SchemaType, rowIndex: number): Promise<void> {
-        const sheet = this.getAndTouch(fileId);
-        if (!sheet) throw new Error(`Sheet not found: ${fileId}`);
-        const collection = this.getCollection(sheet, sheetName);
-        const arrayIndex = rowIndex - 2;
-        if (arrayIndex >= 0 && arrayIndex < collection.length) {
-            collection.splice(arrayIndex, 1);
-        }
-    }
-
-    async readRow(fileId: string, sheetName: SchemaType, rowIndex: number): Promise<any | null> {
-        const sheet = this.sheets.get(fileId);
-        if (!sheet) return null;
-        const collection = this.getCollection(sheet, sheetName);
-        const arrayIndex = rowIndex - 2;
-        return collection[arrayIndex] || null;
-    }
-
-    private getCollection(sheet: MockSheet, sheetName: SchemaType): any[] {
-        if (sheetName === 'Expenses') return sheet.expenses;
-        if (sheetName === 'Settlements') return sheet.settlements;
-        return sheet.members;
     }
 
     private getAndTouch(fileId: string): MockSheet | undefined {
