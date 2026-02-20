@@ -1,7 +1,7 @@
 import { LedgerRepository } from "../infrastructure/LedgerRepository";
-import { User, Expense, Settlement, LedgerAnalytics } from "../domain/models";
+import { User, Expense, Settlement } from "../domain/models";
 import { CreateExpenseDTO, UpdateExpenseDTO, CreateSettlementDTO, UpdateSettlementDTO } from "../domain/dtos";
-import { calculateBalances, suggestSettlementStrategy } from "./index";
+import { Ledger } from "../domain/Ledger";
 
 export class LedgerService {
     constructor(private repo: LedgerRepository, private user: User) { }
@@ -93,20 +93,11 @@ export class LedgerService {
         await this.repo.deleteSettlement(settlementId);
     }
 
-    async getAnalytics(): Promise<LedgerAnalytics> {
+    async getLedger(): Promise<Ledger> {
         const expenses = await this.repo.getExpenses();
         const settlements = await this.repo.getSettlements();
         const members = await this.repo.getMembers();
 
-        const mappedExpenses = expenses.map(e => ({ ...e, paidBy: e.paidByUserId }));
-        const balances = calculateBalances(members as any, mappedExpenses as any, settlements as any);
-        const totalVolume = expenses.reduce((sum, e) => sum + e.amount, 0);
-        const suggestion = suggestSettlementStrategy(this.user.id, balances, members as any);
-
-        return {
-            balances,
-            totalVolume,
-            settlementSuggestions: suggestion ? [suggestion as unknown as Settlement] : []
-        };
+        return new Ledger({ expenses, settlements, members });
     }
 }

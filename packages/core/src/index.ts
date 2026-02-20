@@ -15,3 +15,5 @@ export * from "./infrastructure/GoogleDriveStorageLayer";
 export * from "./infrastructure/GroupRepository";
 export * from "./infrastructure/LedgerRepository";
 export * from "./finance/LedgerService";
+export * from "./domain/Ledger";
+export * from "./infrastructure/StorageCacheProxy";

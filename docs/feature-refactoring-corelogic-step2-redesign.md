@@ -175,14 +175,14 @@ This breakdown organizes the refactoring into logical phases to ensure the appli
 
 ### **Phase 3: Business Logic & The Facade**
 
-**Task [CORE-05]: Implement Finance / LedgerService** [IN PROGRESS]
+**Task [CORE-05]: Implement Finance / LedgerService** \[DONE\]
 * **Description**: Refactor the current `GroupLedger` class into a `LedgerService` that enforces business logic and consumes `LedgerRepository` for data access.
 * **Current State**: All underlying CRUD operations (`addSettlement`, `updateExpense`, etc.) are wired.
 * **Pending Sub-tasks**:
   * **Domain Analytics Engine**: Port the old `GroupLedger` class into the `domain` folder as a pure `Ledger` entity. Update `LedgerService` to return this hydrated synchronous object instead of a basic `LedgerAnalytics` interface. This is critical so the React UI components (`dashboard.tsx`, `expenses.tsx`) don't break, as they depend on synchronous methods like `getUserBalance(id)`.
 * **Definition of Done**: All finance unit tests pass against `LedgerService` and the extracted `Ledger` domain object.
 
-**Task [CORE-06]: Build the QuozenClient Facade** [IN PROGRESS]
+**Task [CORE-06]: Build the QuozenClient Facade** \[DONE\]
 * **Description**: Create the main entry point class (`QuozenClient`). It accepts configuration and exposes `.groups` and `.ledger(id)` namespaces. 
 * **Current State**: Facade created and wired to repositories, but lacks caching and full configuration injection.
 * **Pending Sub-tasks**:
