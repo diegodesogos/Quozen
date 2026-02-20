@@ -46,12 +46,12 @@ vi.mock("@/hooks/use-toast", () => ({
   }),
 }));
 
-// Mock googleApi
 vi.mock("@/lib/drive", () => ({
-  googleApi: {
-    listGroups: vi.fn(),
-    reconcileGroups: vi.fn(),
-  },
+  quozen: {
+    groups: {
+      reconcileGroups: vi.fn()
+    }
+  }
 }));
 
 describe("Profile Page", () => {

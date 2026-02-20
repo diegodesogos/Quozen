@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { googleApi } from "@/lib/drive";
+import { quozen } from "@/lib/drive";
 import { Member, Settlement } from "@quozen/core";
 import { ArrowRightLeft, Trash2 } from "lucide-react";
 import {
@@ -98,9 +98,15 @@ export default function SettlementModal({
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
       if (initialData) {
-        return await googleApi.updateSettlement(activeGroupId, initialData.id, { ...initialData, ...data });
+        return await quozen.ledger(activeGroupId).updateSettlement(initialData.id, {
+          ...data,
+          date: data.date ? new Date(data.date) : new Date()
+        });
       } else {
-        return await googleApi.addSettlement(activeGroupId, data);
+        return await quozen.ledger(activeGroupId).addSettlement({
+          ...data,
+          date: data.date ? new Date(data.date) : new Date()
+        });
       }
     },
     onSuccess: () => {
@@ -124,7 +130,7 @@ export default function SettlementModal({
   const deleteMutation = useMutation({
     mutationFn: async () => {
       if (!initialData) throw new Error("Missing initialData");
-      return await googleApi.deleteSettlement(activeGroupId, initialData.id);
+      return await quozen.ledger(activeGroupId).deleteSettlement(initialData.id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });

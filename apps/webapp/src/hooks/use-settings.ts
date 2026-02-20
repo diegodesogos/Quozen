@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { googleApi } from "@/lib/drive";
+import { quozen } from "@/lib/drive";
 import { UserSettings } from "@quozen/core";
 import { useAuth } from "@/context/auth-provider";
 import { useEffect } from "react";
@@ -13,8 +13,7 @@ export function useSettings() {
   const query = useQuery({
     queryKey: queryKey,
     queryFn: () => {
-      if (!user?.email) throw new Error("User email not found");
-      return googleApi.getSettings(user.email);
+      return quozen.groups.getSettings();
     },
     enabled: !!user?.email && isAuthenticated,
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -41,8 +40,7 @@ export function useSettings() {
 
   const mutation = useMutation({
     mutationFn: (newSettings: UserSettings) => {
-      if (!user?.email) throw new Error("User email required to save settings");
-      return googleApi.saveSettings(user.email, newSettings);
+      return quozen.groups.saveSettings(newSettings);
     },
     onSuccess: (data, variables) => {
       queryClient.setQueryData(queryKey, variables);
@@ -52,8 +50,7 @@ export function useSettings() {
 
   const activeGroupMutation = useMutation({
     mutationFn: (groupId: string) => {
-      if (!user?.email) throw new Error("User email required");
-      return googleApi.updateActiveGroup(user.email, groupId);
+      return quozen.groups.updateActiveGroup(groupId);
     },
     onSuccess: (_, groupId) => {
       // Optimistic update of local cache for smoother UI

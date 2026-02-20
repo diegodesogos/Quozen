@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { googleApi } from "@/lib/drive";
+import { quozen } from "@/lib/drive";
 import { Users, Plus, Pencil, Shield, User, Trash2, LogOut, Share2, MoreVertical, FolderSearch, Download, AlertCircle } from "lucide-react";
 import { MemberInput, Group } from "@quozen/core";
 import { Badge } from "@/components/ui/badge";
@@ -59,7 +59,7 @@ export default function Groups() {
       if (!user) return;
 
       try {
-        const group = await googleApi.importGroup(doc.id, user);
+        const group = await quozen.groups.importGroup(doc.id);
 
         await queryClient.invalidateQueries({ queryKey: ["drive", "settings"] });
         await queryClient.invalidateQueries({ queryKey: ["drive", "group", group.id] });
@@ -77,9 +77,8 @@ export default function Groups() {
   const handleEditClick = async (e: React.MouseEvent, group: Group) => {
     e.stopPropagation();
     try {
-      const data = await googleApi.getGroupData(group.id);
-      if (!data) throw new Error("Could not load group data");
-      const editableMembers = data.members.filter(m => m.role !== 'owner').map(m => m.email || m.userId).join(", ");
+      const members = await quozen.ledger(group.id).getMembers();
+      const editableMembers = members.filter(m => m.role !== 'owner').map(m => m.email || m.userId).join(", ");
       setDialogState({ open: true, mode: "edit", groupId: group.id, initialName: group.name, initialMembers: editableMembers });
     } catch (err) {
       toast({ title: t("common.error"), description: t("groups.loadError"), variant: "destructive" });
@@ -106,7 +105,7 @@ export default function Groups() {
   const createGroupMutation = useMutation({
     mutationFn: async (data: { name: string, members: MemberInput[] }) => {
       if (!user) throw new Error("User not authenticated");
-      return await googleApi.createGroupSheet(data.name, user, data.members);
+      return await quozen.groups.create(data.name, data.members);
     },
     onSuccess: (newGroup) => {
       queryClient.invalidateQueries({ queryKey: ["drive", "settings"] });
@@ -126,16 +125,7 @@ export default function Groups() {
 
   const updateGroupMutation = useMutation({
     mutationFn: async (data: { groupId: string, name: string, members: MemberInput[] }) => {
-      if (!user?.email) throw new Error("User email required");
-      const currentData = await googleApi.getGroupData(data.groupId);
-      if (currentData) {
-        const newMemberIds = new Set(data.members.map(m => m.email || m.username));
-        const membersToRemove = currentData.members.filter(m => m.role !== 'owner' && !newMemberIds.has(m.email) && !newMemberIds.has(m.userId));
-        for (const m of membersToRemove) {
-          if (await googleApi.checkMemberHasExpenses(data.groupId, m.userId)) throw new Error(`Cannot remove ${m.name} because they have expenses.`);
-        }
-      }
-      return await googleApi.updateGroup(data.groupId, data.name, data.members, user.email);
+      return await quozen.groups.updateGroup(data.groupId, data.name, data.members);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["drive", "settings"] });
@@ -150,8 +140,7 @@ export default function Groups() {
     mutationFn: async (groupId: string) => {
       if (!user?.email) throw new Error("User email required");
       return await googleApi.deleteGroup(groupId, user.email);
-    },
-    onSuccess: (_, groupId) => {
+      return await quozen.groups.deleteGroup(groupId);
       queryClient.invalidateQueries({ queryKey: ["drive", "settings"] });
       toast({ title: t("common.success") });
       setAlertState({ open: false, type: "delete" });
@@ -164,8 +153,7 @@ export default function Groups() {
     mutationFn: async (groupId: string) => {
       if (!currentUserId || !user?.email) throw new Error("User details required");
       return await googleApi.leaveGroup(groupId, currentUserId, user.email);
-    },
-    onSuccess: (_, groupId) => {
+      return await quozen.groups.leaveGroup(groupId);
       queryClient.invalidateQueries({ queryKey: ["drive", "settings"] });
       toast({ title: t("common.success") });
       setAlertState({ open: false, type: "leave" });

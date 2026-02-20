@@ -7,10 +7,9 @@ import {
   Utensils, Car, Bed, ShoppingBag, Gamepad2, MoreHorizontal,
   Wallet, Handshake, ChevronDown, ChevronRight, ArrowRight, Banknote
 } from "lucide-react";
-import { googleApi } from "@/lib/drive";
+import { quozen } from "@/lib/drive";
 import { useNavigate } from "react-router-dom";
 import {
-  GroupLedger,
   Expense,
   Settlement,
   Member,
@@ -43,15 +42,15 @@ export default function Dashboard() {
   const [isBalancesOpen, setIsBalancesOpen] = useState(true);
   const [isActivityOpen, setIsActivityOpen] = useState(true);
 
-  const { data: groupData, isLoading } = useQuery({
+  const { data: ledger, isLoading } = useQuery({
     queryKey: ["drive", "group", activeGroupId],
-    queryFn: () => googleApi.getGroupData(activeGroupId),
+    queryFn: () => quozen.ledger(activeGroupId).getLedger(),
     enabled: !!activeGroupId,
   });
 
-  const expenses = (groupData?.expenses || []) as Expense[];
-  const settlements = (groupData?.settlements || []) as Settlement[];
-  const users = (groupData?.members || []) as Member[];
+  const expenses = ledger?.expenses || [];
+  const settlements = ledger?.settlements || [];
+  const users = ledger?.members || [];
 
   const currentUser = users.find(u => u.userId === currentUserId);
 
@@ -65,7 +64,6 @@ export default function Dashboard() {
     return u ? u.name : "Unknown";
   };
 
-  const ledger = useMemo(() => groupData ? new GroupLedger(groupData) : null, [groupData]);
   const balances = useMemo(() => ledger?.getBalances() || {}, [ledger]);
   const totalSpent = useMemo(() => ledger?.getTotalSpent(currentUserId) || 0, [ledger, currentUserId]);
   const userBalance = ledger?.getUserBalance(currentUserId) || 0;
@@ -139,7 +137,7 @@ export default function Dashboard() {
     return <div className="p-4 text-center">{t("common.loading")}</div>;
   }
 
-  if (!groupData) {
+  if (!ledger) {
     return <div className="p-4 text-center">{t("dashboard.groupNotFound")}</div>;
   }
 

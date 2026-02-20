@@ -2,6 +2,7 @@ import { LedgerRepository } from "../infrastructure/LedgerRepository";
 import { User, Expense, Settlement } from "../domain/models";
 import { CreateExpenseDTO, UpdateExpenseDTO, CreateSettlementDTO, UpdateSettlementDTO } from "../domain/dtos";
 import { Ledger } from "../domain/Ledger";
+import { ConflictError } from "../errors";
 
 export class LedgerService {
     constructor(private repo: LedgerRepository, private user: User) { }
@@ -30,10 +31,14 @@ export class LedgerService {
         return expense;
     }
 
-    async updateExpense(expenseId: string, payload: UpdateExpenseDTO): Promise<void> {
+    async updateExpense(expenseId: string, payload: UpdateExpenseDTO, expectedLastModified?: Date): Promise<void> {
         const expenses = await this.repo.getExpenses();
         const current = expenses.find(e => e.id === expenseId);
         if (!current) throw new Error("Expense not found");
+
+        if (expectedLastModified && current.updatedAt.getTime() > expectedLastModified.getTime()) {
+            throw new ConflictError("Data has been modified by another user.");
+        }
 
         const updated: Expense = {
             ...current,
@@ -91,6 +96,10 @@ export class LedgerService {
 
     async deleteSettlement(settlementId: string): Promise<void> {
         await this.repo.deleteSettlement(settlementId);
+    }
+
+    async getMembers() {
+        return this.repo.getMembers();
     }
 
     async getLedger(): Promise<Ledger> {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { googleApi } from "@/lib/drive";
+import { quozen } from "@/lib/drive";
 import { UserSettings } from "@quozen/core";
 import { useAuth } from "@/context/auth-provider";
 import { useToast } from "@/hooks/use-toast";
@@ -33,7 +33,7 @@ export default function JoinPage() {
         mutationFn: async () => {
             if (!id) throw new Error("Invalid Link");
             if (!user) throw new Error("Authentication required");
-            return await googleApi.joinGroup(id, user);
+            return await quozen.groups.joinGroup(id);
         },
         onSuccess: (group) => {
             // Optimistic update: Update local cache immediately so App.tsx sees the group as valid

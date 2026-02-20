@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
-import { googleApi } from "@/lib/drive";
+import { quozen } from "@/lib/drive";
 import { useToast } from "@/hooks/use-toast";
 import ExpenseForm from "@/components/expense-form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -21,29 +21,35 @@ export default function EditExpense() {
   const [conflictError, setConflictError] = useState<string | null>(null);
   const [notFoundError, setNotFoundError] = useState(false);
 
-  const { data: groupData, isLoading, refetch } = useQuery({
+  const { data: ledger, isLoading, refetch } = useQuery({
     queryKey: ["drive", "group", activeGroupId],
-    queryFn: () => googleApi.getGroupData(activeGroupId!),
+    queryFn: () => quozen.ledger(activeGroupId!).getLedger(),
     enabled: !!activeGroupId,
   });
 
-  const expense = groupData?.expenses.find((e: any) => e.id === id);
+  const expense = ledger?.expenses.find((e: any) => e.id === id);
 
   useEffect(() => {
-    if (!isLoading && groupData && !expense) {
+    if (!isLoading && ledger && !expense) {
       setNotFoundError(true);
     }
-  }, [isLoading, groupData, expense]);
+  }, [isLoading, ledger, expense]);
 
   const editMutation = useMutation({
     mutationFn: (updatedData: any) => {
       if (!activeGroupId || !expense) throw new Error("Missing required data");
 
-      return googleApi.updateExpense(
-        activeGroupId,
+      return quozen.ledger(activeGroupId).updateExpense(
         expense.id,
-        { ...expense, ...updatedData },
-        expense.meta?.lastModified
+        {
+          description: updatedData.description,
+          amount: updatedData.amount,
+          category: updatedData.category,
+          date: new Date(updatedData.date),
+          paidByUserId: updatedData.paidBy,
+          splits: updatedData.splits
+        },
+        expense.updatedAt ? new Date(expense.updatedAt) : undefined
       );
     },
     onSuccess: () => {
@@ -99,7 +105,7 @@ export default function EditExpense() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction onClick={handleBack}>{t("expenseForm.goBack")}</AlertDialogAction>
-          </AlertDialogFooter>
+            if (!ledger || !expense) return null;
         </AlertDialogContent>
       </AlertDialog>
     );
@@ -111,21 +117,21 @@ export default function EditExpense() {
     <>
       <Drawer open={true} onOpenChange={(open) => !open && handleBack()}>
         <DrawerContent className="max-h-[85vh]">
-          <div className="mx-auto w-full max-w-md overflow-y-auto pb-8">
-            <DrawerHeader>
-              <DrawerTitle>{t("expenseForm.editTitle")}</DrawerTitle>
-            </DrawerHeader>
-            <ExpenseForm
-              initialData={expense}
-              users={groupData.members}
-              currentUserId={currentUserId}
-              isPending={editMutation.isPending}
-              onSubmit={(data) => editMutation.mutate(data)}
-              onCancel={handleBack}
-            />
-          </div>
-        </DrawerContent>
-      </Drawer>
+          users={ledger.members}
+          <DrawerHeader>
+            <DrawerTitle>{t("expenseForm.editTitle")}</DrawerTitle>
+          </DrawerHeader>
+          <ExpenseForm
+            initialData={expense}
+            users={groupData.members}
+            currentUserId={currentUserId}
+            isPending={editMutation.isPending}
+            onSubmit={(data) => editMutation.mutate(data)}
+            onCancel={handleBack}
+          />
+        </div>
+      </DrawerContent>
+    </Drawer >
 
       <AlertDialog open={!!conflictError}>
         <AlertDialogContent>

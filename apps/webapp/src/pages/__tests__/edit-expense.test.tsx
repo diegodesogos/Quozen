@@ -35,10 +35,12 @@ vi.mock("@tanstack/react-query", async (importOriginal) => {
 });
 
 vi.mock("@/lib/drive", () => ({
-  googleApi: {
-    getGroupData: vi.fn(),
-    updateExpense: vi.fn(),
-  },
+  quozen: {
+    ledger: vi.fn(() => ({
+      getLedger: vi.fn(),
+      updateExpense: vi.fn()
+    }))
+  }
 }));
 
 const mockToast = vi.fn();
@@ -148,7 +150,12 @@ describe("Edit Expense Page", () => {
 
   it("shows Conflict dialog on ConflictError during save", async () => {
     const conflictError = new ConflictError("Modified by someone else");
-    conflictError.name = "ConflictError";
+
+    const { quozen } = await import("@/lib/drive");
+    (quozen.ledger as any).mockReturnValue({
+      getLedger: vi.fn().mockResolvedValue(mockGroupData),
+      updateExpense: vi.fn().mockRejectedValue(conflictError)
+    });
     (googleApi.updateExpense as any).mockRejectedValue(conflictError);
 
     render(

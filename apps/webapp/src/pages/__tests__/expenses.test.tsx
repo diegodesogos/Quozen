@@ -47,10 +47,12 @@ vi.mock("@/hooks/use-toast", () => ({
 }));
 
 vi.mock("@/lib/drive", () => ({
-  googleApi: {
-    getGroupData: vi.fn(),
-    deleteExpense: vi.fn(),
-  },
+  quozen: {
+    ledger: vi.fn(() => ({
+      getLedger: vi.fn(),
+      deleteExpense: vi.fn()
+    }))
+  }
 }));
 
 vi.mock("@/components/ui/dropdown-menu", () => ({

@@ -37,12 +37,13 @@ vi.mock("@/hooks/use-toast", () => ({
   }),
 }));
 
-// Mock googleApi
 vi.mock("@/lib/drive", () => ({
-  googleApi: {
-    getGroupData: vi.fn(),
-    addExpense: vi.fn(),
-  },
+  quozen: {
+    ledger: vi.fn(() => ({
+      getLedger: vi.fn(),
+      addExpense: vi.fn()
+    }))
+  }
 }));
 
 describe("Add Expense Page", () => {
@@ -63,7 +64,6 @@ describe("Add Expense Page", () => {
       currentUserId: "user1",
     });
 
-    // Always return the group data for the drive query
     (useQuery as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       data: mockGroupData,
       isLoading: false,

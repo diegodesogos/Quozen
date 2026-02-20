@@ -2,6 +2,7 @@ import { IStorageLayer } from "./IStorageLayer";
 import { Group, User, Member } from "../domain/models";
 import { UserSettings, CachedGroup, QUOZEN_PREFIX, SETTINGS_FILE_NAME, REQUIRED_SHEETS, MemberInput } from "../types";
 import { SheetDataMapper } from "./SheetDataMapper";
+import { LedgerRepository } from "./LedgerRepository";
 
 export class GroupRepository {
     constructor(private storage: IStorageLayer, private user: User) { }
@@ -47,6 +48,15 @@ export class GroupRepository {
         };
         await this.saveSettings(settings);
         return settings;
+    }
+
+    async updateActiveGroup(groupId: string): Promise<void> {
+        const settings = await this.getSettings();
+        if (settings.activeGroupId === groupId) return;
+        settings.activeGroupId = groupId;
+        const cached = settings.groupCache.find(g => g.id === groupId);
+        if (cached) cached.lastAccessed = new Date().toISOString();
+        await this.saveSettings(settings);
     }
 
     async create(name: string, members: MemberInput[] = []): Promise<Group> {
@@ -209,4 +219,64 @@ export class GroupRepository {
         if (settings.activeGroupId === groupId) settings.activeGroupId = settings.groupCache[0]?.id || null;
         await this.saveSettings(settings);
     }
+}
+
+    async checkMemberHasExpenses(groupId: string, userId: string): Promise < boolean > {
+    const ledgerRepo = new LedgerRepository(this.storage, groupId);
+    const expenses = await ledgerRepo.getExpenses();
+    return expenses.some(e => e.paidByUserId === userId || e.splits.some(s => s.userId === userId && s.amount > 0));
+}
+
+    async updateGroup(groupId: string, name: string, members: MemberInput[]): Promise < void> {
+    const newTitle = `${QUOZEN_PREFIX}${name}`;
+    await this.storage.renameFile(groupId, newTitle);
+
+    const ledgerRepo = new LedgerRepository(this.storage, groupId);
+    const currentMembers = await ledgerRepo.getMembers();
+
+    const processedIds = new Set<string>();
+    const desiredMembers = members.map(m => ({ id: m.email || m.username || "", ...m })).filter(m => m.id);
+
+    for(const desired of desiredMembers) {
+        const existing = currentMembers.find(c => (desired.email && c.email === desired.email) || (desired.username && c.userId === desired.username));
+        if (existing) {
+            processedIds.add(existing.userId);
+        } else {
+            let memberName = desired.username || desired.email || "Unknown";
+            let memberId = desired.username || desired.email || `user-${(typeof crypto !== 'undefined' ? crypto.randomUUID() : Math.random().toString())}`;
+            if (desired.email) {
+                const perm = await this.storage.createPermission(groupId, "writer", "user", desired.email);
+                if (perm?.displayName) memberName = perm.displayName;
+                memberId = desired.email;
+            }
+            await ledgerRepo.addMember({ userId: memberId, email: desired.email || "", name: memberName, role: "member", joinedAt: new Date() });
+            processedIds.add(memberId);
+        }
+    }
+
+        const membersToDelete = currentMembers.filter(m => !processedIds.has(m.userId) && m.role !== 'owner');
+    for(const m of membersToDelete) {
+        if (await this.checkMemberHasExpenses(groupId, m.userId)) throw new Error(`Cannot remove ${m.name} because they have expenses.`);
+        await ledgerRepo.deleteMember(m.userId);
+    }
+
+        const settings = await this.getSettings();
+    const cachedGroup = settings.groupCache.find(g => g.id === groupId);
+    if(cachedGroup && cachedGroup.name !== name) {
+    cachedGroup.name = name;
+    await this.saveSettings(settings);
+}
+    }
+
+    async leaveGroup(groupId: string): Promise < void> {
+    const ledgerRepo = new LedgerRepository(this.storage, groupId);
+    const currentMembers = await ledgerRepo.getMembers();
+    const member = currentMembers.find(m => m.userId === this.user.id || (this.user.email && m.email === this.user.email));
+
+    if(!member) throw new Error("Member not found");
+    if(member.role === 'owner') throw new Error("Owners cannot leave.");
+    if(await this.checkMemberHasExpenses(groupId, member.userId)) throw new Error("Cannot leave with expenses.");
+
+    await ledgerRepo.deleteMember(member.userId);
+    await this.deleteGroup(groupId); // In the member context, removing from cache operates identically
 }

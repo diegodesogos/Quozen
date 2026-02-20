@@ -33,9 +33,12 @@ vi.mock("@tanstack/react-query", async (importOriginal) => {
 });
 
 vi.mock("@/lib/drive", () => ({
-  googleApi: {
-    addSettlement: vi.fn(),
-  },
+  quozen: {
+    ledger: vi.fn(() => ({
+      addSettlement: vi.fn(),
+      updateSettlement: vi.fn()
+    }))
+  }
 }));
 
 vi.mock("@/components/ui/select", () => ({

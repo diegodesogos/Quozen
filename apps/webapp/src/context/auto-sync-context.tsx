@@ -1,7 +1,7 @@
 import React, { createContext, useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { googleApi } from "@/lib/drive";
+import { quozen } from "@/lib/drive";
 import { useAppContext } from "./app-context";
 
 interface AutoSyncContextType {
@@ -70,7 +70,7 @@ export function AutoSyncProvider({
 
         try {
             // Fetch metadata only
-            const remoteTimeStr = await googleApi.getLastModified(activeGroupId);
+            const remoteTimeStr = await quozen.getLastModified(activeGroupId);
 
             if (!lastKnownRemoteTimeRef.current) {
                 // First check, initialize

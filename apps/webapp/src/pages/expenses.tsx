@@ -10,7 +10,7 @@ import {
   Utensils, Car, Bed, ShoppingBag,
   Gamepad2, MoreHorizontal, Trash2, Pencil, Receipt, Plus, MoreVertical, Edit
 } from "lucide-react";
-import { googleApi } from "@/lib/drive";
+import { quozen } from "@/lib/drive";
 import { useNavigate } from "react-router-dom";
 import {
   AlertDialog,
@@ -25,7 +25,7 @@ import {
 import {
   ConflictError,
   NotFoundError,
-  GroupLedger,
+  Ledger,
   Expense,
   Member,
   formatCurrency
@@ -64,7 +64,7 @@ export default function ExpensesList({ expenses = [], members = [], isLoading = 
 
   const deleteMutation = useMutation({
     mutationFn: (expense: Expense) => {
-      return googleApi.deleteExpense(activeGroupId, expense.id);
+      return quozen.ledger(activeGroupId).deleteExpense(expense.id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
@@ -117,7 +117,7 @@ export default function ExpensesList({ expenses = [], members = [], isLoading = 
     }
   };
 
-  const ledger = useMemo(() => new GroupLedger({ expenses, members, settlements: [] }), [expenses, members]);
+  const ledger = useMemo(() => new Ledger({ expenses, members, settlements: [] }), [expenses, members]);
 
   if (isLoading) {
     return (

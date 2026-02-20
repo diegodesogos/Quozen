@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
-import { googleApi } from "@/lib/drive";
+import { quozen } from "@/lib/drive";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -50,15 +50,15 @@ export default function ActivityHub() {
     const queryClient = useQueryClient();
 
     // Fetch Data
-    const { data: groupData, isLoading } = useQuery({
+    const { data: ledger, isLoading } = useQuery({
         queryKey: ["drive", "group", activeGroupId],
-        queryFn: () => googleApi.getGroupData(activeGroupId),
+        queryFn: () => quozen.ledger(activeGroupId).getLedger(),
         enabled: !!activeGroupId,
     });
 
-    const settlements = (groupData?.settlements || []) as Settlement[];
-    const expenses = (groupData?.expenses || []) as Expense[];
-    const members = (groupData?.members || []) as Member[];
+    const settlements = ledger?.settlements || [];
+    const expenses = ledger?.expenses || [];
+    const members = ledger?.members || [];
 
     // -------------------------
     // Process Expenses
@@ -125,7 +125,7 @@ export default function ActivityHub() {
 
     const deleteMutation = useMutation({
         mutationFn: async (s: Settlement) => {
-            return await googleApi.deleteSettlement(activeGroupId, s.id);
+            return await quozen.ledger(activeGroupId).deleteSettlement(s.id);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { googleApi } from "@/lib/drive";
+import { quozen } from "@/lib/drive";
 import { Copy, Check, Globe, Lock } from "lucide-react";
 import { useAuth } from "@/context/auth-provider";
 import { useTranslation } from "react-i18next";
@@ -37,7 +37,7 @@ export default function ShareDialog({ isOpen, onClose, groupId, groupName }: Sha
     // Fetch permission status when dialog opens
     const { data: permissionStatus } = useQuery({
         queryKey: ["drive", "permissions", groupId],
-        queryFn: () => googleApi.getGroupPermissions(groupId),
+        queryFn: () => quozen.groups.getGroupPermissions(groupId),
         enabled: isOpen && !!groupId,
     });
 
@@ -50,7 +50,7 @@ export default function ShareDialog({ isOpen, onClose, groupId, groupName }: Sha
     const permissionMutation = useMutation({
         mutationFn: async (makePublic: boolean) => {
             const access = makePublic ? 'public' : 'restricted';
-            await googleApi.setGroupPermissions(groupId, access);
+            await quozen.groups.setGroupPermissions(groupId, access);
             return makePublic;
         },
         onSuccess: (makePublic) => {

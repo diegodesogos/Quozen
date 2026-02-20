@@ -52,15 +52,16 @@ vi.mock("@/hooks/use-toast", () => ({
 }));
 
 vi.mock("@/lib/drive", () => ({
-  googleApi: {
-    listGroups: vi.fn(),
-    createGroupSheet: vi.fn(),
-    getGroupData: vi.fn(),
-    updateGroup: vi.fn(),
-    deleteGroup: vi.fn(),
-    leaveGroup: vi.fn(),
-    checkMemberHasExpenses: vi.fn(),
-  },
+  quozen: {
+    groups: {
+      importGroup: vi.fn(),
+      create: vi.fn(),
+      updateGroup: vi.fn(),
+      deleteGroup: vi.fn(),
+      leaveGroup: vi.fn()
+    },
+    ledger: vi.fn(() => ({ getMembers: vi.fn() }))
+  }
 }));
 
 vi.mock("@/components/ui/dropdown-menu", () => ({
@@ -167,8 +168,10 @@ describe("Groups Page", () => {
   });
 
   it("prevents removing a member with existing expenses during edit", async () => {
-    (googleApi.getGroupData as any).mockResolvedValue(mockGroup1Data);
-    (googleApi.checkMemberHasExpenses as any).mockResolvedValue(true);
+    const { quozen } = await import("@/lib/drive");
+    (quozen.ledger as any).mockReturnValue({
+      getMembers: vi.fn().mockResolvedValue(mockGroup1Data.members)
+    });
 
     render(<Groups />);
 
@@ -200,6 +203,7 @@ describe("Groups Page", () => {
   });
 
   it("opens delete confirmation and triggers mutation", async () => {
+    const { quozen } = await import("@/lib/drive");
     render(<Groups />);
     const group1Card = screen.getByText("Trip to Paris").closest('[data-testid="group-card"]');
     const meatball = within(group1Card as HTMLElement).getByTestId("group-menu-trigger");
@@ -211,7 +215,7 @@ describe("Groups Page", () => {
     const confirmBtn = screen.getByRole("button", { name: en.groups.deleteAction });
     fireEvent.click(confirmBtn);
 
-    expect(googleApi.deleteGroup).toHaveBeenCalledWith("group1", "alice@example.com");
+    expect(quozen.groups.deleteGroup).toHaveBeenCalledWith("group1");
     await waitFor(() => expect(screen.queryByText(en.groups.delete)).not.toBeInTheDocument());
   });
 });

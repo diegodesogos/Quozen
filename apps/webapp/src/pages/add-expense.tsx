@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
 import { useToast } from "@/hooks/use-toast";
-import { googleApi } from "@/lib/drive";
+import { quozen } from "@/lib/drive";
 import { UserSettings } from "@quozen/core";
 import { useNavigate } from "react-router-dom";
 import ExpenseForm from "@/components/expense-form";
@@ -15,18 +15,25 @@ export default function AddExpense() {
   const { t } = useTranslation();
 
   // Fetch group data (including members) from Google Sheet
-  const { data: groupData } = useQuery({
+  const { data: ledger } = useQuery({
     queryKey: ["drive", "group", activeGroupId],
-    queryFn: () => googleApi.getGroupData(activeGroupId),
+    queryFn: () => quozen.ledger(activeGroupId).getLedger(),
     enabled: !!activeGroupId,
   });
 
-  const users = groupData?.members || [];
+  const users = ledger?.members || [];
 
   const expenseMutation = useMutation({
     mutationFn: async (data: any) => {
       if (!activeGroupId) throw new Error("No active group");
-      return await googleApi.addExpense(activeGroupId, data);
+      return await quozen.ledger(activeGroupId).addExpense({
+        description: data.description,
+        amount: data.amount,
+        category: data.category,
+        date: new Date(data.date),
+        paidByUserId: data.paidBy,
+        splits: data.splits
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["drive", "group", activeGroupId] });
@@ -47,7 +54,7 @@ export default function AddExpense() {
     },
   });
 
-  if (!groupData) {
+  if (!ledger) {
     return <div className="p-4 text-center">{t("common.loading")}</div>;
   }
 

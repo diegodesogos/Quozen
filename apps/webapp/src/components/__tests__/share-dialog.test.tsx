@@ -45,10 +45,12 @@ vi.mock("@/components/ui/switch", () => ({
 
 // Mock API
 vi.mock("@/lib/drive", () => ({
-    googleApi: {
-        setGroupPermissions: vi.fn(),
-        getGroupPermissions: vi.fn(),
-    },
+    quozen: {
+        groups: {
+            setGroupPermissions: vi.fn(),
+            getGroupPermissions: vi.fn()
+        }
+    }
 }));
 
 // Mock clipboard
@@ -89,7 +91,9 @@ describe("ShareDialog Component", () => {
             },
             isPending: false,
         }));
-
+        import("@/lib/drive").then(({ quozen }) => {
+            (quozen.groups.setGroupPermissions as any).mockResolvedValue(undefined);
+        });
         (googleApi.setGroupPermissions as any).mockResolvedValue(undefined);
     });
 

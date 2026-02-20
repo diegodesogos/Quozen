@@ -28,4 +28,8 @@ export class QuozenClient {
         const repo = new LedgerRepository(this.storage, groupId);
         return new LedgerService(repo, this.config.user);
     }
+
+    public async getLastModified(fileId: string): Promise<string> {
+        return this.storage.getLastModified(fileId);
+    }
 }

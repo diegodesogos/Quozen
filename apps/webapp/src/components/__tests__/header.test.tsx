@@ -46,11 +46,11 @@ vi.mock("@tanstack/react-query", async (importOriginal) => {
 });
 
 vi.mock("@/lib/drive", () => ({
-  googleApi: {
-    listGroups: vi.fn(),
-    getGroupData: vi.fn(),
-    validateQuozenSpreadsheet: vi.fn(),
-  },
+  quozen: {
+    ledger: vi.fn(() => ({
+      getLedger: vi.fn()
+    }))
+  }
 }));
 
 describe("Header Component", () => {

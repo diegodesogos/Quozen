@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Bell, ChevronDown, Users, RefreshCw, ChevronLeft } from "lucide-react";
 import GroupSwitcherModal from "./group-switcher-modal";
 import { useState } from "react";
-import { googleApi } from "@/lib/drive";
+import { quozen } from "@/lib/drive";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useGroups } from "@/hooks/use-groups";
@@ -35,14 +35,14 @@ export default function Header() {
   const { groups, isLoading: isGroupsLoading } = useGroups();
 
   // 2. Fetch active group data (content)
-  const { data: groupData, isFetching: isDataFetching } = useQuery({
+  const { data: ledger, isFetching: isDataFetching } = useQuery({
     queryKey: ["drive", "group", activeGroupId],
-    queryFn: () => googleApi.getGroupData(activeGroupId),
+    queryFn: () => quozen.ledger(activeGroupId).getLedger(),
     enabled: !!activeGroupId,
   });
 
   const activeGroup = groups.find((g) => g.id === activeGroupId);
-  const memberCount = groupData?.members?.length || 0;
+  const memberCount = ledger?.members?.length || 0;
 
   const isSyncing = isGroupsLoading || isDataFetching;
 

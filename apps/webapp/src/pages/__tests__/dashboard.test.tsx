@@ -51,10 +51,11 @@ vi.mock("@/components/settlement-modal", () => ({
 }));
 
 vi.mock("@/lib/drive", () => ({
-  googleApi: {
-    getGroupData: vi.fn(),
-    addSettlement: vi.fn(),
-  },
+  quozen: {
+    ledger: vi.fn(() => ({
+      getLedger: vi.fn(),
+    }))
+  }
 }));
 
 describe("Dashboard Page", () => {

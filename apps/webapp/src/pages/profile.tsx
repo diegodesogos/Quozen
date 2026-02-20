@@ -3,7 +3,7 @@ import { useAuth } from "@/context/auth-provider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { User as UserIcon, Settings, HelpCircle, LogOut, Mail, RefreshCw, AlertCircle, Coins, Globe } from "lucide-react";
-import { googleApi } from "@/lib/drive";
+import { quozen } from "@/lib/drive";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/use-settings";
 import { useGroups } from "@/hooks/use-groups";
@@ -59,8 +59,7 @@ export default function Profile() {
 
   const reconcileMutation = useMutation({
     mutationFn: async () => {
-      if (!user?.email) throw new Error("User email required");
-      return await googleApi.reconcileGroups(user.email);
+      return await quozen.groups.reconcileGroups();
     },
     onSuccess: (newSettings) => {
       queryClient.setQueryData(["drive", "settings", user?.email], newSettings);
