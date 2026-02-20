@@ -1,6 +1,7 @@
 import { IStorageLayer } from "./IStorageLayer";
-import { Group, User } from "../domain/models";
+import { Group, User, Member } from "../domain/models";
 import { UserSettings, CachedGroup, QUOZEN_PREFIX, SETTINGS_FILE_NAME, REQUIRED_SHEETS, MemberInput } from "../types";
+import { SheetDataMapper } from "./SheetDataMapper";
 
 export class GroupRepository {
     constructor(private storage: IStorageLayer, private user: User) { }
@@ -88,5 +89,124 @@ export class GroupRepository {
             createdAt: new Date(),
             isOwner: true
         };
+    }
+
+    async setGroupPermissions(groupId: string, access: 'public' | 'restricted'): Promise<void> {
+        if (access === 'public') {
+            await this.storage.createPermission(groupId, "writer", "anyone");
+        } else {
+            const permissions = await this.storage.listPermissions(groupId);
+            const publicPerm = permissions.find((p: any) => p.type === 'anyone');
+            if (publicPerm) {
+                await this.storage.deletePermission(groupId, publicPerm.id);
+            }
+        }
+    }
+
+    async getGroupPermissions(groupId: string): Promise<'public' | 'restricted'> {
+        try {
+            const permissions = await this.storage.listPermissions(groupId);
+            const publicPerm = permissions.find((p: any) => p.type === 'anyone');
+            return publicPerm ? 'public' : 'restricted';
+        } catch (e) {
+            console.error("Failed to get permissions", e);
+            return 'restricted';
+        }
+    }
+
+    async validateQuozenSpreadsheet(spreadsheetId: string): Promise<{ valid: boolean; error?: string; name?: string; members?: Member[] }> {
+        try {
+            const meta = await this.storage.getFile(spreadsheetId, { fields: "name,properties" });
+            const sheetMeta = await this.storage.getSpreadsheet(spreadsheetId, "properties.title,sheets.properties.title");
+
+            const titles = sheetMeta.sheets?.map((s: any) => s.properties.title) || [];
+            if (!REQUIRED_SHEETS.every((t: string) => titles.includes(t))) {
+                return { valid: false, error: "Missing tabs" };
+            }
+
+            const res = await this.storage.batchGetValues(spreadsheetId, ["Members!A2:Z"]);
+            const memberRows = res[0]?.values || [];
+            const members = memberRows.map((r: any[], i: number) => SheetDataMapper.mapToMember(r, i + 2).entity);
+
+            return { valid: true, name: meta.name || sheetMeta.properties?.title, members };
+        } catch (e: any) {
+            return { valid: false, error: e.message };
+        }
+    }
+
+    async importGroup(spreadsheetId: string): Promise<Group> {
+        const meta = await this.storage.getFile(spreadsheetId, { fields: "name,properties" });
+        if (meta.properties?.quozen_type !== 'group') {
+            const validation = await this.validateQuozenSpreadsheet(spreadsheetId);
+            if (!validation.valid) throw new Error("Invalid Quozen Group. Missing required sheets.");
+            await this.storage.updateFile(spreadsheetId, { properties: { quozen_type: 'group', version: '1.0' } });
+        }
+
+        const validation = await this.validateQuozenSpreadsheet(spreadsheetId);
+        if (!validation.valid) throw new Error(validation.error || "Invalid group file");
+
+        let role: "owner" | "member" = "member";
+        if (validation.members) {
+            const member = validation.members.find(m => m.email === this.user.email || m.userId === this.user.id);
+            if (member?.role === "owner") role = "owner";
+        }
+
+        const settings = await this.getSettings();
+        const groupName = validation.name || "Imported Group";
+        const cleanName = groupName.startsWith(QUOZEN_PREFIX) ? groupName.slice(QUOZEN_PREFIX.length) : groupName;
+
+        const cachedGroup = settings.groupCache.find(g => g.id === spreadsheetId);
+        if (!cachedGroup) {
+            settings.groupCache.unshift({ id: spreadsheetId, name: cleanName, role, lastAccessed: new Date().toISOString() });
+        } else {
+            cachedGroup.role = role;
+            cachedGroup.lastAccessed = new Date().toISOString();
+        }
+
+        settings.activeGroupId = spreadsheetId;
+        await this.saveSettings(settings);
+
+        return {
+            id: spreadsheetId,
+            name: cleanName,
+            description: "Imported",
+            createdBy: "Unknown",
+            participants: [],
+            createdAt: new Date(),
+            isOwner: role === "owner"
+        };
+    }
+
+    async joinGroup(spreadsheetId: string): Promise<Group> {
+        const meta = await this.storage.getFile(spreadsheetId, { fields: "name,properties" });
+        if (meta.properties?.quozen_type !== 'group') {
+            throw new Error("This file is not a valid Quozen Group.");
+        }
+
+        const validation = await this.validateQuozenSpreadsheet(spreadsheetId);
+        if (!validation.valid) throw new Error("Could not read group data");
+
+        const existingMember = validation.members?.find(m => m.userId === this.user.id || m.email === this.user.email);
+        if (!existingMember) {
+            const newMember: Member = {
+                userId: this.user.id,
+                email: this.user.email,
+                name: this.user.name,
+                role: "member",
+                joinedAt: new Date()
+            };
+            const row = SheetDataMapper.mapFromMember(newMember);
+            await this.storage.appendValues(spreadsheetId, "Members!A1", [row]);
+        }
+
+        return await this.importGroup(spreadsheetId);
+    }
+
+    async deleteGroup(groupId: string): Promise<void> {
+        await this.storage.deleteFile(groupId);
+        const settings = await this.getSettings();
+        settings.groupCache = settings.groupCache.filter(g => g.id !== groupId);
+        if (settings.activeGroupId === groupId) settings.activeGroupId = settings.groupCache[0]?.id || null;
+        await this.saveSettings(settings);
     }
 }

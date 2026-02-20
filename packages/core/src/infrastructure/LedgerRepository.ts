@@ -77,4 +77,74 @@ export class LedgerRepository {
         ]);
         await this.touchGroup();
     }
+
+    async addSettlement(settlement: Settlement): Promise<void> {
+        const row = SheetDataMapper.mapFromSettlement(settlement);
+        await this.storage.appendValues(this.groupId, "Settlements!A1", [row]);
+        await this.touchGroup();
+    }
+
+    async updateSettlement(settlement: Settlement): Promise<void> {
+        if (!this.settlementRowMap.has(settlement.id)) {
+            await this.getSettlements();
+        }
+        const rowIndex = this.settlementRowMap.get(settlement.id);
+        if (!rowIndex) throw new Error("Settlement not found");
+
+        const row = SheetDataMapper.mapFromSettlement(settlement);
+        await this.storage.updateValues(this.groupId, `Settlements!A${rowIndex}:Z${rowIndex}`, [row]);
+        await this.touchGroup();
+    }
+
+    async deleteSettlement(settlementId: string): Promise<void> {
+        if (!this.settlementRowMap.has(settlementId)) {
+            await this.getSettlements();
+        }
+        const rowIndex = this.settlementRowMap.get(settlementId);
+        if (!rowIndex) throw new Error("Settlement not found");
+
+        const sheetData = await this.storage.getSpreadsheet(this.groupId, "sheets.properties");
+        const sheetId = sheetData.sheets.find((s: any) => s.properties.title === "Settlements")?.properties?.sheetId;
+        if (sheetId === undefined) throw new Error("Sheet Settlements not found");
+
+        await this.storage.batchUpdateSpreadsheet(this.groupId, [
+            { deleteDimension: { range: { sheetId, dimension: "ROWS", startIndex: rowIndex - 1, endIndex: rowIndex } } }
+        ]);
+        await this.touchGroup();
+    }
+
+    async addMember(member: Member): Promise<void> {
+        const row = SheetDataMapper.mapFromMember(member);
+        await this.storage.appendValues(this.groupId, "Members!A1", [row]);
+        await this.touchGroup();
+    }
+
+    async updateMember(member: Member): Promise<void> {
+        if (!this.memberRowMap.has(member.userId)) {
+            await this.getMembers();
+        }
+        const rowIndex = this.memberRowMap.get(member.userId);
+        if (!rowIndex) throw new Error("Member not found");
+
+        const row = SheetDataMapper.mapFromMember(member);
+        await this.storage.updateValues(this.groupId, `Members!A${rowIndex}:Z${rowIndex}`, [row]);
+        await this.touchGroup();
+    }
+
+    async deleteMember(userId: string): Promise<void> {
+        if (!this.memberRowMap.has(userId)) {
+            await this.getMembers();
+        }
+        const rowIndex = this.memberRowMap.get(userId);
+        if (!rowIndex) throw new Error("Member not found");
+
+        const sheetData = await this.storage.getSpreadsheet(this.groupId, "sheets.properties");
+        const sheetId = sheetData.sheets.find((s: any) => s.properties.title === "Members")?.properties?.sheetId;
+        if (sheetId === undefined) throw new Error("Sheet Members not found");
+
+        await this.storage.batchUpdateSpreadsheet(this.groupId, [
+            { deleteDimension: { range: { sheetId, dimension: "ROWS", startIndex: rowIndex - 1, endIndex: rowIndex } } }
+        ]);
+        await this.touchGroup();
+    }
 }
