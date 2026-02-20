@@ -1,4 +1,4 @@
-# Quozen - Refactoring Core Business Logic for Scalability and Design
+# Quozen \- Refactoring Core Business Logic for Scalability and Design
 
 # **HIGH-LEVEL ARCHITECTURE**
 
@@ -145,49 +145,60 @@ This breakdown organizes the refactoring into logical phases to ensure the appli
 
 ### **Phase 1: Domain Modeling & Data Mappers**
 
-**Task \[CORE-01\]: Define Pure Domain Entities & DTOs** [COMPLETED]
+**Task \[CORE-01\]: Define Pure Domain Entities & DTOs**  \[DONE\]
 
 * **Description**: Create strict interfaces for Group, Expense, Settlement, and User in packages/core/src/domain/. Remove all storage-leaking properties like \_rowIndex and JSON stringified arrays from these public interfaces. Create Data Transfer Objects (DTOs) for creation and updates (e.g., CreateExpenseDTO).  
 * **Definition of Done**: Interfaces defined and exported. No dependencies on Google APIs.
 
-**Task \[CORE-02\]: Implement SheetDataMapper** [COMPLETED]
+**Task \[CORE-02\]: Implement SheetDataMapper**  \[DONE\]
 
 * **Description**: Create a Mapper class (packages/core/src/infrastructure/SheetDataMapper.ts). It must contain the logic to transform a flat string array from Google Sheets into the Domain Entities, and vice versa. It must securely manage \_rowIndex mapping privately (e.g., returning a wrapper object internally) so the Domain layer never sees it.  
 * **Definition of Done**: Mapper is fully unit-tested with complex stringified JSONs and float values.
 
 ### **Phase 2: Repository & Architecture Layers**
 
-**Task \[CORE-03\]: Refactor Storage Adapters to pure IStorageLayer**
+**Task \[CORE-03\]: Refactor Storage Adapters to pure IStorageLayer** \[DONE\]
 
 * **Description**: Strip business logic from GoogleDriveAdapter and InMemoryAdapter. They should act *only* as dumb I/O layers (e.g., readRange, writeRange, patchMetadata). All JSON parsing, default value assignment, and schema validation must be moved out of the adapters.  
 * **Definition of Done**: Adapters only handle network/memory operations.
 
-**Task \[CORE-04\]: Create GroupRepository & LedgerRepository**
+**Task \[CORE-04\]: Create GroupRepository & LedgerRepository** \[IN PROGRESS\]
 
-* **Description**: Implement GroupRepository (manages quozen-settings.json and group metadata) and LedgerRepository (manages rows within a specific group). Inject the IStorageLayer and SheetDataMapper into these repositories. Implement Optimistic Concurrency Control by comparing modifiedTime before writing.  
-* **Definition of Done**: Repositories successfully orchestrate reading/writing via the adapter and map data correctly.
+* **Description**: Implement `GroupRepository` (manages `quozen-settings.json` and group metadata) and `LedgerRepository` (manages rows within a specific group). Inject the `IStorageLayer` and `SheetDataMapper` into these repositories. Implement Optimistic Concurrency Control by comparing `modifiedTime` before writing.  
+* **Current State**: `GroupRepository` has `create`, `getSettings`, `reconcile`. `LedgerRepository` has `Expense` CRUD.  
+* **Pending Sub-tasks**:  
+  * **LedgerRepository**: Add full CRUD for `Settlement` (add, update, delete) and `Member` (add, delete/leave).  
+  * **GroupRepository**: Add `updateGroup` (renaming/member changes), `deleteGroup`, `leaveGroup`, `joinGroup` (magic link), `importGroup` (legacy blessing), and permission management (`setGroupPermissions`, `getGroupPermissions`).  
+* **Definition of Done**: Repositories successfully orchestrate reading/writing for ALL entities via the adapter and map data correctly.
+
+---
 
 ### **Phase 3: Business Logic & The Facade**
 
-**Task \[CORE-05\]: Implement Finance / LedgerService**
+**Task \[CORE-05\]: Implement Finance / LedgerService** \[IN PROGRESS\]
 
-* **Description**: Refactor the current GroupLedger class into a LedgerService. This service enforces business logic (e.g., "Amount must equal the sum of splits", "Users cannot settle with themselves"). It consumes LedgerRepository for data access.  
-* **Definition of Done**: All finance unit tests pass against LedgerService.
+* **Description**: Refactor the current `GroupLedger` class into a `LedgerService`. This service enforces business logic (e.g., "Amount must equal the sum of splits", "Users cannot settle with themselves"). It consumes `LedgerRepository` for data access.  
+* **Pending Sub-tasks**:  
+  * **Missing Operations**: Add missing API endpoints to the service: `addSettlement`, `updateSettlement`, `deleteSettlement`, `updateExpense`, `deleteExpense`.  
+  * **Domain Analytics Engine**: Port the old `GroupLedger` class into the `domain` folder as `Ledger`. Update `LedgerService.getLedger()` to return this hydrated synchronous object. This is critical so the React UI components (`dashboard.tsx`, `expenses.tsx`) don't break, as they depend on synchronous ledger methods like `getUserBalance(id)`.  
+* **Definition of Done**: All finance unit tests pass against `LedgerService` and the extracted `Ledger` domain object.
 
-**Task \[CORE-06\]: Build the QuozenClient Facade**
+**Task \[CORE-06\]: Build the QuozenClient Facade** \[IN PROGRESS\]
 
-* **Description**: Create the main entry point class (QuozenClient). It should accept configuration (Adapters, Auth credentials) and expose .groups and .ledger(id) namespaces. It must handle injecting the current user's context into the underlying services to enforce authorization.  
-* **Definition of Done**: A consumer can instantiate QuozenClient and perform a full lifecycle (create group, add expense) purely through the facade. A Unit and integration test that tests the full initialization call main functions through the facade (the test will bypass real authentication and use in-memory store).
+* **Description**: Create the main entry point class (`QuozenClient`). It should accept configuration (Adapters, Auth credentials) and expose `.groups` and `.ledger(id)` namespaces. It must handle injecting the current user's context into the underlying services to enforce authorization.  
+* **Current State**: Facade created and wired to partial repositories.  
+* **Definition of Done**: A consumer can instantiate `QuozenClient` and perform a full lifecycle (create group, add expense, add settlement, get analytics) purely through the facade.
+
+---
 
 ### **Phase 4: Webapp Migration & Cleanup**
 
-**Task \[WEB-01\]: Migrate Webapp Contexts to QuozenClient**
+**Task \[WEB-01\]: Migrate Webapp Contexts to QuozenClient** \[PENDING\]
 
-* **Description**: Update apps/webapp/src/lib/drive.ts and queryClient.ts. Instead of exporting singleton functions from @quozen/core, instantiate QuozenClient using the token from tokenStore.  
+* **Description**: Update `apps/webapp/src/lib/drive.ts` and `queryClient.ts`. Instead of exporting singleton functions from `@quozen/core`, instantiate `QuozenClient` using the token from `tokenStore`.  
 * **Definition of Done**: The React application compiles and runs using the new SDK interface. All existing unit tests and integration tests pass.
 
-**Task \[WEB-02\]: Remove Leaked Abstractions in UI Components**
+**Task \[WEB-02\]: Remove Leaked Abstractions in UI Components** \[PENDING\]
 
-* **Description**: Audit all React components (ExpensesList, EditExpense, etc.). Ensure no component relies on \_rowIndex. Update components to consume the clean LedgerAnalytics object instead of manually calculating balances on the frontend.  
-* **Definition of Done**: End-to-End tests pass. React UI code is significantly smaller and purely focused on presentation. All existing unit tests and integration tests pass.
-
+* **Description**: Audit all React components (`ExpensesList`, `EditExpense`, etc.). Ensure no component relies on `_rowIndex`. Update components to consume the clean `Ledger` object instead of manually calculating balances on the frontend.  
+* **Definition of Done**: End-to-End tests pass. React UI code is significantly smaller and purely focused on presentation.
