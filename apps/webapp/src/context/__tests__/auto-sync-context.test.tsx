@@ -4,7 +4,7 @@ import { AutoSyncProvider } from "@/context/auto-sync-context";
 import { useAutoSync } from "@/hooks/use-auto-sync";
 import { useAppContext } from "@/context/app-context";
 import { useQueryClient } from "@tanstack/react-query";
-import { googleApi } from "@/lib/drive";
+import { quozen } from "@/lib/drive";
 import { MemoryRouter, useLocation } from "react-router-dom";
 
 // Mock dependencies using aliases
@@ -17,7 +17,7 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 
 vi.mock("@/lib/drive", () => ({
-    googleApi: {
+    quozen: {
         getLastModified: vi.fn(),
     },
 }));
@@ -55,7 +55,7 @@ describe("AutoSyncContext", () => {
         (useQueryClient as any).mockReturnValue(stableQueryClient);
 
         mockUseLocation.mockReturnValue({ pathname: "/dashboard" });
-        (googleApi.getLastModified as any).mockResolvedValue("2023-01-01T12:00:00Z");
+        (quozen.getLastModified as any).mockResolvedValue("2023-01-01T12:00:00Z");
     });
 
     afterEach(() => {
@@ -73,10 +73,10 @@ describe("AutoSyncContext", () => {
         renderHook(() => useAutoSync(), { wrapper });
 
         // Initial check on mount (Immediate Sync)
-        expect(googleApi.getLastModified).toHaveBeenCalledTimes(1);
+        expect(quozen.getLastModified).toHaveBeenCalledTimes(1);
 
         // Clear mock to test interval specifically
-        (googleApi.getLastModified as any).mockClear();
+        (quozen.getLastModified as any).mockClear();
 
         // Advance by test interval (10s)
         await act(async () => {
@@ -85,7 +85,7 @@ describe("AutoSyncContext", () => {
 
         // Check if called exactly once
         try {
-            expect(googleApi.getLastModified).toHaveBeenCalledTimes(1);
+            expect(quozen.getLastModified).toHaveBeenCalledTimes(1);
         } catch (e: any) {
             throw new Error(`Test failed: Auto-sync did not fire exactly once in ${TEST_INTERVAL_SEC} seconds. 
             Original error: ${e.message}`);
@@ -98,7 +98,7 @@ describe("AutoSyncContext", () => {
         renderHook(() => useAutoSync(), { wrapper });
 
         // Clear initial calls
-        (googleApi.getLastModified as any).mockClear();
+        (quozen.getLastModified as any).mockClear();
 
         // Advance time significantly past the interval
         await act(async () => {
@@ -106,7 +106,7 @@ describe("AutoSyncContext", () => {
         });
 
         // Should NOT be called because route is unsafe
-        expect(googleApi.getLastModified).not.toHaveBeenCalled();
+        expect(quozen.getLastModified).not.toHaveBeenCalled();
     });
 
     it("resumes polling immediately when returning to safe route", async () => {
@@ -115,7 +115,7 @@ describe("AutoSyncContext", () => {
         const { result, rerender } = renderHook(() => useAutoSync(), { wrapper });
 
         expect(result.current.isPaused).toBe(true);
-        (googleApi.getLastModified as any).mockClear();
+        (quozen.getLastModified as any).mockClear();
 
         // Switch to Safe Route
         mockUseLocation.mockReturnValue({ pathname: "/dashboard" });
@@ -128,6 +128,6 @@ describe("AutoSyncContext", () => {
             vi.advanceTimersByTime(100);
         });
 
-        expect(googleApi.getLastModified).toHaveBeenCalled();
+        expect(quozen.getLastModified).toHaveBeenCalled();
     });
 });

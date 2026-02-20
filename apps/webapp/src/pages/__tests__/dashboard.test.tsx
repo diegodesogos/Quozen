@@ -91,7 +91,12 @@ describe("Dashboard Page", () => {
           data: {
             members: mockMembers,
             expenses: mockExpenses,
-            settlements: []
+            settlements: [],
+            getBalances: () => ({ user1: -10, user2: 10 }),
+            getUserBalance: (uid: string) => uid === 'user1' ? -10 : 10,
+            getTotalSpent: () => 10,
+            getExpenseStatus: () => ({ status: 'debtor', amountOwed: 10 }),
+            getSettleUpSuggestion: () => ({ fromUserId: 'user1', toUserId: 'user2', amount: 10 })
           },
           isLoading: false
         };

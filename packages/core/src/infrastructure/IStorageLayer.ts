@@ -3,6 +3,7 @@ export interface IStorageLayer {
     listFiles(query: string, fields?: string): Promise<any[]>;
     getFile(fileId: string, options?: { alt?: string, fields?: string }): Promise<any>;
     createFile(name: string, mimeType: string, properties?: Record<string, string>, content?: string): Promise<string>;
+    getLastModified(fileId: string): Promise<string>;
     updateFile(fileId: string, metadata?: any, content?: string): Promise<any>;
     deleteFile(fileId: string): Promise<void>;
 

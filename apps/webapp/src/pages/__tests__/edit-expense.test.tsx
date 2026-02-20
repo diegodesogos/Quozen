@@ -101,10 +101,10 @@ describe("Edit Expense Page", () => {
           if (options?.mutationFn) {
             await options.mutationFn(data);
           }
-          if (options.onSuccess) options.onSuccess();
+          if (options.onSuccess) options.onSuccess(undefined, data);
         } catch (e: any) {
           if (options.onError) {
-            options.onError(e);
+            options.onError(e, data);
           }
         }
       },
@@ -156,7 +156,6 @@ describe("Edit Expense Page", () => {
       getLedger: vi.fn().mockResolvedValue(mockGroupData),
       updateExpense: vi.fn().mockRejectedValue(conflictError)
     });
-    (googleApi.updateExpense as any).mockRejectedValue(conflictError);
 
     render(
       <MemoryRouter initialEntries={["/edit-expense/exp1"]}>

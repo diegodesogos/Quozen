@@ -2,15 +2,17 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { useSettings } from "../use-settings";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { googleApi } from "@/lib/drive";
+import { quozen } from "@/lib/drive";
 import { useAuth } from "@/context/auth-provider";
 
 // Mocks
 vi.mock("@/lib/drive", () => ({
-  googleApi: {
-    getSettings: vi.fn(),
-    saveSettings: vi.fn(),
-    updateActiveGroup: vi.fn(),
+  quozen: {
+    groups: {
+      getSettings: vi.fn(),
+      saveSettings: vi.fn(),
+      updateActiveGroup: vi.fn(),
+    }
   },
 }));
 
@@ -38,7 +40,7 @@ describe("useSettings Hook", () => {
 
   it("fetches settings successfully", async () => {
     const mockSettings = { activeGroupId: "123", version: 1 };
-    (googleApi.getSettings as any).mockResolvedValue(mockSettings);
+    (quozen.groups.getSettings as any).mockResolvedValue(mockSettings);
 
     const { result } = renderHook(() => useSettings(), { wrapper });
 
@@ -47,8 +49,8 @@ describe("useSettings Hook", () => {
 
   it("updates settings successfully and invalidates queries", async () => {
     const mockSettings = { activeGroupId: "123", version: 1 };
-    (googleApi.getSettings as any).mockResolvedValue(mockSettings);
-    (googleApi.saveSettings as any).mockResolvedValue(undefined);
+    (quozen.groups.getSettings as any).mockResolvedValue(mockSettings);
+    (quozen.groups.saveSettings as any).mockResolvedValue(undefined);
 
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
@@ -60,21 +62,21 @@ describe("useSettings Hook", () => {
     result.current.updateSettings(newSettings as any);
 
     await waitFor(() => {
-      expect(googleApi.saveSettings).toHaveBeenCalledWith("test@example.com", newSettings);
+      expect(quozen.groups.saveSettings).toHaveBeenCalledWith(newSettings);
     });
 
     expect(invalidateSpy).toHaveBeenCalled();
   });
 
   it("updateActiveGroup calls the provider atomic method", async () => {
-    (googleApi.updateActiveGroup as any).mockResolvedValue(undefined);
+    (quozen.groups.updateActiveGroup as any).mockResolvedValue(undefined);
 
     const { result } = renderHook(() => useSettings(), { wrapper });
 
     result.current.updateActiveGroup("new-group-id");
 
     await waitFor(() => {
-      expect(googleApi.updateActiveGroup).toHaveBeenCalledWith("test@example.com", "new-group-id");
+      expect(quozen.groups.updateActiveGroup).toHaveBeenCalledWith("new-group-id");
     });
   });
 });

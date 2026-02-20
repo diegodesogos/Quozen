@@ -1,14 +1,12 @@
 import { describe, it, expect } from "vitest";
+import { Member, Expense, Settlement } from "../src";
 import {
   calculateBalances,
   calculateTotalSpent,
   getExpenseUserStatus,
   suggestSettlementStrategy,
-  getDirectSettlementDetails,
-  Member,
-  Expense,
-  Settlement
-} from "@/";
+  getDirectSettlementDetails
+} from "../src/finance";
 
 describe("Finance Utilities", () => {
   // --- Mock Data Helpers ---

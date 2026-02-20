@@ -27,6 +27,10 @@ export class StorageCacheProxy implements IStorageLayer {
         return this.delegate.getFile(fileId, options);
     }
 
+    async getLastModified(fileId: string): Promise<string> {
+        return this.delegate.getLastModified(fileId);
+    }
+
     async createFile(name: string, mimeType: string, properties?: Record<string, string>, content?: string): Promise<string> {
         return this.delegate.createFile(name, mimeType, properties, content);
     }

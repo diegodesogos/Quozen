@@ -56,3 +56,41 @@ export interface LedgerAnalytics {
     totalVolume: number;
     settlementSuggestions: Settlement[];
 }
+
+export interface CachedGroup {
+    id: string;
+    name: string;
+    role: "owner" | "member";
+    lastAccessed?: string;
+}
+
+export interface UserSettings {
+    version: number;
+    activeGroupId: string | null;
+    groupCache: CachedGroup[];
+    preferences: {
+        defaultCurrency: string;
+        theme?: "light" | "dark" | "system";
+        locale?: "en" | "es" | "system";
+    };
+    lastUpdated: string;
+}
+
+export interface CachedGroup {
+    id: string;
+    name: string;
+    role: "owner" | "member";
+    lastAccessed?: string;
+}
+
+export interface UserSettings {
+    version: number;
+    activeGroupId: string | null;
+    groupCache: CachedGroup[];
+    preferences: {
+        defaultCurrency: string;
+        theme?: "light" | "dark" | "system";
+        locale?: "en" | "es" | "system";
+    };
+    lastUpdated: string;
+}

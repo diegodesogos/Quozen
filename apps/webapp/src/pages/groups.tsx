@@ -25,7 +25,7 @@ import { useGooglePicker } from "@/hooks/use-google-picker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function Groups() {
-  const { activeGroupId, setActiveGroupId, currentUserId } = useAppContext();
+  const { activeGroupId, setActiveGroupId } = useAppContext();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -138,9 +138,9 @@ export default function Groups() {
 
   const deleteGroupMutation = useMutation({
     mutationFn: async (groupId: string) => {
-      if (!user?.email) throw new Error("User email required");
-      return await googleApi.deleteGroup(groupId, user.email);
       return await quozen.groups.deleteGroup(groupId);
+    },
+    onSuccess: (_, groupId) => {
       queryClient.invalidateQueries({ queryKey: ["drive", "settings"] });
       toast({ title: t("common.success") });
       setAlertState({ open: false, type: "delete" });
@@ -151,9 +151,9 @@ export default function Groups() {
 
   const leaveGroupMutation = useMutation({
     mutationFn: async (groupId: string) => {
-      if (!currentUserId || !user?.email) throw new Error("User details required");
-      return await googleApi.leaveGroup(groupId, currentUserId, user.email);
       return await quozen.groups.leaveGroup(groupId);
+    },
+    onSuccess: (_, groupId) => {
       queryClient.invalidateQueries({ queryKey: ["drive", "settings"] });
       toast({ title: t("common.success") });
       setAlertState({ open: false, type: "leave" });

@@ -1,5 +1,15 @@
 import { ExpenseSplit } from "./models";
 
+export interface MemberInput {
+    email?: string;
+    username?: string;
+}
+
+export interface MemberInput {
+    email?: string;
+    username?: string;
+}
+
 export interface CreateGroupDTO {
     name: string;
     members?: { email?: string; username?: string }[];

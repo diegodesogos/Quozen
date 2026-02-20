@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { StorageService, InMemoryAdapter, Expense, ConflictError, NotFoundError, UserSettings } from '@/';
+import { InMemoryAdapter, Expense, ConflictError, NotFoundError, UserSettings } from '../../src';
+import { StorageService } from '../../src/storage/storage-service';
 
 interface User {
     id: string;

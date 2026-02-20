@@ -157,4 +157,9 @@ export class GoogleDriveStorageLayer implements IStorageLayer {
             body: JSON.stringify({ requests })
         });
     }
+
+    async getLastModified(fileId: string): Promise<string> {
+        const meta = await this.getFile(fileId, { fields: 'modifiedTime' });
+        return meta?.modifiedTime || '';
+    }
 }

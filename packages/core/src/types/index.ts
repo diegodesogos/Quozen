@@ -28,10 +28,8 @@ export interface User {
     picture?: string;
 }
 
-export interface MemberInput {
-    email?: string;
-    username?: string;
-}
+import { MemberInput } from "../domain/dtos";
+export type { MemberInput };
 
 export interface Expense {
     id: string;
@@ -77,24 +75,8 @@ export interface GroupData {
 
 // --- User Settings Types ---
 
-export interface CachedGroup {
-    id: string;
-    name: string;
-    role: "owner" | "member";
-    lastAccessed?: string;
-}
-
-export interface UserSettings {
-    version: number;
-    activeGroupId: string | null;
-    groupCache: CachedGroup[];
-    preferences: {
-        defaultCurrency: string;
-        theme?: "light" | "dark" | "system";
-        locale?: "en" | "es" | "system";
-    };
-    lastUpdated: string;
-}
+import { UserSettings, CachedGroup } from "../domain/models";
+export type { UserSettings, CachedGroup };
 
 export interface IStorageProvider {
     /**

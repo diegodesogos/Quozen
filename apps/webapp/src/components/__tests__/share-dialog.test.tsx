@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import ShareDialog from "../share-dialog";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { googleApi } from "@/lib/drive";
 import en from "@/locales/en/translation.json";
 
 // Mock hooks
@@ -94,7 +93,6 @@ describe("ShareDialog Component", () => {
         import("@/lib/drive").then(({ quozen }) => {
             (quozen.groups.setGroupPermissions as any).mockResolvedValue(undefined);
         });
-        (googleApi.setGroupPermissions as any).mockResolvedValue(undefined);
     });
 
     it("initializes switch state based on query data (public)", () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { distributeAmount } from "@/";
+import { distributeAmount } from "../src/finance";
 
 describe("distributeAmount", () => {
   it("distributes amounts equally when possible", () => {

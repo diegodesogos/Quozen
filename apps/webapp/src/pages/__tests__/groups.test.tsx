@@ -127,10 +127,11 @@ describe("Groups Page", () => {
     (useMutation as unknown as ReturnType<typeof vi.fn>).mockImplementation((options) => ({
       mutate: async (data: any) => {
         try {
-          if (options?.mutationFn) await options.mutationFn(data);
-          if (options?.onSuccess) options.onSuccess(data);
+          let res;
+          if (options?.mutationFn) res = await options.mutationFn(data);
+          if (options?.onSuccess) options.onSuccess(res, data);
         } catch (e: any) {
-          if (options?.onError) options.onError(e);
+          if (options?.onError) options.onError(e, data);
         }
       },
       isPending: false,
@@ -174,6 +175,8 @@ describe("Groups Page", () => {
     });
 
     render(<Groups />);
+
+    (quozen.groups.updateGroup as any).mockRejectedValueOnce(new Error("Cannot remove Bob because they have expenses"));
 
     const group1Card = screen.getByText("Trip to Paris").closest('[data-testid="group-card"]');
     const meatball = within(group1Card as HTMLElement).getByTestId("group-menu-trigger");

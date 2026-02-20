@@ -105,33 +105,34 @@ export default function EditExpense() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction onClick={handleBack}>{t("expenseForm.goBack")}</AlertDialogAction>
-            if (!ledger || !expense) return null;
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     );
   }
 
-  if (!groupData || !expense) return null;
+  if (!ledger || !expense) return null;
 
   return (
     <>
       <Drawer open={true} onOpenChange={(open) => !open && handleBack()}>
         <DrawerContent className="max-h-[85vh]">
-          users={ledger.members}
           <DrawerHeader>
             <DrawerTitle>{t("expenseForm.editTitle")}</DrawerTitle>
           </DrawerHeader>
-          <ExpenseForm
-            initialData={expense}
-            users={groupData.members}
-            currentUserId={currentUserId}
-            isPending={editMutation.isPending}
-            onSubmit={(data) => editMutation.mutate(data)}
-            onCancel={handleBack}
-          />
-        </div>
-      </DrawerContent>
-    </Drawer >
+          <div className="flex-1 overflow-y-auto px-4 pb-0">
+            <ExpenseForm
+              initialData={expense}
+              users={ledger.members}
+              currentUserId={currentUserId}
+              isPending={editMutation.isPending}
+              onSubmit={(data) => editMutation.mutate(data)}
+              onCancel={handleBack}
+              isDrawer
+            />
+          </div>
+        </DrawerContent>
+      </Drawer >
 
       <AlertDialog open={!!conflictError}>
         <AlertDialogContent>

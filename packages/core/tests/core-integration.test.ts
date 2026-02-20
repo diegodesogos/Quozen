@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { StorageService, InMemoryAdapter, calculateBalances, Member, Expense } from '../src';
+import { InMemoryAdapter, Member, Expense } from '../src';
+import { StorageService } from '../src/storage/storage-service';
+import { calculateBalances } from '../src/finance';
 
 describe('Core Integration Flow', () => {
     let storage: StorageService;

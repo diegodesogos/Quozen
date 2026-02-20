@@ -74,7 +74,7 @@ describe("Add Expense Page", () => {
       return {
         mutate: (data: any) => {
           mutateAddExpense(data);
-          if (options?.onSuccess) options.onSuccess();
+          if (options?.onSuccess) options.onSuccess(undefined, data);
         },
         isPending: false,
       };
