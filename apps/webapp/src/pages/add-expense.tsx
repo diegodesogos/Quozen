@@ -30,8 +30,8 @@ export default function AddExpense() {
         description: data.description,
         amount: data.amount,
         category: data.category,
-        date: new Date(data.date),
-        paidByUserId: data.paidBy,
+        date: data.date,
+        paidByUserId: data.paidByUserId,
         splits: data.splits
       });
     },

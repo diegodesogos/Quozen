@@ -69,7 +69,7 @@ describe("Dashboard Page", () => {
       id: "exp1",
       description: "Lunch",
       amount: 20.00,
-      paidBy: "user2",
+      paidByUserId: "user2",
       category: "Food",
       date: new Date().toISOString(),
       splits: [{ userId: "user1", amount: 10 }, { userId: "user2", amount: 10 }],

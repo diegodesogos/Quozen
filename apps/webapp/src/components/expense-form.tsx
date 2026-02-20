@@ -50,7 +50,7 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
 
   const [description, setDescription] = useState(initialData?.description || "");
   const [amount, setAmount] = useState(initialData?.amount?.toString() || "");
-  const [paidBy, setPaidBy] = useState(initialData?.paidBy || currentUserId);
+  const [paidBy, setPaidBy] = useState(initialData?.paidByUserId || (initialData as any)?.paidBy || currentUserId);
   const [category, setCategory] = useState(initialData?.category || "");
   const [date, setDate] = useState(initialData?.date ? new Date(initialData.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
   const [splits, setSplits] = useState<ExpenseSplit[]>([]);
@@ -163,9 +163,9 @@ export default function ExpenseForm({ initialData, users, currentUserId, onSubmi
     onSubmit({
       description,
       amount: expenseAmount,
-      paidBy,
+      paidByUserId: paidBy,
       category,
-      date: new Date(date).toISOString(),
+      date: new Date(date),
       splits: finalSplits,
     });
   };

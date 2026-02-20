@@ -306,7 +306,7 @@ export default function Dashboard() {
                       }
 
                       const e = item as Expense;
-                      const paidByUser = getUserById(e.paidBy);
+                      const paidByUser = getUserById(e.paidByUserId);
                       const Icon = getExpenseIcon(e.category);
                       const status = ledger?.getExpenseStatus(e.id, currentUserId) || { status: 'none' };
 

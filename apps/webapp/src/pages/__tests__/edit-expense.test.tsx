@@ -5,7 +5,6 @@ import EditExpense from "../edit-expense";
 import { useAppContext } from "@/context/app-context";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { ConflictError } from "@quozen/core";
-import { googleApi } from "@/lib/drive";
 import en from "@/locales/en/translation.json";
 
 // Mocks
@@ -66,7 +65,7 @@ describe("Edit Expense Page", () => {
     id: "exp1",
     description: "Lunch",
     amount: 20,
-    paidBy: "user1",
+    paidByUserId: "user1",
     category: "Food",
     date: new Date().toISOString(),
     splits: [{ userId: "user1", amount: 20 }], // Valid split

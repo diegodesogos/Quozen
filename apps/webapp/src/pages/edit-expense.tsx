@@ -45,8 +45,8 @@ export default function EditExpense() {
           description: updatedData.description,
           amount: updatedData.amount,
           category: updatedData.category,
-          date: new Date(updatedData.date),
-          paidByUserId: updatedData.paidBy,
+          date: updatedData.date,
+          paidByUserId: updatedData.paidByUserId,
           splits: updatedData.splits
         },
         expense.updatedAt ? new Date(expense.updatedAt) : undefined

@@ -47,7 +47,7 @@ export class SheetDataMapper {
     static mapFromExpense(expense: Expense): any[] {
         return [
             expense.id,
-            expense.date.toISOString(),
+            expense.date instanceof Date ? expense.date.toISOString() : new Date(expense.date).toISOString(),
             expense.description,
             expense.amount,
             expense.paidByUserId,
@@ -85,7 +85,7 @@ export class SheetDataMapper {
     static mapFromSettlement(settlement: Settlement): any[] {
         return [
             settlement.id,
-            settlement.date.toISOString(),
+            settlement.date instanceof Date ? settlement.date.toISOString() : new Date(settlement.date).toISOString(),
             settlement.fromUserId,
             settlement.toUserId,
             settlement.amount,

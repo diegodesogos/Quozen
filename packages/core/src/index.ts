@@ -3,7 +3,7 @@ export { QuozenClient, QuozenConfig } from "./QuozenClient";
 
 // 2. Domain Models & DTOs
 export * from "./domain";
-export { GroupLedger as Ledger } from "./finance/group-ledger";
+export { Ledger } from "./domain/Ledger";
 
 // 3. Configuration & Adapters (Required to instantiate QuozenClient)
 export { IStorageLayer } from "./infrastructure/IStorageLayer";

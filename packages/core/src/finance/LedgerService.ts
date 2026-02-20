@@ -21,7 +21,7 @@ export class LedgerService {
             description: payload.description,
             amount: payload.amount,
             category: payload.category,
-            date: payload.date,
+            date: new Date(payload.date),
             paidByUserId: payload.paidByUserId,
             splits: payload.splits,
             createdAt: new Date(),
@@ -45,7 +45,7 @@ export class LedgerService {
             description: payload.description ?? current.description,
             amount: payload.amount ?? current.amount,
             category: payload.category ?? current.category,
-            date: payload.date ?? current.date,
+            date: payload.date ? new Date(payload.date) : current.date,
             paidByUserId: payload.paidByUserId ?? current.paidByUserId,
             splits: payload.splits ?? current.splits,
             updatedAt: new Date()

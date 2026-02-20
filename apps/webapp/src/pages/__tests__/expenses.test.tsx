@@ -65,8 +65,8 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
 
 describe("Expenses Page", () => {
   const mockUsers = [
-    { userId: "user1", name: "Alice", email: "alice@example.com", role: "member", joinedAt: new Date().toISOString() },
-    { userId: "user2", name: "Bob", email: "bob@example.com", role: "member", joinedAt: new Date().toISOString() },
+    { userId: "user1", name: "Alice", email: "alice@example.com", role: "member" as const, joinedAt: new Date() },
+    { userId: "user2", name: "Bob", email: "bob@example.com", role: "member" as const, joinedAt: new Date() },
   ];
 
   const mockExpenses = [
@@ -74,23 +74,23 @@ describe("Expenses Page", () => {
       id: "exp1",
       description: "Grocery Run",
       amount: 50.00,
-      paidBy: "user1",
       paidByUserId: "user1",
       category: "Food",
-      date: new Date().toISOString(),
+      date: new Date(),
       splits: [{ userId: "user1", amount: 25 }, { userId: "user2", amount: 25 }],
-      meta: { createdAt: new Date().toISOString() }
+      createdAt: new Date(),
+      updatedAt: new Date()
     },
     {
       id: "exp2",
       description: "Uber",
       amount: 15.00,
-      paidBy: "user2",
       paidByUserId: "user2",
       category: "Transportation",
-      date: new Date().toISOString(),
+      date: new Date(),
       splits: [{ userId: "user1", amount: 7.5 }, { userId: "user2", amount: 7.5 }],
-      meta: { createdAt: new Date().toISOString() }
+      createdAt: new Date(),
+      updatedAt: new Date()
     },
   ];
 

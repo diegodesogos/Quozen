@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import {
   Utensils, Car, Bed, ShoppingBag,
-  Gamepad2, MoreHorizontal, Trash2, Pencil, Receipt, Plus, MoreVertical, Edit
+  Gamepad2, MoreHorizontal, Trash2, Receipt, Plus, MoreVertical, Edit
 } from "lucide-react";
 import { quozen } from "@/lib/drive";
 import { useNavigate } from "react-router-dom";
@@ -117,7 +116,7 @@ export default function ExpensesList({ expenses = [], members = [], isLoading = 
     }
   };
 
-  const ledger = useMemo(() => new Ledger({ expenses, members, settlements: [] }), [expenses, members]);
+  const ledgerObj = useMemo(() => new Ledger({ expenses, members, settlements: [] }), [expenses, members]);
 
   if (isLoading) {
     return (
@@ -150,11 +149,9 @@ export default function ExpensesList({ expenses = [], members = [], isLoading = 
   return (
     <div className="px-4 pb-4 space-y-3">
       {expenses.map((expense) => {
-        const paidByUser = getUserById(expense.paidBy);
+        const paidByUser = getUserById(expense.paidByUserId);
         const Icon = getExpenseIcon(expense.category);
-
-        const status = ledger.getExpenseStatus(expense.id, currentUserId);
-
+        const status = ledgerObj.getExpenseStatus(expense.id, currentUserId);
 
         return (
           <Card key={expense.id} data-testid={`card-expense-${expense.id}`} className="hover:shadow-md transition-all">

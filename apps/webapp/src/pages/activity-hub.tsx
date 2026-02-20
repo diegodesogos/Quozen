@@ -69,7 +69,7 @@ export default function ActivityHub() {
         // Filter
         if (filterMyExpenses) {
             result = result.filter(e =>
-                e.paidBy === currentUserId ||
+                e.paidByUserId === currentUserId ||
                 e.splits?.some((s: any) => s.userId === currentUserId && s.amount > 0)
             );
         }
@@ -281,7 +281,7 @@ export default function ActivityHub() {
                                     return (
                                         <Card
                                             key={settlement.id}
-                                            className={cn("cursor-pointer transition-all hover:shadow-md border-l-4",
+                                            className={cn("cursor-pointer transition-all hover:shadow-md border-l-4 border-y-0 border-r-0",
                                                 isNeutral ? "opacity-80 bg-muted/10 border-l-muted" :
                                                     isMeSender ? "border-l-orange-500" : "border-l-green-500"
                                             )}
