@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/((?!assets/|favicon.*|logo.svg|manifest.json|.*\\.png|.*\\.ico).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
