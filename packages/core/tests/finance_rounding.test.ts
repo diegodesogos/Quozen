@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest"
-import { Member, Expense } from "../src/types";
+import { Member, Expense } from "../src/domain/models";
 import { calculateBalances, calculateTotalSpent, roundCurrency } from "../src/finance";
 
 describe("Finance Rounding Consistency", () => {
   const users: Member[] = [
-    { userId: "u1", name: "Alice", email: "", role: "member", joinedAt: "" },
-    { userId: "u2", name: "Bob", email: "", role: "member", joinedAt: "" },
-    { userId: "u3", name: "Charlie", email: "", role: "member", joinedAt: "" }
+    { userId: "u1", name: "Alice", email: "", role: "member" as const, joinedAt: new Date() },
+    { userId: "u2", name: "Bob", email: "", role: "member" as const, joinedAt: new Date() },
+    { userId: "u3", name: "Charlie", email: "", role: "member" as const, joinedAt: new Date() }
   ];
 
   // Helper to create an expense with specific float values that might cause drift
@@ -14,15 +14,16 @@ describe("Finance Rounding Consistency", () => {
     id: "e1",
     description: "Float Test",
     amount: amount,
-    paidBy: "u1",
+    paidByUserId: "u1",
     category: "Test",
-    date: new Date().toISOString(),
+    date: new Date(),
     splits: [
       { userId: "u1", amount: split1 },
       { userId: "u2", amount: split2 }
     ],
-    meta: { createdAt: "" }
-  } as Expense);
+    createdAt: new Date(),
+    updatedAt: new Date()
+  } as unknown as Expense);
 
   it("ensures balances sum to exactly zero (Fixing the 11.29 vs 11.30 issue)", () => {
     const amount = 100;
@@ -61,7 +62,7 @@ describe("Finance Rounding Consistency", () => {
       id: "e_repro",
       description: "Repro",
       amount: 22.59,
-      paidBy: "u1",
+      paidByUserId: "u1",
       splits: [
         { userId: "u1", amount: 11.30 }, // Payer consumes 11.30
         { userId: "u2", amount: 11.30 }  // Bob consumes 11.30

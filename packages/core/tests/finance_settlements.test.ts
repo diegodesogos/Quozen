@@ -1,33 +1,34 @@
 import { describe, it, expect } from "vitest";
-import { Member, Expense, Settlement } from "../src/types";
+import { Member, Expense, Settlement } from "../src/domain/models";
 import { calculateBalances } from "../src/finance";
 
 describe("Finance Settlements Logic", () => {
   const users: Member[] = [
-    { userId: "u1", name: "Alice", email: "", role: "member", joinedAt: "" },
-    { userId: "u2", name: "Bob", email: "", role: "member", joinedAt: "" },
-    { userId: "u3", name: "Charlie", email: "", role: "member", joinedAt: "" }
+    { userId: "u1", name: "Alice", email: "", role: "member" as const, joinedAt: new Date() },
+    { userId: "u2", name: "Bob", email: "", role: "member" as const, joinedAt: new Date() },
+    { userId: "u3", name: "Charlie", email: "", role: "member" as const, joinedAt: new Date() }
   ];
 
   const createExpense = (id: string, amount: number, paidBy: string, splits: { userId: string, amount: number }[]) => ({
     id,
     description: "test",
     amount,
-    paidBy,
+    paidByUserId: paidBy,
     category: "test",
-    date: new Date().toISOString(),
+    date: new Date(),
     splits,
-    meta: { createdAt: "" }
-  } as Expense);
+    createdAt: new Date(),
+    updatedAt: new Date()
+  } as unknown as Expense);
 
   const createSettlement = (from: string, to: string, amount: number) => ({
     id: Math.random().toString(36),
-    date: "",
+    date: new Date(),
     fromUserId: from,
     toUserId: to,
     amount,
     method: "cash"
-  } as Settlement);
+  } as unknown as Settlement);
 
   it("handles complex settlement chain (Circular Debt Relief)", () => {
     // 1. A pays 30 for B and C (10 each) -> A:+20, B:-10, C:-10

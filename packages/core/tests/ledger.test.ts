@@ -1,16 +1,16 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { GroupLedger } from '../src/finance/group-ledger';
-import { GroupData, Expense, Member, Settlement } from '../src/types';
+import { Ledger, LedgerData } from '../src/domain/Ledger';
+import { Expense, Member, Settlement } from '../src/domain/models';
 
-describe('GroupLedger', () => {
-    let mockData: GroupData;
-    let ledger: GroupLedger;
+describe('Ledger (Domain)', () => {
+    let mockData: LedgerData;
+    let ledger: Ledger;
 
     beforeEach(() => {
         const members: Member[] = [
-            { userId: 'u1', name: 'Alice', email: 'alice@example.com', role: 'owner', joinedAt: '' },
-            { userId: 'u2', name: 'Bob', email: 'bob@example.com', role: 'member', joinedAt: '' },
-            { userId: 'u3', name: 'Charlie', email: 'charlie@example.com', role: 'member', joinedAt: '' }
+            { userId: 'u1', name: 'Alice', email: 'alice@example.com', role: 'owner', joinedAt: new Date() },
+            { userId: 'u2', name: 'Bob', email: 'bob@example.com', role: 'member', joinedAt: new Date() },
+            { userId: 'u3', name: 'Charlie', email: 'charlie@example.com', role: 'member', joinedAt: new Date() }
         ];
 
         const expenses: Expense[] = [
@@ -18,15 +18,16 @@ describe('GroupLedger', () => {
                 id: 'e1',
                 description: 'Lunch',
                 amount: 30,
-                paidBy: 'u1',
-                date: '2023-01-01',
+                paidByUserId: 'u1',
+                date: new Date('2023-01-01'),
                 category: 'Food',
                 splits: [
                     { userId: 'u1', amount: 10 },
                     { userId: 'u2', amount: 10 },
                     { userId: 'u3', amount: 10 }
                 ],
-                meta: { createdAt: '' }
+                createdAt: new Date(),
+                updatedAt: new Date()
             }
         ];
 
@@ -36,13 +37,13 @@ describe('GroupLedger', () => {
                 fromUserId: 'u2',
                 toUserId: 'u1',
                 amount: 5,
-                date: '2023-01-02',
+                date: new Date('2023-01-02'),
                 method: 'Cash'
             }
         ];
 
         mockData = { members, expenses, settlements };
-        ledger = new GroupLedger(mockData);
+        ledger = new Ledger(mockData);
     });
 
     it('should calculate balances correctly', () => {

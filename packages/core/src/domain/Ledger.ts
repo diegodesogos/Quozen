@@ -18,9 +18,7 @@ export class Ledger {
 
     getBalances(): Record<string, number> {
         if (!this._balances) {
-            const mappedExpenses = this.data.expenses.map(e => ({ ...e, paidBy: e.paidByUserId }));
-            // @ts-ignore: Intentionally passing mapped domain models to math functions expecting legacy types
-            this._balances = calculateBalances(this.data.members, mappedExpenses, this.data.settlements);
+            this._balances = calculateBalances(this.data.members, this.data.expenses, this.data.settlements);
         }
         return this._balances;
     }
@@ -30,21 +28,16 @@ export class Ledger {
     }
 
     getTotalSpent(userId: string): number {
-        const mappedExpenses = this.data.expenses.map(e => ({ ...e, paidBy: e.paidByUserId }));
-        // @ts-ignore
-        return calculateTotalSpent(userId, mappedExpenses);
+        return calculateTotalSpent(userId, this.data.expenses);
     }
 
     getExpenseStatus(expenseId: string, userId: string): ExpenseUserStatus {
         const expense = this.data.expenses.find(e => e.id === expenseId);
         if (!expense) return { status: "none" };
-        const mappedExpense = { ...expense, paidBy: expense.paidByUserId };
-        // @ts-ignore
-        return getExpenseUserStatus(mappedExpense, userId);
+        return getExpenseUserStatus(expense, userId);
     }
 
     getSettleUpSuggestion(userId: string) {
-        // @ts-ignore
         return suggestSettlementStrategy(userId, this.getBalances(), this.data.members);
     }
 

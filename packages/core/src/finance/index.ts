@@ -1,4 +1,4 @@
-import { Expense, Settlement, Member } from "../types";
+import { Expense, Settlement, Member } from "../domain/models";
 export * from "./group-ledger";
 
 
@@ -27,7 +27,7 @@ export function calculateBalances(
         // expense.amount matches sum(expense.splits).
         // The splits are the source of truth for debt.
 
-        const payerId = expense.paidBy;
+        const payerId = expense.paidByUserId;
 
         if (expense.splits) {
             expense.splits.forEach((split: any) => {
@@ -97,7 +97,7 @@ export function getExpenseUserStatus(expense: Expense, userId: string): ExpenseU
 
     // Refactor logic to match calculateBalances (Consolidated view)
 
-    if (expense.paidBy === userId) {
+    if (expense.paidByUserId === userId) {
         // I paid.
         // My "Lent Amount" is effectively the sum of everyone else's splits.
         // Or simpler: Total Amount - My Split.

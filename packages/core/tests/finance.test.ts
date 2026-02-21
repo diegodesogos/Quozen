@@ -11,30 +11,31 @@ import {
 describe("Finance Utilities", () => {
   // --- Mock Data Helpers ---
   const users: Member[] = [
-    { userId: "u1", name: "Alice", email: "", role: "member", joinedAt: "" },
-    { userId: "u2", name: "Bob", email: "", role: "member", joinedAt: "" },
-    { userId: "u3", name: "Charlie", email: "", role: "member", joinedAt: "" }
+    { userId: "u1", name: "Alice", email: "", role: "member" as const, joinedAt: new Date() },
+    { userId: "u2", name: "Bob", email: "", role: "member" as const, joinedAt: new Date() },
+    { userId: "u3", name: "Charlie", email: "", role: "member" as const, joinedAt: new Date() }
   ];
 
   const createExpense = (id: string, amount: number, paidBy: string, splits: { userId: string, amount: number }[]) => ({
     id,
     description: "test",
     amount,
-    paidBy,
+    paidByUserId: paidBy,
     category: "test",
-    date: new Date().toISOString(),
+    date: new Date(),
     splits,
-    meta: { createdAt: "" }
-  } as Expense);
+    createdAt: new Date(),
+    updatedAt: new Date()
+  } as unknown as Expense);
 
   const createSettlement = (from: string, to: string, amount: number) => ({
     id: "s1",
-    date: "",
+    date: new Date(),
     fromUserId: from,
     toUserId: to,
     amount,
     method: "cash"
-  } as Settlement);
+  } as unknown as Settlement);
 
   // --- calculateBalances ---
   describe("calculateBalances", () => {
@@ -114,8 +115,8 @@ describe("Finance Utilities", () => {
 
     it("BUG REPRO: returns 0 balance if expense ID does not match Member ID (Mismatch case)", () => {
       const members = [
-        { userId: "u1", name: "Alice", role: "member", email: "", joinedAt: "" },
-        { userId: "u2", name: "Bob", role: "member", email: "", joinedAt: "" }
+        { userId: "u1", name: "Alice", role: "member" as const, email: "", joinedAt: new Date() },
+        { userId: "u2", name: "Bob", role: "member" as const, email: "", joinedAt: new Date() }
       ];
 
       // Expense uses OLD ID (simulated mismatch)
