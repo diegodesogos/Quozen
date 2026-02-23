@@ -133,9 +133,9 @@ To ensure the API is reliable and deployable, we will implement a fast, isolated
 * **Description:** Configure `@hono/zod-openapi` on the Hono app instance. Expose the raw JSON spec at `/api/openapi.json` and a Swagger UI explorer at `/api/docs`.  
 * **Technical Definition of Done:** Visiting `/api/docs` locally renders the Swagger UI.
 
-### **Phase 2: Authentication & Core Injection**
+### **Phase 2: Authentication & Core Injection** [DONE]
 
-**Task \[API-03\]: Implement Google Auth Middleware**
+**Task \[API-03\]: Implement Google Auth Middleware** [DONE]
 
 * **Description:** Create a Hono middleware (`src/middleware/auth.ts`).  
   * Extract Bearer token from `Authorization` header.  
