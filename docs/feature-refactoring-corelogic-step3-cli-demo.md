@@ -1,4 +1,4 @@
-# **Quozen SDK \- Demo CLI app** 
+# **Quozen SDK \- Demo CLI app**  [DONE]
 
 # **HIGH-LEVEL ARCHITECTURE**
 
@@ -102,7 +102,7 @@ These tasks cover the creation of the demo CLI package, ensuring it links to `@q
 
 ### **Phase 1: Infrastructure & Auth (Backend/CLI)**
 
-* **Task \[CLI-01\]: Initialize CLI Workspace**  
+* **Task \[CLI-01\]: Initialize CLI Workspace**  [DONE]
   * **Description:** Create a new workspace package `apps/cli`. Set up `package.json`, `tsconfig.json`, and link `@quozen/core` as a dependency. Install CLI utility dependencies: `commander`, `prompts` (or `inquirer`), `chalk`, and `open`.  
   * **Technical Definition of Done:** CLI runs a basic "Hello World" command via `npm run dev` from the `apps/cli` folder.  
 * **Task \[CLI-02\]: Implement Local OAuth2 Flow**  
@@ -112,19 +112,19 @@ These tasks cover the creation of the demo CLI package, ensuring it links to `@q
     3. Use `open` to launch the browser to Google's Auth page.  
     4. Capture the `code` in the local server, close the server, and exchange it for `access_token` and `refresh_token`.  
   * **Technical Definition of Done:** User can run `npm run cli -- login`, browser opens, authorizes, and tokens are securely saved to `~/.quozen/credentials.json` with `600` permissions.  
-* **Task \[CLI-03\]: Core SDK Injector & Token Manager**  
+* **Task \[CLI-03\]: Core SDK Injector & Token Manager**  [DONE]
   * **Description:** Create a utility that reads the local credentials, automatically refreshes the token if expired via Google's token endpoint, and instantiates the `QuozenClient` with the `GoogleDriveStorageLayer`.  
   * **Technical Definition of Done:** A singleton or factory method `getQuozenCliClient()` successfully returns an authenticated `QuozenClient` instance ready for use.
 
 ### **Phase 2: Interactive Features (Frontend/CLI UX)**
 
-* **Task \[CLI-04\]: Interactive Main Menu & Group Switcher**  
+* **Task \[CLI-04\]: Interactive Main Menu & Group Switcher**  [DONE]
   * **Description:** Implement the main interactive loop using `prompts`. Use `quozen.groups.getSettings()` to retrieve the user's groups. Allow the user to select the active group from a list.  
   * **Technical Definition of Done:** User can select a group and the selection persists in `quozen-settings.json` (SDK handles this internally).  
-* **Task \[CLI-05\]: Ledger Dashboard & Console Tables**  
+* **Task \[CLI-05\]: Ledger Dashboard & Console Tables**  [DONE]
   * **Description:** Fetch data using `quozen.ledger(groupId).getLedger()`. Format the `ledger.getBalances()`, `ledger.getSummary()`, and `ledger.getSettleUpSuggestion()` using `console.table` and `chalk` for color-coding (Green for owed, Red for owing).  
   * **Technical Definition of Done:** Command outputs a clean, readable financial summary of the active group.  
-* **Task \[CLI-06\]: Add Expense & Settlement Wizards**  
+* **Task \[CLI-06\]: Add Expense & Settlement Wizards**  [DONE]
   * **Description:** Create step-by-step prompts to add an expense:  
     1. Ask for Description (Text).  
     2. Ask for Amount (Number).  
@@ -134,6 +134,6 @@ These tasks cover the creation of the demo CLI package, ensuring it links to `@q
     6. Submit via `quozen.ledger(id).addExpense(...)`.  
   * **Technical Definition of Done:** User can successfully add an expense and a settlement entirely through the terminal, and the results immediately sync to the Google Sheet (verifiable via the webapp).
 
-* **Task \[CLI-07\]: Update documentation**  
+* **Task \[CLI-07\]: Update documentation**  [DONE] 
   * **Description:** Update the main README.md documentation to include the CLI usage instructions.  As well any architecture section and explanation fo the package QuozenClient and how it can be used. Make sure all documents are up-to-date with latest changes
   * **Technical Definition of Done:** Documentation is updated with the QUozenClient new package and CLI usage instructions.

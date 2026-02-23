@@ -1,5 +1,4 @@
 import { Expense, Settlement, Member } from "../domain/models";
-export * from "./group-ledger";
 
 
 /**

@@ -66,6 +66,11 @@ Quozen is built as a **monorepo**, decoupling core business logic from the UI la
 * **Authentication & Data**: Google Identity Services, Google Drive API v3, Google Sheets API v4
 * **i18n**: react-i18next
 
+
+### Architecture
+The `@quozen/core` package provides a robust SDK `QuozenClient` that abstracts Google Drive IO, optimistic concurrency, and complex math.
+You can use `QuozenClient` in the browser, edge functions, or Node.js.
+   
 ## 🏃‍♂️ Getting Started
 
 ### Prerequisites
@@ -122,3 +127,40 @@ Quozen maintains high confidence through a multi-layered testing strategy:
   ```bash
   npm run test:e2e
   ```
+
+## 💻 Command Line Interface (CLI)
+
+Quozen comes with a demo terminal application to manage expenses without a graphical interface. This showcase the usage of the `@quozen/core` package in a Node.js environment.
+
+### Setup
+The CLI connects directly to your Google Drive via a local OAuth loopback server. This requires a **Desktop** OAuth client, which is different from the Web client used for the browser frontend.
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/).
+2. Navigate to **APIs & Services > Credentials**.
+3. Click **Create Credentials > OAuth client ID**.
+4. Select **Desktop app** as the Application type.
+5. Copy the generated **Client ID** and **Client Secret**.
+
+### Usage
+
+1. **Authentication**:
+   Since the CLI connects directly to your Google Drive, you'll need an OAuth Desktop Client ID and Secret.
+   
+   * Mac/Linux: *
+   ```bash
+   export GOOGLE_CLIENT_ID="your-client-id"
+   export GOOGLE_CLIENT_SECRET="your-client-secret"
+   npm run cli -- login
+   ```
+
+   * Windows (PowerShell): *
+   ```powershell
+   $env:GOOGLE_CLIENT_ID="your-desktop-client-id"
+   $env:GOOGLE_CLIENT_SECRET="your-desktop-client-secret"
+   npm run cli -- login
+
+2. **Interactive Dashboard**:
+   Launch the main menu to view balances, add expenses, and settle up.
+   ```bash
+   npm run cli
+   ```
