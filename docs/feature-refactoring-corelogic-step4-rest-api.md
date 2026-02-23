@@ -147,12 +147,12 @@ To ensure the API is reliable and deployable, we will implement a fast, isolated
 
 ### **Phase 3: Zod Schemas & Group Endpoints**
 
-**Task \[API-04\]: Define Zod DTO Schemas**
+**Task \[API-04\]: Define Zod DTO Schemas** [DONE]
 
 * **Description:** Translate all `@quozen/core` types (`Group`, `Expense`, `Settlement`, `CreateExpenseDTO`, etc.) into Zod schemas in `src/schemas/`.  
 * **Technical Definition of Done:** Schemas are rigorously typed and annotated with `.openapi()` descriptions and examples.
 
-**Task \[API-05\]: Implement Groups Router (`/api/v1/groups`)**
+**Task \[API-05\]: Implement Groups Router (`/api/v1/groups`)** [DONE]
 
 * **Description:** Create OpenAPI routes using `app.openapi(...)` for listing, creating, joining, and deleting groups.  
   * *Implementation note:* Use `const quozen = c.get('quozen')` inside handlers.  
@@ -160,12 +160,12 @@ To ensure the API is reliable and deployable, we will implement a fast, isolated
 
 ### **Phase 4: Ledger, Expenses & Settlements Endpoints**
 
-**Task \[API-06\]: Implement Ledger & Analytics Routes**
+**Task \[API-06\]: Implement Ledger & Analytics Routes** [DONE]
 
 * **Description:** Implement `GET /groups/:groupId/ledger`. This should call `quozen.ledger(groupId).getLedger()` and return the `getSummary()` and `getBalances()` results.  
 * **Technical Definition of Done:** Endpoint returns accurate analytical data matching the Core's math engine.
 
-**Task \[API-07\]: Implement Expenses & Settlements CRUD**
+**Task \[API-07\]: Implement Expenses & Settlements CRUD** [DONE]
 
 * **Description:** Create routers for `/api/v1/groups/:groupId/expenses` and `/api/v1/groups/:groupId/settlements`. Ensure `PATCH` routes catch the `ConflictError` from core and return a `409 Conflict` HTTP status code.  
 * **Technical Definition of Done:** Full CRUD capability accessible via Postman/Swagger using an active OAuth token.

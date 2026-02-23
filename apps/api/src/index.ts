@@ -1,5 +1,6 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { swaggerUI } from '@hono/swagger-ui';
+import { groupsRouter } from './routes/groups.js';
 
 export const app = new OpenAPIHono();
 
@@ -15,5 +16,8 @@ app.doc('/api/openapi.json', {
 
 // Swagger UI endpoint
 app.get('/api/docs', swaggerUI({ url: '/api/openapi.json' }));
+
+// Mount routers
+app.route('/api/v1/groups', groupsRouter);
 
 export default app;
