@@ -119,16 +119,16 @@ To ensure the API is reliable and deployable, we will implement a fast, isolated
 
 ## **4\. ENGINEER TASK BREAKDOWN**
 
-### **Phase 1: Project Setup & Hono Infrastructure**
+### **Phase 1: Project Setup & Hono Infrastructure** [DONE]
 
-**Task \[API-01\]: Initialize Edge API Workspace**
+**Task \[API-01\]: Initialize Edge API Workspace**  [DONE]
 
 * **Description:** Create a new workspace package `apps/api`. Set up a Hono project targeting both Cloudflare Workers and Vercel Edge.  
 * **Technical Definition of Done:** \* `package.json` created in `apps/api` depending on `hono`, `@hono/zod-openapi`, `@swagger-api/apidom`, and `@quozen/core`.  
   * Basic Hono app runs locally via `npm run dev` (using Wrangler for local edge simulation or Vite).  
 * **Dependencies:** None.
 
-**Task \[API-02\]: Set up OpenAPI Generation & Swagger UI**
+**Task \[API-02\]: Set up OpenAPI Generation & Swagger UI** [DONE]
 
 * **Description:** Configure `@hono/zod-openapi` on the Hono app instance. Expose the raw JSON spec at `/api/openapi.json` and a Swagger UI explorer at `/api/docs`.  
 * **Technical Definition of Done:** Visiting `/api/docs` locally renders the Swagger UI.
