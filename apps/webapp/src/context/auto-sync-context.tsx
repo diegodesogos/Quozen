@@ -1,7 +1,7 @@
 import React, { createContext, useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { quozen } from "@/lib/drive";
+import { quozen } from "@/lib/storage";
 import { useAppContext } from "./app-context";
 
 interface AutoSyncContextType {

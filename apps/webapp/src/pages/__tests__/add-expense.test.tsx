@@ -37,7 +37,7 @@ vi.mock("@/hooks/use-toast", () => ({
   }),
 }));
 
-vi.mock("@/lib/drive", () => ({
+vi.mock("@/lib/storage", () => ({
   quozen: {
     ledger: vi.fn(() => ({
       getLedger: vi.fn(),

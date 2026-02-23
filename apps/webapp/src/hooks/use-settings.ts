@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { quozen } from "@/lib/drive";
+import { quozen } from "@/lib/storage";
 import { UserSettings } from "@quozen/core";
 import { useAuth } from "@/context/auth-provider";
 import { useEffect } from "react";

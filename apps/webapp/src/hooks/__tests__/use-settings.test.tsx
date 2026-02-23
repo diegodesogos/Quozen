@@ -2,11 +2,11 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { useSettings } from "../use-settings";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { quozen } from "@/lib/drive";
+import { quozen } from "@/lib/storage";
 import { useAuth } from "@/context/auth-provider";
 
 // Mocks
-vi.mock("@/lib/drive", () => ({
+vi.mock("@/lib/storage", () => ({
   quozen: {
     groups: {
       getSettings: vi.fn(),

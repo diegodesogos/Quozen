@@ -5,6 +5,7 @@ import EditExpense from "../edit-expense";
 import { useAppContext } from "@/context/app-context";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { ConflictError } from "@quozen/core";
+import { quozen } from "@/lib/storage";
 import en from "@/locales/en/translation.json";
 
 // Mocks
@@ -33,7 +34,7 @@ vi.mock("@tanstack/react-query", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/drive", () => ({
+vi.mock("@/lib/storage", () => ({
   quozen: {
     ledger: vi.fn(() => ({
       getLedger: vi.fn(),
@@ -150,8 +151,7 @@ describe("Edit Expense Page", () => {
   it("shows Conflict dialog on ConflictError during save", async () => {
     const conflictError = new ConflictError("Modified by someone else");
 
-    const { quozen } = await import("@/lib/drive");
-    (quozen.ledger as any).mockReturnValue({
+        (quozen.ledger as any).mockReturnValue({
       getLedger: vi.fn().mockResolvedValue(mockGroupData),
       updateExpense: vi.fn().mockRejectedValue(conflictError)
     });

@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import ShareDialog from "../share-dialog";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import en from "@/locales/en/translation.json";
+import { quozen } from "@/lib/storage";
 
 // Mock hooks
 const mockToast = vi.fn();
@@ -43,7 +44,7 @@ vi.mock("@/components/ui/switch", () => ({
 }));
 
 // Mock API
-vi.mock("@/lib/drive", () => ({
+vi.mock("@/lib/storage", () => ({
     quozen: {
         groups: {
             setGroupPermissions: vi.fn(),
@@ -90,9 +91,7 @@ describe("ShareDialog Component", () => {
             },
             isPending: false,
         }));
-        import("@/lib/drive").then(({ quozen }) => {
-            (quozen.groups.setGroupPermissions as any).mockResolvedValue(undefined);
-        });
+        (quozen.groups.setGroupPermissions as any).mockResolvedValue(undefined);
     });
 
     it("initializes switch state based on query data (public)", () => {

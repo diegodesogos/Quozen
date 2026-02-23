@@ -4,7 +4,7 @@ import Groups from "../groups";
 import { useAppContext } from "@/context/app-context";
 import { useAuth } from "@/context/auth-provider";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { googleApi } from "@/lib/drive";
+import { quozen } from "@/lib/storage";
 import { useSettings } from "@/hooks/use-settings";
 import { useGroups } from "@/hooks/use-groups";
 import en from "@/locales/en/translation.json";
@@ -51,7 +51,7 @@ vi.mock("@/hooks/use-toast", () => ({
   }),
 }));
 
-vi.mock("@/lib/drive", () => ({
+vi.mock("@/lib/storage", () => ({
   quozen: {
     groups: {
       importGroup: vi.fn(),
@@ -169,8 +169,7 @@ describe("Groups Page", () => {
   });
 
   it("prevents removing a member with existing expenses during edit", async () => {
-    const { quozen } = await import("@/lib/drive");
-    (quozen.ledger as any).mockReturnValue({
+        (quozen.ledger as any).mockReturnValue({
       getMembers: vi.fn().mockResolvedValue(mockGroup1Data.members)
     });
 
@@ -206,8 +205,7 @@ describe("Groups Page", () => {
   });
 
   it("opens delete confirmation and triggers mutation", async () => {
-    const { quozen } = await import("@/lib/drive");
-    render(<Groups />);
+        render(<Groups />);
     const group1Card = screen.getByText("Trip to Paris").closest('[data-testid="group-card"]');
     const meatball = within(group1Card as HTMLElement).getByTestId("group-menu-trigger");
     fireEvent.click(meatball);

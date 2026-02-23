@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
 import { useToast } from "@/hooks/use-toast";
-import { quozen } from "@/lib/drive";
+import { quozen } from "@/lib/storage";
 import { UserSettings } from "@quozen/core";
 import { useNavigate } from "react-router-dom";
 import ExpenseForm from "@/components/expense-form";

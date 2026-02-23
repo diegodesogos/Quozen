@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { quozen } from "@/lib/drive";
+import { quozen } from "@/lib/storage";
 import { UserSettings } from "@quozen/core";
 import { useAuth } from "@/context/auth-provider";
 import { useToast } from "@/hooks/use-toast";

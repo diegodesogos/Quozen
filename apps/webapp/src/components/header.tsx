@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Bell, ChevronDown, Users, RefreshCw, ChevronLeft } from "lucide-react";
 import GroupSwitcherModal from "./group-switcher-modal";
 import { useState } from "react";
-import { quozen } from "@/lib/drive";
+import { quozen } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useGroups } from "@/hooks/use-groups";

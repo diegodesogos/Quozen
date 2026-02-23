@@ -4,7 +4,7 @@ import { AutoSyncProvider } from "@/context/auto-sync-context";
 import { useAutoSync } from "@/hooks/use-auto-sync";
 import { useAppContext } from "@/context/app-context";
 import { useQueryClient } from "@tanstack/react-query";
-import { quozen } from "@/lib/drive";
+import { quozen } from "@/lib/storage";
 import { MemoryRouter, useLocation } from "react-router-dom";
 
 // Mock dependencies using aliases
@@ -16,7 +16,7 @@ vi.mock("@tanstack/react-query", () => ({
     useQueryClient: vi.fn(),
 }));
 
-vi.mock("@/lib/drive", () => ({
+vi.mock("@/lib/storage", () => ({
     quozen: {
         getLastModified: vi.fn(),
     },

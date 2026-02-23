@@ -9,7 +9,7 @@ import {
   Utensils, Car, Bed, ShoppingBag,
   Gamepad2, MoreHorizontal, Trash2, Receipt, Plus, MoreVertical, Edit
 } from "lucide-react";
-import { quozen } from "@/lib/drive";
+import { quozen } from "@/lib/storage";
 import { useNavigate } from "react-router-dom";
 import {
   AlertDialog,

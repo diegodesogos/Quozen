@@ -45,7 +45,7 @@ vi.mock("@tanstack/react-query", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/drive", () => ({
+vi.mock("@/lib/storage", () => ({
   quozen: {
     ledger: vi.fn(() => ({
       getLedger: vi.fn()

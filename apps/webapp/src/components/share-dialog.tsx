@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { quozen } from "@/lib/drive";
+import { quozen } from "@/lib/storage";
 import { Copy, Check, Globe, Lock } from "lucide-react";
 import { useAuth } from "@/context/auth-provider";
 import { useTranslation } from "react-i18next";

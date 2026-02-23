@@ -7,7 +7,7 @@ import {
   Utensils, Car, Bed, ShoppingBag, Gamepad2, MoreHorizontal,
   Wallet, Handshake, ChevronDown, ChevronRight, ArrowRight, Banknote
 } from "lucide-react";
-import { quozen } from "@/lib/drive";
+import { quozen } from "@/lib/storage";
 import { useNavigate } from "react-router-dom";
 import {
   Expense,

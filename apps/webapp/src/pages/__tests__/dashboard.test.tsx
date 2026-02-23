@@ -50,7 +50,7 @@ vi.mock("@/components/settlement-modal", () => ({
   },
 }));
 
-vi.mock("@/lib/drive", () => ({
+vi.mock("@/lib/storage", () => ({
   quozen: {
     ledger: vi.fn(() => ({
       getLedger: vi.fn(),

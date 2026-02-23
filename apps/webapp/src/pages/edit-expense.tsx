@@ -1,14 +1,14 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
-import { quozen } from "@/lib/drive";
+import { quozen } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import ExpenseForm from "@/components/expense-form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useState, useEffect } from "react";
 import { ConflictError, NotFoundError } from "@quozen/core";
 import { useTranslation } from "react-i18next";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 
 export default function EditExpense() {
   const { id } = useParams();
@@ -119,6 +119,7 @@ export default function EditExpense() {
         <DrawerContent className="max-h-[85vh]">
           <DrawerHeader>
             <DrawerTitle>{t("expenseForm.editTitle")}</DrawerTitle>
+            <DrawerDescription className="sr-only">Edit expense form</DrawerDescription>
           </DrawerHeader>
           <div className="flex-1 overflow-y-auto px-4 pb-0">
             <ExpenseForm

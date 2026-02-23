@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import SettlementModal from "../settlement-modal";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { googleApi } from "@/lib/drive";
+import { quozen } from "@/lib/storage";
 import en from "@/locales/en/translation.json";
 
 vi.mock("@/context/app-context", () => ({
@@ -32,7 +32,7 @@ vi.mock("@tanstack/react-query", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/drive", () => ({
+vi.mock("@/lib/storage", () => ({
   quozen: {
     ledger: vi.fn(() => ({
       addSettlement: vi.fn(),
