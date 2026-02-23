@@ -1,5 +1,5 @@
 import { Context, Next } from 'hono';
-import { QuozenClient, GoogleDriveStorageLayer } from '@quozen/core';
+import { QuozenClient, GoogleDriveStorageLayer, InMemoryAdapter } from '@quozen/core';
 
 export type AuthUser = {
     id: string;
@@ -17,6 +17,9 @@ export type AppEnv = {
     };
 };
 
+// Persist memory adapter across test requests
+const testStorage = new InMemoryAdapter();
+
 export const authMiddleware = async (c: Context<AppEnv>, next: Next) => {
     const authHeader = c.req.header('Authorization');
 
@@ -28,8 +31,9 @@ export const authMiddleware = async (c: Context<AppEnv>, next: Next) => {
 
     // Phase 6 Readiness: Support for Vitest isolated testing
     if (token === 'mock-test-token') {
-        c.set('user', { id: 'u1', email: 'test@quozen.com', name: 'Test User', username: 'testuser' });
-        // Note: QuozenClient injection for tests should be handled by the test harness router
+        const user = { id: 'u1', email: 'test@quozen.com', name: 'Test User', username: 'testuser' };
+        c.set('user', user);
+        c.set('quozen', new QuozenClient({ storage: testStorage, user }));
         return next();
     }
 
