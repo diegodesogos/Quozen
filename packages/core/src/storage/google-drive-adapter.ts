@@ -174,7 +174,7 @@ export class GoogleDriveAdapter implements IStorageAdapter {
                     emailAddress: email
                 })
             });
-            const data = await res.json();
+            const data = await res.json() as any;
             return data.displayName || email;
         } catch (e) {
             console.error(`Failed to share with ${email}`, e);
@@ -193,7 +193,7 @@ export class GoogleDriveAdapter implements IStorageAdapter {
             });
         } else {
             const res = await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}/permissions`);
-            const data = await res.json();
+            const data = await res.json() as any;
             const publicPerm = data.permissions?.find((p: any) => p.type === 'anyone');
 
             if (publicPerm) {
@@ -207,7 +207,7 @@ export class GoogleDriveAdapter implements IStorageAdapter {
     async getFilePermissions(fileId: string): Promise<'public' | 'restricted'> {
         try {
             const res = await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}/permissions`);
-            const data = await res.json();
+            const data = await res.json() as any;
             const publicPerm = data.permissions?.find((p: any) => p.type === 'anyone');
             return publicPerm ? 'public' : 'restricted';
         } catch (e) {
@@ -253,7 +253,7 @@ export class GoogleDriveAdapter implements IStorageAdapter {
         const res = await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}?fields=modifiedTime`, {
             cache: "no-store"
         });
-        const data = await res.json();
+        const data = await res.json() as any;
         return data.modifiedTime || new Date().toISOString();
     }
 
@@ -282,7 +282,7 @@ export class GoogleDriveAdapter implements IStorageAdapter {
         const ranges = ["Expenses", "Settlements", "Members"].map(s => `${s}!A2:Z`).join('&ranges=');
         try {
             const res = await this.fetchWithAuth(`${SHEETS_API_URL}/${fileId}/values:batchGet?majorDimension=ROWS&valueRenderOption=UNFORMATTED_VALUE&ranges=${ranges}`);
-            const data = await res.json();
+            const data = await res.json() as any;
             if (!data.valueRanges) return null;
 
             return {
@@ -349,7 +349,7 @@ export class GoogleDriveAdapter implements IStorageAdapter {
 
     async readRow(fileId: string, sheetName: SchemaType, rowIndex: number): Promise<any | null> {
         const res = await this.fetchWithAuth(`${SHEETS_API_URL}/${fileId}/values/${sheetName}!A${rowIndex}:Z${rowIndex}?valueRenderOption=UNFORMATTED_VALUE`);
-        const data = await res.json();
+        const data = await res.json() as any;
         const row = data.values?.[0];
         if (!row) return null;
 
@@ -395,7 +395,7 @@ export class GoogleDriveAdapter implements IStorageAdapter {
         const key = `${spreadsheetId}:${sheetName}`;
         if (this.sheetIdCache.has(key)) return this.sheetIdCache.get(key)!;
         const res = await this.fetchWithAuth(`${SHEETS_API_URL}/${spreadsheetId}?fields=sheets.properties`);
-        const data = await res.json();
+        const data = await res.json() as any;
         const sheet = data.sheets.find((s: any) => s.properties.title === sheetName);
         if (!sheet) throw new Error("Sheet not found");
         this.sheetIdCache.set(key, sheet.properties.sheetId);

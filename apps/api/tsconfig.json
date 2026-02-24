@@ -10,7 +10,16 @@
         ],
         "types": [
             "@cloudflare/workers-types"
-        ]
+        ],
+        "baseUrl": ".",
+        "paths": {
+            "@quozen/core": [
+                "../../packages/core/src"
+            ],
+            "@quozen/core/*": [
+                "../../packages/core/src/*"
+            ]
+        }
     },
     "include": [
         "api",

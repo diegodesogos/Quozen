@@ -28,7 +28,7 @@ export class GoogleDriveStorageLayer implements IStorageLayer {
 
     async listFiles(query: string, fields: string = "files(id, name, createdTime, owners, capabilities, properties)"): Promise<any[]> {
         const res = await this.fetchWithAuth(`${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}`);
-        const data = await res.json();
+        const data = await res.json() as any;
         return data.files || [];
     }
 
@@ -50,7 +50,7 @@ export class GoogleDriveStorageLayer implements IStorageLayer {
             method: "POST",
             body: JSON.stringify(metadata)
         });
-        const data = await res.json();
+        const data = await res.json() as any;
 
         if (content) {
             await this.fetchWithAuth(`${DRIVE_UPLOAD_URL}/files/${data.id}?uploadType=media`, {
@@ -91,7 +91,7 @@ export class GoogleDriveStorageLayer implements IStorageLayer {
 
     async listPermissions(fileId: string): Promise<any[]> {
         const res = await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}/permissions`);
-        const data = await res.json();
+        const data = await res.json() as any;
         return data.permissions || [];
     }
 
@@ -107,7 +107,7 @@ export class GoogleDriveStorageLayer implements IStorageLayer {
                 sheets: sheetTitles.map(t => ({ properties: { title: t, gridProperties: { frozenRowCount: 1 } } }))
             })
         });
-        const data = await res.json();
+        const data = await res.json() as any;
         if (properties) {
             await this.updateFile(data.spreadsheetId, { properties });
         }
@@ -123,7 +123,7 @@ export class GoogleDriveStorageLayer implements IStorageLayer {
     async batchGetValues(spreadsheetId: string, ranges: string[]): Promise<any[]> {
         const rangesQuery = ranges.map(r => `ranges=${encodeURIComponent(r)}`).join('&');
         const res = await this.fetchWithAuth(`${SHEETS_API_URL}/${spreadsheetId}/values:batchGet?majorDimension=ROWS&valueRenderOption=UNFORMATTED_VALUE&${rangesQuery}`);
-        const data = await res.json();
+        const data = await res.json() as any;
         return data.valueRanges || [];
     }
 

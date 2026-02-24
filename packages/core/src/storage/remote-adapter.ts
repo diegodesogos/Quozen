@@ -29,7 +29,7 @@ export class RemoteMockAdapter implements IStorageLayer {
             method: "POST",
             body: JSON.stringify({ name, mimeType, properties, content })
         });
-        const data = await res.json();
+        const data = await res.json() as any;
         return data.id;
     }
 
@@ -46,20 +46,20 @@ export class RemoteMockAdapter implements IStorageLayer {
 
     async getFilePermissions(fileId: string): Promise<'public' | 'restricted'> {
         const res = await this.fetch(`/files/${fileId}/permissions`, { method: "GET" });
-        const data = await res.json();
+        const data = await res.json() as any;
         return data.access;
     }
 
     async listFiles(query: string, fields?: string): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any, properties?: Record<string, string> }>> {
         const q = JSON.stringify({ query });
         const res = await this.fetch(`/files?options=${encodeURIComponent(q)}`);
-        const data = await res.json();
+        const data = await res.json() as any;
         return data.files || [];
     }
 
     async getLastModified(fileId: string): Promise<string> {
         const res = await this.fetch(`/files/${fileId}/modifiedTime`);
-        const data = await res.json();
+        const data = await res.json() as any;
         return data.modifiedTime;
     }
 
@@ -89,7 +89,7 @@ export class RemoteMockAdapter implements IStorageLayer {
 
     async listPermissions(fileId: string): Promise<any[]> {
         const res = await this.fetch(`/files/${fileId}/permissions`, { method: "GET" });
-        const data = await res.json();
+        const data = await res.json() as any;
         return data.permissions || [];
     }
 
@@ -102,7 +102,7 @@ export class RemoteMockAdapter implements IStorageLayer {
             method: "POST",
             body: JSON.stringify({ title, sheetTitles, properties })
         });
-        const data = await res.json();
+        const data = await res.json() as any;
         return data.id;
     }
 
@@ -115,7 +115,7 @@ export class RemoteMockAdapter implements IStorageLayer {
     async batchGetValues(spreadsheetId: string, ranges: string[]): Promise<any[]> {
         const r = encodeURIComponent(JSON.stringify(ranges));
         const res = await this.fetch(`/spreadsheets/${spreadsheetId}/values:batchGet?ranges=${r}`, { method: "GET" });
-        const data = await res.json();
+        const data = await res.json() as any;
         return data.valueRanges || [];
     }
 

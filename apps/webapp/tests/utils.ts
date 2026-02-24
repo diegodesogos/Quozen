@@ -126,7 +126,7 @@ export async function findFiles(request: APIRequestContext, token: string, searc
     }
 
     const res = await apiRequest(request, 'GET', url, token);
-    const data = await res.json();
+    const data = await res.json() as any;
     return data.files || [];
 }
 
@@ -146,7 +146,7 @@ export async function createEmptySettingsFile(request: APIRequestContext, token:
             name: SETTINGS_FILE_NAME,
             sheetNames: []
         });
-        const data = await res.json();
+        const data = await res.json() as any;
         return data.id;
     } else {
         const metadata = {
@@ -154,7 +154,7 @@ export async function createEmptySettingsFile(request: APIRequestContext, token:
             mimeType: "application/json"
         };
         const res = await apiRequest(request, 'POST', `${DRIVE_API_URL}/files`, token, metadata);
-        const data = await res.json();
+        const data = await res.json() as any;
         return data.id;
     }
 }
@@ -170,7 +170,7 @@ export async function createDummyGroup(request: APIRequestContext, token: string
             sheetNames: ["Expenses", "Settlements", "Members"],
             properties: properties // Add properties for strict reconciliation
         });
-        const data = await res.json();
+        const data = await res.json() as any;
         const id = data.id;
         return { id, name: fullName };
     } else {
@@ -181,7 +181,7 @@ export async function createDummyGroup(request: APIRequestContext, token: string
             mimeType: "application/vnd.google-apps.spreadsheet"
         };
         const res = await apiRequest(request, 'POST', `${DRIVE_API_URL}/files`, token, metadata);
-        const data = await res.json();
+        const data = await res.json() as any;
         const fileId = data.id;
 
         // 2. Add Properties (Drive API doesn't allow setting properties on CREATE for some file types, safe to do patch)
