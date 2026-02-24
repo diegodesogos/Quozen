@@ -1,0 +1,33 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "strict": true,
+        "skipLibCheck": true,
+        "lib": [
+            "ESNext"
+        ],
+        "types": [
+            "@cloudflare/workers-types"
+        ],
+        "baseUrl": ".",
+        "paths": {
+            "@quozen/core": [
+                "../../packages/core/src"
+            ],
+            "@quozen/core/*": [
+                "../../packages/core/src/*"
+            ]
+        }
+    },
+    "include": [
+        "api",
+        "src",
+        "tests"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist"
+    ]
+}
