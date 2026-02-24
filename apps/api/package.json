@@ -5,7 +5,7 @@
     "private": true,
     "scripts": {
         "dev": "wrangler dev src/index.ts",
-        "build": "tsc --noEmit",
+        "build": "npm run build --workspace=@quozen/core && tsc --noEmit",
         "test": "vitest run",
         "test:live": "npx tsx scripts/live-test.ts",
         "deploy": "wrangler deploy"
