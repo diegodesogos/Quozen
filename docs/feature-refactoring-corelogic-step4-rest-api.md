@@ -172,14 +172,14 @@ To ensure the API is reliable and deployable, we will implement a fast, isolated
 
 ### **Phase 5: Edge Deployment Configuration**
 
-**Task \[API-08\]: Configure Cloudflare Workers (`wrangler.toml`)**
+**Task \[API-08\]: Configure Cloudflare Workers (`wrangler.toml`)** [DONE]
 
 * **Description:** Create a `wrangler.toml` at the root of `apps/api`.  
   * Configure `name = "quozen-api"`, `compatibility_date = "2024-01-01"`.  
   * Set `main = "src/index.ts"`.  
 * **Technical Definition of Done:** `npx wrangler deploy` successfully publishes the API to Cloudflare.
 
-**Task \[API-09\]: Configure Vercel Edge (`vercel.json`)**
+**Task \[API-09\]: Configure Vercel Edge (`vercel.json`)** [DONE]
 
 * **Description:** Add Hono's Vercel adapter (`import { handle } from 'hono/vercel'`).  
   * Export the handler explicitly as an Edge function: `export const runtime = 'edge';`.  
@@ -188,7 +188,7 @@ To ensure the API is reliable and deployable, we will implement a fast, isolated
 
 ### **Phase 6: Test Infrastructure & Implementation**
 
-**Task \[API-10\]: Initialize API Test Environment**
+**Task \[API-10\]: Initialize API Test Environment** [DONE]
 
 * **Description:** Set up Vitest in the `apps/api` workspace.  
   * Create `vitest.config.ts` extending the monorepo standards.  
@@ -196,13 +196,13 @@ To ensure the API is reliable and deployable, we will implement a fast, isolated
   * Create a helper function `createTestApp()` that instantiates the Hono app with the `InMemoryAdapter` injected into the context.  
 * **Technical Definition of Done:** `npm run test --workspace=@quozen/api` executes successfully and finds the test suite.
 
-**Task \[API-11\]: Implement Auth Middleware Test Bypass**
+**Task \[API-11\]: Implement Auth Middleware Test Bypass** [DONE]
 
 * **Description:** Modify `src/middleware/auth.ts` to support testing.  
   * If `env.NODE_ENV === 'test'` and the Authorization header equals `Bearer mock-test-token`, inject a mock user (e.g., `Alice`) and skip the Google Identity fetch.  
 * **Technical Definition of Done:** Hono `app.request()` calls with the mock token successfully bypass the 401/403 guards without making external network calls.
 
-**Task \[API-12\]: Groups & Ledger Endpoint Tests**
+**Task \[API-12\]: Groups & Ledger Endpoint Tests** [DONE]
 
 * **Description:** Write unit tests for the group and ledger endpoints in `tests/groups.test.ts`.  
   * **POST `/api/v1/groups`**: Test valid creation (returns 201). Test missing name (returns 400).  
@@ -210,7 +210,7 @@ To ensure the API is reliable and deployable, we will implement a fast, isolated
   * **GET `/api/v1/groups/:id/ledger`**: Test that a newly created group returns a summary with `totalVolume: 0` and `isBalanced: true`.  
 * **Technical Definition of Done:** All group/ledger tests pass locally in isolation.
 
-**Task \[API-13\]: Expenses & Settlements Endpoint Tests**
+**Task \[API-13\]: Expenses & Settlements Endpoint Tests** [DONE]  
 
 * **Description:** Write unit tests for financial transactions in `tests/transactions.test.ts`.  
   * **POST `/api/v1/groups/:id/expenses`**: Add a $100 expense. Verify it returns 201 and matches the schema.  
@@ -219,7 +219,7 @@ To ensure the API is reliable and deployable, we will implement a fast, isolated
   * **Conflict Test**: Attempt a `PATCH` on an expense with an outdated `updatedAt` timestamp. Verify the API returns `409 Conflict`.  
 * **Technical Definition of Done:** CRUD operations are fully verified, including schema validation failures and optimistic concurrency hits.
 
-**Task \[API-14\]: CI/CD Pipeline Integration**
+**Task \[API-14\]: CI/CD Pipeline Integration** [DONE]
 
 * **Description:** Update the GitHub Actions workflow (`.github/workflows/ci.yml`).  
   * Add a new job `test-api` that depends on `test-core`.  
@@ -290,7 +290,7 @@ describe('POST /api/v1/groups/:id/expenses', () \=\> {
 
 To safely deploy this in a monorepo, we must ensure the `apps/api` package is naturally picked up by the root scripts and that standard documentation is provided for new developers and API consumers.
 
-**Task \[API-15\]: Update Monorepo Build & Test Pipeline**
+**Task \[API-15\]: Update Monorepo Build & Test Pipeline** [DONE]
 
 * **Description:** Update the root `package.json` to seamlessly include the new API in the unified build, test, and type-checking processes, ensuring no deployment happens if any workspace fails.  
 * **Implementation Details:**  
@@ -317,7 +317,7 @@ Ensure `apps/api/package.json` contains standard lifecycle scripts (`build`, `de
 
 **Technical Definition of Done:** Running `npm run predeploy` from the root successfully type-checks (`check`), tests (`test:all`), and builds (`build`) all workspaces (Core, WebApp, CLI, and API) in the correct dependency order.
 
-**Task \[API-16\]: Update Project Documentation (`README.md`)**
+**Task \[API-16\]: Update Project Documentation (`README.md`)** [DONE]
 
 * **Description:** Update the core `README.md` to introduce the Edge REST API, explaining how to run it locally, how to access the Swagger UI, and how to authenticate.  
 * **Implementation Details:** Add the following section to the `README.md` under the "Architecture & Security" or "Features" section:
@@ -347,7 +347,7 @@ Authorization: Bearer ya29.a0AfB...
 
 **Technical Definition of Done:** The `README.md` is updated. A developer reading it can successfully spin up the API and authenticate a request via the Swagger UI using a token generated from the WebApp or CLI.
 
-**Task \[API-17\]: CI/CD Pipeline Update (`.github/workflows/ci.yml`)**
+**Task \[API-17\]: CI/CD Pipeline Update (`.github/workflows/ci.yml`)** [DONE]
 
 * **Description:** Extend the existing GitHub Actions CI workflow to ensure the API is tested in the cloud before any merges to `main`.  
 * **Implementation Details:** Update `.github/workflows/ci.yml` to include the API test job:

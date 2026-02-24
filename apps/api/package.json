@@ -6,7 +6,9 @@
     "scripts": {
         "dev": "wrangler dev src/index.ts",
         "build": "tsc --noEmit",
-        "test": "vitest run"
+        "test": "vitest run",
+        "test:live": "npx tsx scripts/live-test.ts",
+        "deploy": "wrangler deploy"
     },
     "dependencies": {
         "@hono/swagger-ui": "^0.5.0",
