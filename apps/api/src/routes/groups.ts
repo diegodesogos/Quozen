@@ -240,7 +240,7 @@ const updateExpenseRoute = createRoute({
     operationId: 'updateGroupExpense',
     tags: ['Expenses'],
     summary: 'Update an expense',
-    description: 'Update an existing expense. AGENT INSTRUCTION (CONFLICT HANDLING): This endpoint uses Optimistic Concurrency Control. If you receive a `409 Conflict` response, it means another user modified the expense while you were working. You MUST NOT fail immediately. Instead, call `listGroupExpenses`, find the latest version of this expense, merge the user\'s requested changes, and retry this PATCH request with the new `expectedLastModified` timestamp.',
+    description: 'Update an existing expense. AGENT INSTRUCTION (CONFLICT HANDLING): This endpoint uses Optimistic Concurrency Control. If you receive a 409 Conflict response, it means another user modified the expense while you were working. You MUST NOT resolve this automatically. Instead, inform the user of the conflict, show them the latest changes from listGroupExpenses, and ask how they would like to proceed.',
     request: {
         params: z.object({ id: z.string(), expId: z.string() }),
         body: { content: { 'application/json': { schema: UpdateExpenseDTOSchema } } }
