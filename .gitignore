@@ -10,9 +10,9 @@ vite.config.ts.*
 .wrangler
 
 # Playwright
-/test-results/
-/playwright-report/
-/blob-report/
-/playwright/.cache/
-/playwright/.auth/
+/apps/webapp/test-results/
+/apps/webapp/playwright-report/
+/apps/webapp/blob-report/
+/apps/webapp/playwright/.cache/
+/apps/webapp/playwright/.auth/
 changes.patch
