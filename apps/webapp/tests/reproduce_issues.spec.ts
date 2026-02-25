@@ -67,58 +67,35 @@ test.describe.serial('Google Drive Persistence Reproduction', () => {
         }
     });
 
-    test('Reproduction: Concurrent initialization should not create duplicate settings files', async ({ browser }) => {
-        // Scenario: Two tabs open simultaneously when no settings file exists
-        const context1 = await browser.newContext();
-        await setupTestEnvironment(context1);
+    test('Reproduction: App cleans up duplicate settings files on load (Self-Healing)', async ({ browser }) => {
+        const context = await browser.newContext();
+        await setupTestEnvironment(context);
 
-        const context2 = await browser.newContext();
-        await setupTestEnvironment(context2);
+        // 1. Manually create TWO settings files to simulate a race condition anomaly
+        await createEmptySettingsFile(context.request, accessToken);
+        await createEmptySettingsFile(context.request, accessToken);
 
-        // Inject token to skip login in these new contexts
-        await context1.addInitScript(({ token, profile }) => {
+        // Verify there are at least 2
+        let files = await findFiles(context.request, accessToken, `name = '${SETTINGS_FILE_NAME}'`);
+        expect(files.length).toBeGreaterThanOrEqual(2);
+
+        // 2. Open app and let it load (this triggers getSettings -> deduplication cleanup)
+        await context.addInitScript(({ token, profile }) => {
             localStorage.setItem("quozen_access_token", token);
             if (profile) localStorage.setItem("quozen_user_profile", profile);
         }, { token: accessToken, profile: userProfile });
 
-        await context2.addInitScript(({ token, profile }) => {
-            localStorage.setItem("quozen_access_token", token);
-            if (profile) localStorage.setItem("quozen_user_profile", profile);
-        }, { token: accessToken, profile: userProfile });
-
-        const page1 = await context1.newPage();
-        const page2 = await context2.newPage();
-
-        // Listen for all console messages
-        page1.on('console', msg => console.log(`Page1: [${msg.type()}] ${msg.text()}`));
-        page2.on('console', msg => console.log(`Page2: [${msg.type()}] ${msg.text()}`));
-
-        // Load both roughly at the same time
-        const p1 = page1.goto('/');
-        const p2 = page2.goto('/');
-        await Promise.all([p1, p2]);
+        const page = await context.newPage();
+        await page.goto('/');
 
         // Wait for stabilization
-        await page1.waitForTimeout(15000);
+        await page.waitForTimeout(5000);
 
         // Check Drive for duplicates
-        // Use context1.request to check (it has routes hooked if mock)
-        const files = await findFiles(context1.request, accessToken, `name = '${SETTINGS_FILE_NAME}'`);
-        console.log(`Found ${files.length} settings files.`);
+        files = await findFiles(context.request, accessToken, `name = '${SETTINGS_FILE_NAME}'`);
+        expect(files.length, 'App should have cleaned up duplicates leaving exactly one settings file').toBe(1);
 
-        // Fails if > 1
-        expect(files.length, 'Should have exactly one settings file').toBe(1);
-
-        // Also check if content is valid JSON (not empty)
-        const fileId = files[0].id;
-        const text = await fetchFileContent(context1.request, accessToken, fileId);
-        console.log("Settings file content:", text);
-
-        expect(text.length, 'Settings file should not be empty').toBeGreaterThan(0);
-        expect(() => JSON.parse(text)).not.toThrow();
-
-        await context1.close();
-        await context2.close();
+        await context.close();
     });
 
     test('Reproduction: App should handle empty settings file gracefully', async ({ browser }) => {

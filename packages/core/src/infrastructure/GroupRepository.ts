@@ -10,8 +10,17 @@ export class GroupRepository {
     async getSettings(): Promise<UserSettings> {
         const files = await this.storage.listFiles(`name = '${SETTINGS_FILE_NAME}' and trashed = false`);
         if (files.length > 0) {
+            let fileToUse = files[0];
+            // Self-healing: clean up duplicate settings files if they occur
+            if (files.length > 1) {
+                const sortedFiles = files.sort((a: any, b: any) => new Date(a.createdTime || 0).getTime() - new Date(b.createdTime || 0).getTime());
+                fileToUse = sortedFiles[0];
+                for (const dup of sortedFiles.slice(1)) {
+                    await this.storage.deleteFile(dup.id).catch(() => { });
+                }
+            }
             try {
-                const data = await this.storage.getFile(files[0].id, { alt: 'media' });
+                const data = await this.storage.getFile(fileToUse.id, { alt: 'media' });
                 if (data && data.version) return data as UserSettings;
             } catch (e) {
                 // Fall through to reconcile
@@ -24,7 +33,16 @@ export class GroupRepository {
         settings.lastUpdated = new Date().toISOString();
         const files = await this.storage.listFiles(`name = '${SETTINGS_FILE_NAME}' and trashed = false`);
         if (files.length > 0) {
-            await this.storage.updateFile(files[0].id, {}, JSON.stringify(settings));
+            let fileToUse = files[0];
+            // Self-healing: clean up duplicates before updating
+            if (files.length > 1) {
+                const sortedFiles = files.sort((a: any, b: any) => new Date(a.createdTime || 0).getTime() - new Date(b.createdTime || 0).getTime());
+                fileToUse = sortedFiles[0];
+                for (const dup of sortedFiles.slice(1)) {
+                    await this.storage.deleteFile(dup.id).catch(() => { });
+                }
+            }
+            await this.storage.updateFile(fileToUse.id, {}, JSON.stringify(settings));
         } else {
             await this.storage.createFile(SETTINGS_FILE_NAME, "application/json", {}, JSON.stringify(settings));
         }

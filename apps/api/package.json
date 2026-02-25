@@ -5,7 +5,7 @@
     "private": true,
     "scripts": {
         "dev": "wrangler dev src/index.ts",
-        "build": "tsc --noEmit",
+        "build": "npm run build --workspace=@quozen/core && tsc --noEmit",
         "test": "vitest run",
         "test:live": "npx tsx scripts/live-test.ts",
         "deploy": "wrangler deploy"
@@ -20,6 +20,7 @@
     "devDependencies": {
         "@cloudflare/workers-types": "^4.20250109.0",
         "typescript": "5.6.3",
-        "wrangler": "^4.68.0"
+        "wrangler": "^4.68.0",
+        "vitest": "^4.0.7"
     }
 }

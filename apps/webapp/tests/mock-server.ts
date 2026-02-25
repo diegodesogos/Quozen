@@ -43,45 +43,15 @@ class MockServer {
 
         let result: any;
 
-        // --- Settings ---
-        if (path.startsWith('/settings')) {
-            if (method === 'GET') {
-                const email = url.searchParams.get('email');
-                if (email) result = { settings: await this.adapter.loadSettings(email) };
-            } else if (method === 'POST') {
-                await this.adapter.saveSettings(body.email, body.settings);
-                result = { success: true };
-            }
-        }
         // --- Files ---
-        else if (path === '/files') {
+        if (path === '/files') {
             if (method === 'POST') {
-                const id = await this.adapter.createFile(body.name, body.sheetNames, body.properties);
+                const sheetNames = body.sheetNames || body.sheetTitles || [];
+                const id = await this.adapter.createFile(body.name, sheetNames, body.properties, body.content);
                 result = { id };
             } else if (method === 'GET') {
-                // Support legacy query param 'q' or new 'options' JSON param
                 const q = url.searchParams.get('q');
-                const optionsParam = url.searchParams.get('options');
-
-                let options: any = {};
-                if (optionsParam) {
-                    try { options = JSON.parse(optionsParam); } catch { }
-                } else if (q) {
-                    // Extract name from q string: name = 'X' or name contains 'X'
-                    const matchExact = q.match(/name\s*=\s*'([^']+)'/);
-                    const matchContains = q.match(/name\s*contains\s*'([^']+)'/);
-
-                    if (matchExact) {
-                        // For exact match, we pass it as nameContains for now as InMemoryAdapter uses includes, 
-                        // but since the name is specific (like quozen-settings.json), includes is usually fine.
-                        // Ideally InMemoryAdapter should support exact match, but this unblocks the test.
-                        options = { nameContains: matchExact[1] };
-                    } else if (matchContains) {
-                        options = { nameContains: matchContains[1] };
-                    }
-                }
-
-                result = { files: await this.adapter.listFiles(options) };
+                result = { files: await this.adapter.listFiles(q || "") };
             }
         }
         else if (path.match(/\/files\/[^\/]+$/)) {
@@ -104,11 +74,6 @@ class MockServer {
                 result = await this.adapter.getFile(id, options);
             }
         }
-        else if (path.match(/\/files\/[^\/]+\/share$/)) {
-            const id = path.split('/')[2];
-            const displayName = await this.adapter.shareFile(id, body.email, body.role);
-            result = { displayName };
-        }
         else if (path.match(/\/files\/[^\/]+\/permissions$/)) {
             const id = path.split('/')[2];
             if (method === 'GET') {
@@ -122,100 +87,52 @@ class MockServer {
                 }
             }
         }
-        else if (path.match(/\/files\/[^\/]+\/properties$/)) {
-            const id = path.split('/')[2];
-            if (method === 'POST') {
-                await this.adapter.addFileProperties(id, body.properties);
-                result = { success: true };
-            }
-        }
-        else if (path.match(/\/files\/[^\/]+\/meta$/)) {
-            const id = path.split('/')[2];
-            result = await this.adapter.getFileMeta(id);
-        }
-        else if (path.match(/\/files\/[^\/]+\/data$/)) {
-            const id = path.split('/')[2];
-            result = { data: await this.adapter.readGroupData(id) };
-        }
-        else if (path.match(/\/files\/[^\/]+\/initialize$/)) {
-            const id = path.split('/')[2];
-            await this.adapter.initializeGroup(id, body);
-            result = { success: true };
-        }
         else if (path.match(/\/files\/[^\/]+\/modifiedTime$/)) {
             const id = path.split('/')[2];
             result = { modifiedTime: await this.adapter.getLastModified(id) };
         }
-        // --- Rows ---
-        else if (path.match(/\/files\/[^\/]+\/rows\/[^\/]+$/)) {
-            // /files/:id/rows/:sheetName
         // --- Low-Level Spreadsheets (IStorageLayer) ---
         else if (path === '/spreadsheets') {
-                if (method === 'POST') {
-                    const id = await this.adapter.createSpreadsheet(body.title, body.sheetTitles, body.properties);
-                    result = { id };
-                }
-            }
-            else if (path.match(/\/spreadsheets\/[^\/]+$/)) {
-                const id = path.split('/')[2];
-                if (method === 'GET') {
-                    const fields = url.searchParams.get('fields');
-                    result = await this.adapter.getSpreadsheet(id, fields || undefined);
-                }
-            }
-            else if (path.match(/\/spreadsheets\/[^\/]+\/values:batchGet$/)) {
-                const id = path.split('/')[2];
-                const rangesParam = url.searchParams.get('ranges');
-                const ranges = rangesParam ? JSON.parse(rangesParam) : [];
-                const valueRanges = await this.adapter.batchGetValues(id, ranges);
-                result = { valueRanges };
-            }
-            else if (path.match(/\/spreadsheets\/[^\/]+\/values:batchUpdate$/)) {
-                const id = path.split('/')[2];
-                await this.adapter.batchUpdateValues(id, body.data);
-                result = { success: true };
-            }
-            else if (path.match(/\/spreadsheets\/[^\/]+\/values\/[^:]+:append$/)) {
-                const id = path.split('/')[2];
-                const range = decodeURIComponent(path.split('/')[4].replace(':append', ''));
-                await this.adapter.appendValues(id, range, body.values);
-                result = { success: true };
-            }
-            else if (path.match(/\/spreadsheets\/[^\/]+\/values\/[^\?]+$/) && method === 'PUT') {
-                const id = path.split('/')[2];
-                const range = decodeURIComponent(path.split('/')[4]);
-                await this.adapter.updateValues(id, range, body.values);
-                result = { success: true };
-            }
-            else if (path.match(/\/spreadsheets\/[^\/]+:batchUpdate$/)) {
-                const id = path.split('/')[2];
-                await this.adapter.batchUpdateSpreadsheet(id, body.requests);
-                result = { success: true };
-            }
-            const parts = path.split('/');
-            const id = parts[2];
-            const sheetName = parts[4] as any;
             if (method === 'POST') {
-                await this.adapter.appendRow(id, sheetName, body);
-                result = { success: true };
+                const id = await this.adapter.createSpreadsheet(body.title, body.sheetTitles, body.properties);
+                result = { id };
             }
         }
-        else if (path.match(/\/files\/[^\/]+\/rows\/[^\/]+\/\d+$/)) {
-            // /files/:id/rows/:sheetName/:rowIndex
-            const parts = path.split('/');
-            const id = parts[2];
-            const sheetName = parts[4] as any;
-            const rowIndex = parseInt(parts[5]);
-
-            if (method === 'PUT') {
-                await this.adapter.updateRow(id, sheetName, rowIndex, body);
-                result = { success: true };
-            } else if (method === 'DELETE') {
-                await this.adapter.deleteRow(id, sheetName, rowIndex);
-                result = { success: true };
-            } else if (method === 'GET') {
-                result = { row: await this.adapter.readRow(id, sheetName, rowIndex) };
+        else if (path.match(/\/spreadsheets\/[^\/]+$/)) {
+            const id = path.split('/')[2];
+            if (method === 'GET') {
+                const fields = url.searchParams.get('fields');
+                result = await this.adapter.getSpreadsheet(id, fields || undefined);
             }
+        }
+        else if (path.match(/\/spreadsheets\/[^\/]+\/values:batchGet$/)) {
+            const id = path.split('/')[2];
+            const rangesParam = url.searchParams.get('ranges');
+            const ranges = rangesParam ? JSON.parse(rangesParam) : [];
+            const valueRanges = await this.adapter.batchGetValues(id, ranges);
+            result = { valueRanges };
+        }
+        else if (path.match(/\/spreadsheets\/[^\/]+\/values:batchUpdate$/)) {
+            const id = path.split('/')[2];
+            await this.adapter.batchUpdateValues(id, body.data);
+            result = { success: true };
+        }
+        else if (path.match(/\/spreadsheets\/[^\/]+\/values\/[^:]+:append$/)) {
+            const id = path.split('/')[2];
+            const range = decodeURIComponent(path.split('/')[4].replace(':append', ''));
+            await this.adapter.appendValues(id, range, body.values);
+            result = { success: true };
+        }
+        else if (path.match(/\/spreadsheets\/[^\/]+\/values\/[^\?]+$/) && method === 'PUT') {
+            const id = path.split('/')[2];
+            const range = decodeURIComponent(path.split('/')[4]);
+            await this.adapter.updateValues(id, range, body.values);
+            result = { success: true };
+        }
+        else if (path.match(/\/spreadsheets\/[^\/]+:batchUpdate$/)) {
+            const id = path.split('/')[2];
+            await this.adapter.batchUpdateSpreadsheet(id, body.requests);
+            result = { success: true };
         }
 
         if (result !== undefined) {

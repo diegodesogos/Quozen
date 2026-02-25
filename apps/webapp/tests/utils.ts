@@ -195,9 +195,10 @@ export async function createDummyGroup(request: APIRequestContext, token: string
 
 export async function fetchFileContent(request: APIRequestContext, token: string, fileId: string) {
     if (isMockMode) {
-        const res = await apiRequest(request, 'GET', `${MOCK_API_BASE}/settings?email=test@example.com`, token);
+        const opts = encodeURIComponent(JSON.stringify({ alt: 'media' }));
+        const res = await apiRequest(request, 'GET', `${MOCK_API_BASE}/files/${fileId}?options=${opts}`, token);
         const json = await res.json();
-        return JSON.stringify(json.settings);
+        return JSON.stringify(json);
     } else {
         const res = await apiRequest(request, 'GET', `${DRIVE_API_URL}/files/${fileId}?alt=media`, token);
         return await res.text();
