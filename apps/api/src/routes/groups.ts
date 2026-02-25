@@ -14,8 +14,10 @@ groupsRouter.use('*', authMiddleware);
 const listGroupsRoute = createRoute({
     method: 'get',
     path: '/',
+    operationId: 'listUserGroups',
+    tags: ['Groups'],
     summary: 'List user groups',
-    description: 'Retrieves a list of groups the user belongs to.',
+    description: 'Retrieves all groups the authenticated user belongs to. AGENT INSTRUCTION: Call this first to discover the target `groupId` before performing any ledger, expense, or settlement operations.',
     responses: {
         200: {
             content: { 'application/json': { schema: z.array(GroupSchema) } },
@@ -49,8 +51,10 @@ groupsRouter.openapi(listGroupsRoute, async (c) => {
 const createGroupRoute = createRoute({
     method: 'post',
     path: '/',
+    operationId: 'createUserGroup',
+    tags: ['Groups'],
     summary: 'Create a new group',
-    description: 'Creates a new expense sharing group.',
+    description: 'Creates a new expense sharing group. You can optionally invite members via email or add offline users via username.',
     request: {
         body: {
             content: { 'application/json': { schema: CreateGroupDTOSchema } },
@@ -74,8 +78,10 @@ groupsRouter.openapi(createGroupRoute, async (c) => {
 const joinGroupRoute = createRoute({
     method: 'post',
     path: '/{id}/join',
+    operationId: 'joinUserGroup',
+    tags: ['Groups'],
     summary: 'Join an existing group',
-    description: 'Joins an existing group via its ID (requires file to be shared appropriately).',
+    description: 'Joins an existing group via its ID. The file must already be shared with the user via Google Drive permissions.',
     request: {
         params: z.object({ id: z.string() }),
     },
@@ -97,8 +103,10 @@ groupsRouter.openapi(joinGroupRoute, async (c) => {
 const deleteGroupRoute = createRoute({
     method: 'delete',
     path: '/{id}',
+    operationId: 'deleteUserGroup',
+    tags: ['Groups'],
     summary: 'Delete a group',
-    description: 'Deletes an existing group.',
+    description: 'Permanently deletes a group. Can only be performed by the group owner.',
     request: {
         params: z.object({ id: z.string() }),
     },
@@ -121,8 +129,10 @@ groupsRouter.openapi(deleteGroupRoute, async (c) => {
 const updateGroupRoute = createRoute({
     method: 'patch',
     path: '/{id}',
+    operationId: 'updateUserGroup',
+    tags: ['Groups'],
     summary: 'Update a group',
-    description: 'Updates group name and members.',
+    description: 'Updates group name and adds/removes members.',
     request: {
         params: z.object({ id: z.string() }),
         body: { content: { 'application/json': { schema: UpdateGroupDTOSchema } } }
@@ -157,8 +167,10 @@ groupsRouter.openapi(updateGroupRoute, async (c) => {
 const getLedgerRoute = createRoute({
     method: 'get',
     path: '/{id}/ledger',
-    summary: 'Get ledger analytics',
-    description: 'Retrieves the financial summary and balances of the group.',
+    operationId: 'getGroupLedgerAnalytics',
+    tags: ['Analytics'],
+    summary: 'Get ledger analytics and balances',
+    description: 'Retrieves the financial summary and calculated balances of the group. AGENT INSTRUCTION: Use this endpoint to check who owes whom before suggesting or creating a settlement.',
     request: { params: z.object({ id: z.string() }) },
     responses: {
         200: { content: { 'application/json': { schema: LedgerAnalyticsSchema } }, description: 'Ledger Summary' }
@@ -182,7 +194,10 @@ groupsRouter.openapi(getLedgerRoute, async (c) => {
 const getExpensesRoute = createRoute({
     method: 'get',
     path: '/{id}/expenses',
+    operationId: 'listGroupExpenses',
+    tags: ['Expenses'],
     summary: 'Get all expenses',
+    description: 'Retrieves the full history of expenses for the group. AGENT INSTRUCTION: This returns the entire unpaginated ledger history. It is safe to consume completely into context as the data structure is lightweight.',
     request: { params: z.object({ id: z.string() }) },
     responses: { 200: { content: { 'application/json': { schema: z.array(ExpenseSchema) } }, description: 'Expenses List' } }
 });
@@ -197,7 +212,10 @@ groupsRouter.openapi(getExpensesRoute, async (c) => {
 const createExpenseRoute = createRoute({
     method: 'post',
     path: '/{id}/expenses',
-    summary: 'Create expense',
+    operationId: 'createGroupExpense',
+    tags: ['Expenses'],
+    summary: 'Create an expense',
+    description: 'Creates a new expense. AGENT INSTRUCTION: If the user requests to add an expense but does not explicitly state how to split it, you MUST first call `getGroupLedgerAnalytics` to get the list of members, and then split the amount equally among everyone. The sum of all splits MUST exactly equal the total expense amount.',
     request: {
         params: z.object({ id: z.string() }),
         body: { content: { 'application/json': { schema: CreateExpenseDTOSchema } } }
@@ -219,8 +237,10 @@ groupsRouter.openapi(createExpenseRoute, async (c) => {
 const updateExpenseRoute = createRoute({
     method: 'patch',
     path: '/{id}/expenses/{expId}',
+    operationId: 'updateGroupExpense',
+    tags: ['Expenses'],
     summary: 'Update an expense',
-    description: 'Update an existing expense. Validates concurrent modifications via expectedLastModified.',
+    description: 'Update an existing expense. AGENT INSTRUCTION (CONFLICT HANDLING): This endpoint uses Optimistic Concurrency Control. If you receive a `409 Conflict` response, it means another user modified the expense while you were working. You MUST NOT fail immediately. Instead, call `listGroupExpenses`, find the latest version of this expense, merge the user\'s requested changes, and retry this PATCH request with the new `expectedLastModified` timestamp.',
     request: {
         params: z.object({ id: z.string(), expId: z.string() }),
         body: { content: { 'application/json': { schema: UpdateExpenseDTOSchema } } }
@@ -253,7 +273,10 @@ groupsRouter.openapi(updateExpenseRoute, async (c) => {
 const deleteExpenseRoute = createRoute({
     method: 'delete',
     path: '/{id}/expenses/{expId}',
+    operationId: 'deleteGroupExpense',
+    tags: ['Expenses'],
     summary: 'Delete an expense',
+    description: 'Permanently deletes an expense from the ledger.',
     request: { params: z.object({ id: z.string(), expId: z.string() }) },
     responses: {
         204: { description: 'Deleted' },
@@ -280,7 +303,10 @@ groupsRouter.openapi(deleteExpenseRoute, async (c) => {
 const getSettlementsRoute = createRoute({
     method: 'get',
     path: '/{id}/settlements',
+    operationId: 'listGroupSettlements',
+    tags: ['Settlements'],
     summary: 'Get all settlements',
+    description: 'Retrieves the full history of settlements (payments) for the group. AGENT INSTRUCTION: This returns the entire unpaginated history.',
     request: { params: z.object({ id: z.string() }) },
     responses: { 200: { content: { 'application/json': { schema: z.array(SettlementSchema) } }, description: 'Settlements List' } }
 });
@@ -295,7 +321,10 @@ groupsRouter.openapi(getSettlementsRoute, async (c) => {
 const createSettlementRoute = createRoute({
     method: 'post',
     path: '/{id}/settlements',
+    operationId: 'createGroupSettlement',
+    tags: ['Settlements'],
     summary: 'Create a settlement',
+    description: 'Records a payment between two users. AGENT INSTRUCTION: Always verify current debt using `getGroupLedgerAnalytics` before creating a settlement to ensure you are selecting the correct `fromUserId` (the person in debt) and `toUserId` (the person owed).',
     request: {
         params: z.object({ id: z.string() }),
         body: { content: { 'application/json': { schema: CreateSettlementDTOSchema } } }
@@ -317,7 +346,10 @@ groupsRouter.openapi(createSettlementRoute, async (c) => {
 const updateSettlementRoute = createRoute({
     method: 'patch',
     path: '/{id}/settlements/{settleId}',
+    operationId: 'updateGroupSettlement',
+    tags: ['Settlements'],
     summary: 'Update a settlement',
+    description: 'Updates an existing settlement record.',
     request: {
         params: z.object({ id: z.string(), settleId: z.string() }),
         body: { content: { 'application/json': { schema: UpdateSettlementDTOSchema } } }
@@ -347,7 +379,10 @@ groupsRouter.openapi(updateSettlementRoute, async (c) => {
 const deleteSettlementRoute = createRoute({
     method: 'delete',
     path: '/{id}/settlements/{settleId}',
+    operationId: 'deleteGroupSettlement',
+    tags: ['Settlements'],
     summary: 'Delete a settlement',
+    description: 'Deletes a settlement record.',
     request: { params: z.object({ id: z.string(), settleId: z.string() }) },
     responses: {
         204: { description: 'Deleted' },
