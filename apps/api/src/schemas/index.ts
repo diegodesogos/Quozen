@@ -12,7 +12,7 @@ export const CreateGroupDTOSchema = z.object({
 
 export const UpdateGroupDTOSchema = z.object({
     name: z.string().optional().describe('New name for the group').openapi({ example: 'Trip to Paris 2024' }),
-    members: z.array(MemberInputSchema).optional().describe('Full list of members. Existing members not in this list will be removed, and new ones will be added.'),
+    members: z.array(MemberInputSchema).optional().describe('Full list of members. This replaces the entire member list. CAUTION: Omitting this field will remove all members from the group.'),
 }).openapi('UpdateGroupRequest');
 
 export const GroupSchema = z.object({
