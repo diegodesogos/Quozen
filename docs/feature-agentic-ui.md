@@ -1,16 +1,16 @@
-# Quozen Agentic UI
+# Quozen \- Agentic UI
 
-## Context and Motivation:
+## Context (for the Analyst):
 
-We have a client-side serverless app PWA code and core package QuozenClient and my API (read the other MD files to understand architecture). We have most components needed to let our users use this app via an AI agent. 
+I have a client-side serverless app PWA code and core package QuozenClient and my API (read the other MD files to understand architecture). I have most components needed to let my users use this app via an AI agent. 
 
-If the user has a ChatGTP paid account, or Claude, we could just add an MCP server in cloudflare and direct them to add the connector to their agents. But we also want a way of letting users use free web based chatbots like Google Gemini with custom Gems, or just ChatGPT standard free.
+If the user has a ChatGTP paid account, or Claude, I could just add an MCP server in cloudflare and direct them to add the connector to their agents. But I also want a way of letting users use free web based chatbots like Google Gemini with custom Gems, or just ChatGPT standard free.
 
 Now, let´s consider the following: what about also building a small chat app where all I have to ask the user to do is to provide me an API key (and if not I can use Google’s Cloud free api key with my user for a limited experience). Having the chance of getting an API and adding something to my PWA app could provide a better full chat experience.
 
-## Agentic Client-side App
+## Agentic Client-side App (for the Architect)
 
-This approach is the **"Gold Standard" for modern AI-integrated PWAs**. By moving the "Chatbot" inside the application, we transition from a passive tool to an **Agentic UI**.
+This approach is the **"Gold Standard" for modern AI-integrated PWAs**. By moving the "Chatbot" inside your application, we transition from a passive tool to an **Agentic UI**.
 
 Since we already have `@quozen/core` running in the browser and an API (`apps/api`) deployable in Cloudflare Workers and Vercel Edge, we can build a **Hybrid Client-Side Agent**.
 
@@ -19,8 +19,8 @@ Since we already have `@quozen/core` running in the browser and an API (`apps/ap
 In this model, the "Agent" is just a React Hook that orchestrates three things:
 
 1. **The Brain (LLM):** Decides *what* to do (via API Key or Proxy).  
-2. **The Context (RAG):** Reads current state from store using QuozenClient and React app state.  
-3. **The Hands (Tools):** Executes functions directly using our existing `QuozenClient`.
+2. **The Context (RAG):** Reads current state from your Zustand store/`@quozen/core`.  
+3. **The Hands (Tools):** Executes functions directly using your existing `QuozenClient`.
 
 #### **The Flow**
 
@@ -38,17 +38,17 @@ We have two distinct paths to handle the "API Key" dilemma. We should implement 
 #### **Option A: "Bring Your Own Key" (Power Users)**
 
 * **How:** User enters their personal OpenAI/Gemini/Anthropic key in `Settings`.  
-* **Storage:** Encrypted using the API proxy, the encrypted value is obtained from the Edge function and is stored in user’s quozen-settings.json.  
+* **Storage:** Encrypted using the API proxy, the encrypted value obtained from the Edge function is stored in user’s quozen-settings.json.  
 * **Pros:** Unlimited usage, privacy (user trusts their own key), access to smarter models (GPT-4o, Claude 3.5).  
 * **Cons:** Friction for non-tech users.
 
 #### **Option B: "The Quozen Free Tier" (Casual Users)**
 
-* **How:** We use the `apps/api-proxy` (Cloudflare Worker) as a proxy.  
+* **How:** You use your existing `apps/api` (Cloudflare Worker) as a proxy.  
 * **Security:**  
-  * **Do NOT** put the Google Cloud Key in the client code.  
+  * **Do NOT** put your Google Cloud Key in the client code.  
   * Store the key as a secret in Cloudflare (`wrangler secret put GOOGLE_API_KEY`) or Vercel’s keys.  
-  * Create a route `POST /api-proxy/v1/agent/chat`.  
+  * Create a route `POST /api/v1/agent/chat`.  
   * The PWA sends the message history to this endpoint.  
   * The Worker calls Gemini Flash (very cheap/free tier) and returns the response.  
 * **Rate Limiting:** Use Cloudflare's Rate Limiting or Vercel’s own infrastructure, to prevent abuse of your quota.
@@ -63,130 +63,7 @@ Since we’re building a PWA, we can leverage **`window.ai`** (currently in Chro
 * **Latency:** Near zero.  
 * **Implementation:** Check if `window.ai` exists. If yes, use it. If not, ask for API Key. Future improvement: we can deploy the react app as a true local native mobile app and embed the nano LLM there.
 
-### **4\. Technical Blueprint**
-
-**Phase 1: Define the "Tools"** We need to map your `@quozen/core` methods to a JSON Schema that LLMs understand.
-
-// src/lib/agent/tools.ts
-
-export const QUOZEN\_TOOLS \= \[
-
-  {
-
-    name: "add\_expense",
-
-    description: "Adds a new expense to the ledger.",
-
-    parameters: {
-
-      type: "object",
-
-      properties: {
-
-        description: { type: "string" },
-
-        amount: { type: "number" },
-
-        payerId: { type: "string", description: "The ID of the user who paid" },
-
-        involvedMemberIds: { type: "array", items: { type: "string" } }
-
-      },
-
-      required: \["description", "amount", "payerId"\]
-
-    }
-
-  },
-
-  {
-
-    name: "get\_balance",
-
-    description: "Checks who owes money.",
-
-    parameters: { type: "object", properties: {} }
-
-  }
-
-\];
-
-**Phase 2: The Agent Hook (`useAgent.ts`)** This hook connects the UI to the Logic.
-
-// Simplified logic for apps/webapp/src/hooks/use-agent.ts
-
-export function useAgent() {
-
-  const { quozen } \= useAppContext();
-
-
-  const sendMessage \= async (userText: string) \=\> {
-
-    // 1\. Gather Context (RAG)
-
-    const settings \= await quozen.groups.getSettings();
-
-    const activeGroup \= settings.groupCache.find(g \=\> g.id \=== settings.activeGroupId);
-
-    
-
-    // 2\. Construct System Prompt
-
-    const systemPrompt \= \`
-
-      You are Quozen AI. 
-
-      Current Group: ${activeGroup.name}
-
-      Members: ${JSON.stringify(activeGroup.members)}
-
-      Current Date: ${new Date().toISOString()}
-
-    \`;
-
-    // 3\. Call LLM (Pseudo-code for Strategy Router)
-
-    const response \= await callLLM({
-
-      provider: userHasKey ? 'DIRECT' : 'PROXY', 
-
-      messages: \[{role: 'system', content: systemPrompt}, {role: 'user', content: userText}\],
-
-      tools: QUOZEN\_TOOLS
-
-    });
-
-    // 4\. Handle Tool Calls
-
-    if (response.tool\_calls) {
-
-       for (const tool of response.tool\_calls) {
-
-          if (tool.name \=== 'add\_expense') {
-
-             await quozen.ledger(activeGroup.id).addExpense(tool.arguments);
-
-             return "Expense added successfully\!";
-
-          }
-
-       }
-
-    }
-
-    
-
-    return response.content; // Just chat
-
-  };
-
-  return { sendMessage };
-
-}
-
-# IMPLEMENTATION PLAN
-
-### **Architectural Analysis**
+### **4\. Architectural Analysis**
 
 Tightly coupling experimental AI features into the core DOM tree is a common trap that inflates bundle sizes and introduces breaking points if remote services degrade. Instead, we will use a **"Feature Module" pattern combined with React Lazy Loading and Context**.
 
@@ -198,7 +75,7 @@ Here is how we integrate it cleanly:
 
 This guarantees that if the AI services go down, the core Quozen app remains 100% untouched, fully functional, and lightweight.
 
-### UX/UI analysis
+### 5\. UX/UI analysis
 
 Regarding UI/UX experience, here is how we can refine your UX proposal to perfectly match Quozen's recent mobile-first design system (which relies heavily on Bottom Drawers):
 
@@ -230,7 +107,7 @@ Regarding UI/UX experience, here is how we can refine your UX proposal to perfec
 
 By combining a **Global Sparkle Trigger**, an **AI Command Bottom Drawer**, and **Toast-based Feedback**, we keep the app feeling incredibly fast, native, and uncluttered.
 
-### Summary of Components to Implement
+### 6\. Summary of Components to Implement
 
 We now have all the pieces for this massive feature:
 
@@ -239,9 +116,11 @@ We now have all the pieces for this massive feature:
 3. **The 'Auto' Routing Waterfall** (BYOK \-\> Local AI \-\> Team Key)  
 4. **The Command Drawer UX** (Invisible execution with Toast feedback)
 
-### **Epic Definition**
+### **7\. Epic Definition**
 
-#### **1\. THE EPIC**
+This is for the Software Architect to create the detailed plan.
+
+#### **7.1. THE EPIC**
 
 **Title:** Modular Client-Side Agentic UI with Edge KMS 
 
@@ -252,7 +131,7 @@ We now have all the pieces for this massive feature:
 * **Zero-Leakage:** 0 instances of Team API Keys or User API Keys leaking in network payloads or unencrypted Drive files.  
 * **Quota Stability:** The Team API Key proxy strictly enforces daily limits per Google User ID via Vercel KV.
 
-#### **2\. SCOPE & CONSTRAINTS (For the Architect)**
+#### **7.2. SCOPE & CONSTRAINTS (For the Architect)**
 
 **In-Scope:**
 
@@ -289,7 +168,7 @@ We now have all the pieces for this massive feature:
 
 ---
 
-#### **3\. USER STORIES (For the Engineers)**
+#### **7.3. USER STORIES (For the Engineers)**
 
 * **US-101: Pluggable Infrastructure & Auto-Routing Waterfall**  
   * **Narrative:** As an Architect, I want the AI feature to be completely isolated and code-split, So that it does not bloat the core app or cause fatal crashes if AI services are down.  
@@ -317,3 +196,197 @@ We now have all the pieces for this massive feature:
   * **Scenario 1 (Few-Shot Prompting):** Given `window.ai` is the active router, When the RAG prompt is built, Then it is aggressively prepended with at least 3 examples of User Input \-\> Expected JSON Output to prevent hallucinations.  
   * **Scenario 2 (JSON Extraction):** Given `window.ai` wraps the response in Markdown (e.g., ```` ```json {...} ``` ````), When the client receives it, Then it strips the formatting via regex before parsing.
 
+## 8\. HIGH-LEVEL ARCHITECTURE 
+
+This section was created by the Software Architect, so Software Engineers can understand context and patterns to be used.
+
+### **System Context**
+
+The Agentic UI introduces a natural language command interface to Quozen. To maintain our strict client-side PWA architecture while protecting API keys and bundle sizes, we introduce a **Hybrid Agent Architecture**:
+
+1. **Frontend Isolation (`apps/webapp/src/features/agent`)**: A lazy-loaded module containing the RAG context builder, the UI Drawer, and the LLM Strategy Router. It only loads if the feature is enabled.  
+2. **Stateless AI Proxy (`apps/ai-proxy`)**: A completely new, isolated Hono Edge service. It has two responsibilities:  
+   * **KMS (Key Management Service):** Encrypts User API keys before they are saved to Google Drive.  
+   * **Proxy & Rate Limiting:** Validates Google OAuth tokens, applies Vercel KV rate limits per user, decrypts keys (if BYOK), and forwards requests to the LLM provider.
+
+### **Design Patterns**
+
+1. **Strategy Pattern (Routing):** The client dynamically selects the execution engine: `BYOKStrategy`, `LocalWindowAIStrategy`, or `CloudProxyStrategy`.  
+2. **Inversion of Control (Component Slots):** The global `Header` provides a DOM slot. The lazy-loaded AI module injects the "Sparkle" trigger via React Portals, ensuring zero hard dependencies in the main bundle.  
+3. **Envelope Encryption (KMS):** The proxy encrypts user keys using a server-side master `KMS_SECRET` via Web Crypto API. The client stores the ciphertext in Google Drive but never knows the secret to decrypt it.
+
+### **Sequence Diagram: Agent Execution Flow**
+
+sequenceDiagram  
+    participant User  
+    participant App as WebApp (Lazy Module)  
+    participant Router as LLM Strategy Router  
+    participant Proxy as Edge AI Proxy  
+    participant Core as QuozenClient (Core)
+
+    User-\>\>App: "Split a $50 Uber with Bob"  
+      
+    %% RAG Context Gathering  
+    App-\>\>Core: getSettings() & getLedger(activeGroupId)  
+    Core--\>\>App: Members (Alice, Bob), Balances, Schemas  
+      
+    App-\>\>Router: Route Request (Messages, Context, Tools)  
+      
+    alt Strategy: Cloud Proxy (Team Key or Encrypted BYOK)  
+        Router-\>\>Proxy: POST /chat (Messages, Ciphertext?, Auth Token)  
+        Proxy-\>\>Proxy: Validate Auth Token  
+        Proxy-\>\>Proxy: Check Rate Limit (if no Ciphertext)  
+        Proxy-\>\>Proxy: Decrypt Ciphertext (if BYOK)  
+        Proxy-\>\>LLM Provider: Generate Text / Tool Call  
+        LLM Provider--\>\>Proxy: Tool Intent JSON  
+        Proxy--\>\>Router: Tool Intent JSON  
+    else Strategy: Local AI (window.ai)  
+        Router-\>\>Chrome window.ai: generateText(Few-shot Prompt)  
+        Chrome window.ai--\>\>Router: Raw Markdown  
+        Router-\>\>Router: Regex Parse JSON  
+    end  
+      
+    %% Execution Phase  
+    Router--\>\>App: { tool: "addExpense", args: {...} }  
+    App-\>\>Core: ledger.addExpense(args)  
+    Core--\>\>App: Success  
+    App-\>\>User: Toast: "Added $50 for Uber (Split with Bob)"
+
+# **9\. DATA MODEL & PERSISTENCE**
+
+This section was created by the Software Architect, so Software Engineers can understand context and patterns to be used.
+
+Since Quozen relies on Google Drive (`quozen-settings.json`), we must update the `UserSettings` interface to store AI preferences and the encrypted key.
+
+### **Schema Changes (`@quozen/core/src/domain/models.ts`)**
+
+export interface UserSettings {  
+    // ... existing fields ...  
+    preferences: {  
+        defaultCurrency: string;  
+        theme?: "light" | "dark" | "system";  
+        locale?: "en" | "es" | "system";  
+        // \--- NEW FIELDS \---  
+        aiProvider?: "auto" | "byok" | "local" | "cloud" | "disabled";  
+    };  
+    // Stores the AES-GCM ciphertext of the user's personal API key  
+    encryptedApiKey?: string;   
+}
+
+# **10\. API CONTRACTS (Interface Design)**
+
+This section was created by the Software Architect, so Software Engineers can understand context and patterns to be used.
+
+These endpoints belong **exclusively** to the new `apps/ai-proxy` edge application.
+
+### **3.1. POST /api/v1/agent/encrypt**
+
+Encrypts a user-provided API key so it can be safely stored in the client's Google Drive.
+
+* **Security:** Requires `Authorization: Bearer <Google_Token>`.  
+* **Request Body:** \`\`\`json { "apiKey": "sk-proj-12345..." }  
+* **Response (200 OK):**
+
+{ "ciphertext": "a3f9b...\[base64\_encoded\_iv\_and\_data\]" }
+
+### **3.2. POST /api/v1/agent/chat**
+
+The stateless bridge to the LLM. Agnostic to Quozen domain logic; tools are passed in the payload.
+
+* **Security:** Requires `Authorization: Bearer <Google_Token>`. Rate-limited per Google `userId` if `ciphertext` is omitted.  
+* **Request Body:**
+
+{  
+  "messages": \[{ "role": "user", "content": "Split lunch $50 with Bob" }\],  
+  "systemPrompt": "You are Quozen AI. Context: \[Members...\]",  
+  "tools": \[...JSON Schema of Quozen Core methods...\],  
+  "ciphertext": "a3f9b..." // Optional: If provided, bypasses rate limits and uses BYOK  
+}
+
+Response (200 OK):
+
+{  
+  "type": "tool\_call",  
+  "tool": "add\_expense",  
+  "arguments": { "amount": 50, "description": "lunch", ... }  
+}
+
+# 11\. ENGINEER TASK BREAKDOWN 
+
+Software Engineer must follow the plan and tasks outlined in this section, in order to implement the Epic features.
+
+## **Phase 1: Core Updates & Settings UI**
+
+**Task \[CORE-01\]: Extend UserSettings Schema**
+
+* **Description:** Update `UserSettings` in `@quozen/core/src/domain/models.ts` and `apps/webapp/src/lib/storage/types.ts` (if duplicated) to include `preferences.aiProvider` and `encryptedApiKey`.  
+* **Technical Definition of Done:** Types compile successfully.
+
+**Task \[FE-01\]: Profile Page AI Configuration**
+
+* **Description:** Add an "AI Assistant" section to `Profile.tsx`.  
+  * Dropdown for AI Provider: Auto (Default), BYOK, Local Chrome AI, Disabled.  
+  * If BYOK is selected, show a password input for the API Key and a "Save Key" button.  
+  * *Note: Hooking up the "Save Key" button to the `/encrypt` endpoint is blocked by PROXY-02.*  
+* **Technical Definition of Done:** User can modify AI preferences and it correctly persists to `quozen-settings.json`.
+
+## **Phase 2: Edge KMS & AI Proxy (`apps/ai-proxy`)**
+
+**Task \[PROXY-01\]: Initialize `apps/ai-proxy` Workspace**
+
+* **Description:** Create a new Hono project in `apps/ai-proxy`. Configure `package.json` and `wrangler.toml` for Edge deployment. Add required dependencies: `hono`, `@upstash/ratelimit`, `@vercel/kv`, and `@ai-sdk/google` (or `openai`).  
+* **Technical Definition of Done:** `npm run dev --workspace=@quozen/ai-proxy` runs a "Hello World" endpoint on port 8788\.
+
+**Task \[PROXY-02\]: Auth Middleware & KMS Encryption Endpoint**
+
+* **Description:** 1\. Port the Google Token validation middleware from `apps/api/src/middleware/auth.ts` into the proxy. 2\. Implement `POST /encrypt`. Use `crypto.subtle` (Web Crypto API) with AES-GCM and a server-side environment variable `KMS_SECRET` (32 bytes) to encrypt the incoming `apiKey`. Return `iv` \+ `ciphertext` as a base64 string.  
+* **Technical Definition of Done:** Passing a fake token returns 401\. Passing a valid token and raw key returns an encrypted string.
+
+**Task \[PROXY-03\]: Implement Rate-Limited `/chat` Endpoint**
+
+* **Description:** 1\. Implement `POST /chat`. 2\. If `ciphertext` is in the payload: Decrypt it using `KMS_SECRET` to extract the BYOK. Skip rate limiting. 3\. If `ciphertext` is missing: Use `@upstash/ratelimit` with Vercel KV. Key the limit by the user's Google ID (extracted from Auth Middleware). Limit to e.g., 20 requests/day. Use the server's `GOOGLE_GENERATIVE_AI_API_KEY`. 4\. Pass the `messages`, `systemPrompt`, and `tools` array to the Vercel AI SDK `generateText` function and return the JSON tool call response.  
+* **Technical Definition of Done:** Endpoint successfully parses a tool call. Repeated hits without a BYOK trigger a `429 Too Many Requests` response.
+
+## **Phase 3: Frontend Agent Architecture (Strict Isolation)**
+
+**Task \[FE-02\]: Agentic UI Scaffolding & Context Provider**
+
+* **Description:** Create `src/features/agent`.  
+  * Create `AiFeatureProvider.tsx` which reads `aiProvider` from `useSettings()`.  
+  * If `aiProvider !== 'disabled'`, lazily import the `AgentModule` component.  
+  * Add a `<div id="header-actions-slot">` inside `src/components/header.tsx` next to the Sync button.  
+* **Technical Definition of Done:** Network tab shows the Agent JS chunk is *only* downloaded when the feature is enabled.
+
+**Task \[FE-03\]: Sparkle Trigger & Command Drawer**
+
+* **Description:** Inside `src/features/agent`, create `AgentCommandDrawer.tsx`.  
+  * Use React Portals to render a "Sparkle" button into the `#header-actions-slot`.  
+  * Clicking opens a Vaul `Drawer` (50% height).  
+  * Include a large `<textarea autoFocus>` and a submit arrow.  
+  * Add a dynamic transparency badge (e.g., "⚡ Powered by Team Key", "💻 On-Device").  
+* **Technical Definition of Done:** Drawer opens cleanly without altering base app layout.
+
+## **Phase 4: RAG & Execution Logic**
+
+**Task \[FE-04\]: Tool Definitions & RAG Context Builder**
+
+* **Description:** Create `src/features/agent/tools.ts`.  
+  * Define JSON Schemas for `@quozen/core` functions: `addExpense`, `addSettlement`.  
+  * Create a hook `useRagContext()` that fetches the active `Ledger`, formats `members` (ID, Name) and `getBalances()` into a tight text string to serve as the `systemPrompt`.  
+* **Technical Definition of Done:** Context accurately reflects the active group's real-time state without including the entire expense history array.
+
+**Task \[FE-05\]: The Strategy Router & Execution Loop**
+
+* **Description:** Implement `useAgent()` hook.  
+  1. **Routing Logic:** Check `aiProvider`. If `auto`, cascade: Check for BYOK in settings \-\> Check `window.ai` \-\> Fallback to Proxy.  
+  2. **Execution:** Send prompt to the resolved strategy.  
+  3. **Action:** Parse the returned JSON. If `tool === 'addExpense'`, execute `quozen.ledger(activeId).addExpense(args)`.  
+  4. **Feedback:** Close drawer, invalidate React Query `['drive', 'group', activeGroupId]`, and fire a success `toast()`.  
+* **Technical Definition of Done:** A user can type "I paid $100 for gas, split with Bob" and the UI immediately reflects the new expense in the Dashboard.
+
+**Task \[FE-06\]: Local Browser AI (`window.ai`) Fallback Implementation**
+
+* **Description:** Implement the `LocalWindowAIStrategy`.  
+  * Since local models struggle with raw function calling, construct a strictly formatted prompt combining the `systemPrompt`, the user's message, and 3 hardcoded few-shot examples showing exactly how to output the desired JSON.  
+  * Implement regex ````/[```]json\n([\s\S]*?)\n[```]/```` to extract JSON from markdown wrappers.  
+* **Technical Definition of Done:** Agent functions completely offline/without network requests when `window.ai` is utilized.
