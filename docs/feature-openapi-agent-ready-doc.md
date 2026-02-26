@@ -1,4 +1,4 @@
-#### **1\. THE EPIC**
+#### **1\. THE EPIC** [DONE]
 
 **Title:** 100% Agent-Ready OpenAPI Refactor for Quozen Edge API **Description:** Transform the existing Quozen REST API into a highly descriptive, agent-consumable interface. By embedding LLM-specific instructions (reasoning constraints, error-handling loops, and domain context) directly into the OpenAPI 3.0 specification for **every single endpoint without exception**, we empower AI agents (via MCP or OpenAI function calling) to autonomously and safely manage user expenses, calculate splits, and recover from data conflicts. **Success Metrics:**
 
@@ -31,25 +31,25 @@
 
 #### **3\. USER STORIES (For the Engineers)**
 
-* **US-101: 100% Coverage of Semantic Operation IDs & Tagging**  
+* **US-101: 100% Coverage of Semantic Operation IDs & Tagging**  [DONE]
   * **Narrative:** As an AI Agent, I want *every single endpoint* to have a distinct `operationId` and `tag`, So that I can easily map them to my internal tool-calling interface without confusing Group operations with Expense operations.  
   * **Acceptance Criteria:**  
     * **Scenario 1:** Given the agent parses the OpenAPI JSON, When it looks at the schema, Then there are exactly 0 endpoints missing the `operationId` or `tags` properties.  
     * **Dev Notes:** Group endpoints under `['Groups']`, `['Expenses']`, `['Settlements']`, and `['Analytics']`.  
-* **US-102: Agent Reasoning Injection in Schemas**  
+* **US-102: Agent Reasoning Injection in Schemas**  [DONE]
   * **Narrative:** As an AI Agent, I want every schema field to tell me its business rules, So that I don't submit invalid data and waste tokens on 400 Bad Request errors.  
   * **Acceptance Criteria:**  
     * **Scenario 1:** Given the user says "I paid $50 for dinner", When the agent reads the `CreateExpenseDTO` description, Then it explicitly reads: *"If the user does not specify how to split the cost, you MUST first fetch the group ledger to get the list of members, and then divide the amount equally."*  
-* **US-103: Concurrency & Retry Instructions**  
+* **US-103: Concurrency & Retry Instructions**  [DONE]
   * **Narrative:** As an AI Agent, I want to know how to handle specific HTTP errors for mutation endpoints, So that I can autonomously resolve them.  
   * **Acceptance Criteria:**  
     * **Scenario 1:** Given the agent attempts a PATCH and receives a `409 Conflict`, When it reads the endpoint description for `updateGroupExpense`, Then it is instructed to execute a GET request, merge the data, and retry the PATCH.  
-* **US-104: Full History Context Instructions for all GET Endpoints**  
+* **US-104: Full History Context Instructions for all GET Endpoints**  [DONE]
   * **Narrative:** As an AI Agent, I want to know the scope of the data returned by all GET endpoints, So that I don't try to hallucinate pagination parameters.  
   * **Acceptance Criteria:**  
     * **Scenario 1:** All GET endpoints (`listGroupExpenses`, `listGroupSettlements`) explicitly state: *"This returns the full history. It is lightweight and safe to consume completely into context."*
 
-### **Explicit Developer Directive: `apps/api/src/routes/groups.ts`**
+### **Explicit Developer Directive: `apps/api/src/routes/groups.ts`** [DONE]
 
 *Engineer Note: Do not leave a single route untouched. Every route definition in `groups.ts` MUST be updated with the properties shown below to guarantee the Agent can see and use all 11 endpoints.*
 
