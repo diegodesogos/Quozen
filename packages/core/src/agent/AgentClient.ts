@@ -34,12 +34,12 @@ export class AgentClient {
         });
 
         if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
+            const error = await response.json().catch(() => ({})) as { message?: string };
             throw new Error(error.message || 'Encryption failed');
         }
 
-        const { ciphertext } = await response.json();
-        return ciphertext;
+        const result = await response.json() as { ciphertext: string };
+        return result.ciphertext;
     }
 
     async chat(request: AgentChatRequest): Promise<AgentChatResponse> {
@@ -56,10 +56,10 @@ export class AgentClient {
         });
 
         if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
+            const error = await response.json().catch(() => ({})) as { message?: string };
             throw new Error(error.message || 'AI request failed');
         }
 
-        return await response.json();
+        return await response.json() as AgentChatResponse;
     }
 }
