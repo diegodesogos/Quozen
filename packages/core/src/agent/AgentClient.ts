@@ -24,7 +24,7 @@ export class AgentClient {
         const token = this.getAuthToken();
         if (!token) throw new Error('Authorization required');
 
-        const response = await fetch(`${this.baseUrl}/v1/agent/encrypt`, {
+        const response = await fetch(`${this.baseUrl}/api/v1/agent/encrypt`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -46,7 +46,7 @@ export class AgentClient {
         const token = this.getAuthToken();
         if (!token) throw new Error('Authorization required');
 
-        const response = await fetch(`${this.baseUrl}/v1/agent/chat`, {
+        const response = await fetch(`${this.baseUrl}/api/v1/agent/chat`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

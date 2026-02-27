@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import { env } from 'hono/adapter';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { generateText } from 'ai';
+import { generateText, jsonSchema } from 'ai';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { authMiddleware, AppEnv } from './middleware/auth';
@@ -9,6 +10,7 @@ import { encrypt, decrypt } from './lib/kms';
 
 const app = new Hono<AppEnv>();
 
+app.use('*', cors());
 app.use('*', authMiddleware);
 
 app.get('/', (c) => {
@@ -74,6 +76,17 @@ app.post('/api/v1/agent/chat', async (c) => {
         return c.json({ error: 'Internal Server Error', message: 'LLM API Key not configured' }, 500);
     }
 
+    // Format tools from frontend (array) to SDK format (object with jsonSchema)
+    const formattedTools: Record<string, any> = {};
+    if (Array.isArray(tools)) {
+        tools.forEach((tool: any) => {
+            formattedTools[tool.name] = {
+                description: tool.description,
+                parameters: jsonSchema(tool.parameters)
+            };
+        });
+    }
+
     try {
         const googleInstance = createGoogleGenerativeAI({
             apiKey: activeApiKey,
@@ -83,7 +96,7 @@ app.post('/api/v1/agent/chat', async (c) => {
             model: googleInstance('gemini-1.5-flash'),
             system: systemPrompt,
             messages,
-            tools: tools
+            tools: formattedTools
         });
 
         if (result.toolCalls && result.toolCalls.length > 0) {
