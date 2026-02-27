@@ -57,13 +57,14 @@ app.post('/api/v1/agent/chat', async (c) => {
     } else {
         // Rate limiting for Team Key (only if KV is configured)
         if (KV_REST_API_URL && KV_REST_API_TOKEN) {
+            const { AI_RATE_LIMIT_REQUESTS = '20', AI_RATE_LIMIT_WINDOW = '1 d' } = env(c);
             const redis = new Redis({
                 url: KV_REST_API_URL,
                 token: KV_REST_API_TOKEN,
             });
             const ratelimit = new Ratelimit({
                 redis,
-                limiter: Ratelimit.slidingWindow(20, '1 d'),
+                limiter: Ratelimit.slidingWindow(parseInt(AI_RATE_LIMIT_REQUESTS), AI_RATE_LIMIT_WINDOW as any),
             });
             const { success } = await ratelimit.limit(`ai-limit:${user.id}`);
             if (!success) {
@@ -88,15 +89,18 @@ app.post('/api/v1/agent/chat', async (c) => {
     }
 
     try {
+        const { GOOGLE_GENERATIVE_AI_MODEL = 'gemini-2.0-flash' } = env(c);
+        console.log(`Using AI Model: ${GOOGLE_GENERATIVE_AI_MODEL}`);
         const googleInstance = createGoogleGenerativeAI({
             apiKey: activeApiKey,
         });
 
         const result = await generateText({
-            model: googleInstance('gemini-1.5-flash'),
+            model: googleInstance(GOOGLE_GENERATIVE_AI_MODEL),
             system: systemPrompt,
             messages,
-            tools: formattedTools
+            tools: formattedTools,
+            maxRetries: 0
         });
 
         if (result.toolCalls && result.toolCalls.length > 0) {
