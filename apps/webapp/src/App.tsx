@@ -6,7 +6,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
 import Dashboard from "@/pages/dashboard";
 import ActivityHub from "@/pages/activity-hub";
-import AddExpense from "@/pages/add-expense";
 import EditExpense from "@/pages/edit-expense";
 import Groups from "@/pages/groups";
 import Profile from "@/pages/profile";
@@ -24,6 +23,7 @@ import { useTranslation } from "react-i18next";
 import PullToRefresh from "@/components/pull-to-refresh";
 import { useAutoSync } from "@/hooks/use-auto-sync";
 import AddExpenseDrawer from "@/components/add-expense-drawer";
+import { AiFeatureProvider } from "@/features/agent/AiFeatureProvider";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -160,41 +160,43 @@ export function AuthenticatedApp() {
       setIsAddExpenseOpen
     }}>
       <AutoSyncProvider>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/join/:id" element={<JoinPage />} />
+        <AiFeatureProvider>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/join/:id" element={<JoinPage />} />
 
-          <Route
-            path="/dashboard"
-            element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>}
-          />
-          <Route
-            path="/expenses"
-            element={<ProtectedRoute><AppLayout><ActivityHub /></AppLayout></ProtectedRoute>}
-          />
+            <Route
+              path="/dashboard"
+              element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>}
+            />
+            <Route
+              path="/expenses"
+              element={<ProtectedRoute><AppLayout><ActivityHub /></AppLayout></ProtectedRoute>}
+            />
 
-          <Route
-            path="/edit-expense/:id"
-            element={<ProtectedRoute><AppLayout><EditExpense /></AppLayout></ProtectedRoute>}
-          />
-          <Route
-            path="/groups"
-            element={<ProtectedRoute><AppLayout><Groups /></AppLayout></ProtectedRoute>}
-          />
-          <Route
-            path="/profile"
-            element={<ProtectedRoute><AppLayout><Profile /></AppLayout></ProtectedRoute>}
-          />
-          <Route
-            path="/"
-            element={
-              authLoading ? <div>{t("common.loading")}</div> :
-                isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
-            }
-          />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-        <Toaster />
+            <Route
+              path="/edit-expense/:id"
+              element={<ProtectedRoute><AppLayout><EditExpense /></AppLayout></ProtectedRoute>}
+            />
+            <Route
+              path="/groups"
+              element={<ProtectedRoute><AppLayout><Groups /></AppLayout></ProtectedRoute>}
+            />
+            <Route
+              path="/profile"
+              element={<ProtectedRoute><AppLayout><Profile /></AppLayout></ProtectedRoute>}
+            />
+            <Route
+              path="/"
+              element={
+                authLoading ? <div>{t("common.loading")}</div> :
+                  isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
+              }
+            />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          <Toaster />
+        </AiFeatureProvider>
       </AutoSyncProvider>
     </AppContext.Provider>
   );

@@ -1,0 +1,65 @@
+export interface AgentChatRequest {
+    messages: { role: string; content: string }[];
+    systemPrompt: string;
+    tools?: any[];
+    ciphertext?: string;
+}
+
+export interface AgentChatResponse {
+    type: 'text' | 'tool_call';
+    content?: string;
+    tool?: string;
+    arguments?: any;
+    error?: string;
+    message?: string;
+}
+
+export class AgentClient {
+    constructor(
+        private baseUrl: string,
+        private getAuthToken: () => string | null
+    ) { }
+
+    async encryptApiKey(apiKey: string): Promise<string> {
+        const token = this.getAuthToken();
+        if (!token) throw new Error('Authorization required');
+
+        const response = await fetch(`${this.baseUrl}/v1/agent/encrypt`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ apiKey })
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.message || 'Encryption failed');
+        }
+
+        const { ciphertext } = await response.json();
+        return ciphertext;
+    }
+
+    async chat(request: AgentChatRequest): Promise<AgentChatResponse> {
+        const token = this.getAuthToken();
+        if (!token) throw new Error('Authorization required');
+
+        const response = await fetch(`${this.baseUrl}/v1/agent/chat`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(request)
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.message || 'AI request failed');
+        }
+
+        return await response.json();
+    }
+}

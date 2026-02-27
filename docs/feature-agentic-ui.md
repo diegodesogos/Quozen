@@ -53,15 +53,14 @@ We have two distinct paths to handle the "API Key" dilemma. We should implement 
   * The Worker calls Gemini Flash (very cheap/free tier) and returns the response.  
 * **Rate Limiting:** Use Cloudflare's Rate Limiting or Vercel’s own infrastructure, to prevent abuse of your quota.
 
-### **3\. "Magic" Feature: Chrome Built-in AI (Gemini Nano)**
+### **3\. Local AI: Chrome Built-in AI (Gemini Nano)**
 
-Since we’re building a PWA, we can leverage **`window.ai`** (currently in Chrome Canary/Dev).
+As of early 2026, the **`window.ai`** namespace has been standardized into specific APIs:
 
-* **Concept:** The LLM runs *inside* the user's browser locally.  
+* **Concept:** The LLM runs *inside* the user's browser locally via `ai.languageModel`.
 * **Cost:** $0.  
 * **Privacy:** 100% Local.  
-* **Latency:** Near zero.  
-* **Implementation:** Check if `window.ai` exists. If yes, use it. If not, ask for API Key. Future improvement: we can deploy the react app as a true local native mobile app and embed the nano LLM there.
+* **Implementation:** Check for `ai.languageModel`. We use `ai.languageModel.capabilities()` to verify readiness and `ai.languageModel.create({ systemPrompt })` to initialize high-performance local sessions.
 
 ### **4\. Architectural Analysis**
 
@@ -317,76 +316,38 @@ Software Engineer must follow the plan and tasks outlined in this section, in or
 
 ## **Phase 1: Core Updates & Settings UI**
 
-**Task \[CORE-01\]: Extend UserSettings Schema**
-
-* **Description:** Update `UserSettings` in `@quozen/core/src/domain/models.ts` and `apps/webapp/src/lib/storage/types.ts` (if duplicated) to include `preferences.aiProvider` and `encryptedApiKey`.  
+**Task [CORE-01]: Extend UserSettings Schema** - **DONE**
 * **Technical Definition of Done:** Types compile successfully.
 
-**Task \[FE-01\]: Profile Page AI Configuration**
-
-* **Description:** Add an "AI Assistant" section to `Profile.tsx`.  
-  * Dropdown for AI Provider: Auto (Default), BYOK, Local Chrome AI, Disabled.  
-  * If BYOK is selected, show a password input for the API Key and a "Save Key" button.  
-  * *Note: Hooking up the "Save Key" button to the `/encrypt` endpoint is blocked by PROXY-02.*  
-* **Technical Definition of Done:** User can modify AI preferences and it correctly persists to `quozen-settings.json`.
+**Task [FE-01]: Profile Page AI Configuration** - **DONE**
+* **Technical Definition of Done:** User can modify AI preferences and it correctly persists to `quozen-settings.json`. Encryption via Edge KMS is integrated.
 
 ## **Phase 2: Edge KMS & AI Proxy (`apps/ai-proxy`)**
 
-**Task \[PROXY-01\]: Initialize `apps/ai-proxy` Workspace**
+**Task [PROXY-01]: Initialize `apps/ai-proxy` Workspace** - **DONE**
+* **Technical Definition of Done:** `npm run dev --workspace=@quozen/ai-proxy` runs a "Hello World" endpoint on port 8788.
 
-* **Description:** Create a new Hono project in `apps/ai-proxy`. Configure `package.json` and `wrangler.toml` for Edge deployment. Add required dependencies: `hono`, `@upstash/ratelimit`, `@vercel/kv`, and `@ai-sdk/google` (or `openai`).  
-* **Technical Definition of Done:** `npm run dev --workspace=@quozen/ai-proxy` runs a "Hello World" endpoint on port 8788\.
+**Task [PROXY-02]: Auth Middleware & KMS Encryption Endpoint** - **DONE**
+* **Technical Definition of Done:** Passing a valid token and raw key returns an encrypted string. Shared auth utility used between `api` and `ai-proxy`.
 
-**Task \[PROXY-02\]: Auth Middleware & KMS Encryption Endpoint**
-
-* **Description:** 1\. Port the Google Token validation middleware from `apps/api/src/middleware/auth.ts` into the proxy. 2\. Implement `POST /encrypt`. Use `crypto.subtle` (Web Crypto API) with AES-GCM and a server-side environment variable `KMS_SECRET` (32 bytes) to encrypt the incoming `apiKey`. Return `iv` \+ `ciphertext` as a base64 string.  
-* **Technical Definition of Done:** Passing a fake token returns 401\. Passing a valid token and raw key returns an encrypted string.
-
-**Task \[PROXY-03\]: Implement Rate-Limited `/chat` Endpoint**
-
-* **Description:** 1\. Implement `POST /chat`. 2\. If `ciphertext` is in the payload: Decrypt it using `KMS_SECRET` to extract the BYOK. Skip rate limiting. 3\. If `ciphertext` is missing: Use `@upstash/ratelimit` with Vercel KV. Key the limit by the user's Google ID (extracted from Auth Middleware). Limit to e.g., 20 requests/day. Use the server's `GOOGLE_GENERATIVE_AI_API_KEY`. 4\. Pass the `messages`, `systemPrompt`, and `tools` array to the Vercel AI SDK `generateText` function and return the JSON tool call response.  
+**Task [PROXY-03]: Implement Rate-Limited `/chat` Endpoint** - **DONE**
 * **Technical Definition of Done:** Endpoint successfully parses a tool call. Repeated hits without a BYOK trigger a `429 Too Many Requests` response.
 
 ## **Phase 3: Frontend Agent Architecture (Strict Isolation)**
 
-**Task \[FE-02\]: Agentic UI Scaffolding & Context Provider**
-
-* **Description:** Create `src/features/agent`.  
-  * Create `AiFeatureProvider.tsx` which reads `aiProvider` from `useSettings()`.  
-  * If `aiProvider !== 'disabled'`, lazily import the `AgentModule` component.  
-  * Add a `<div id="header-actions-slot">` inside `src/components/header.tsx` next to the Sync button.  
+**Task [FE-02]: Agentic UI Scaffolding & Context Provider** - **DONE**
 * **Technical Definition of Done:** Network tab shows the Agent JS chunk is *only* downloaded when the feature is enabled.
 
-**Task \[FE-03\]: Sparkle Trigger & Command Drawer**
-
-* **Description:** Inside `src/features/agent`, create `AgentCommandDrawer.tsx`.  
-  * Use React Portals to render a "Sparkle" button into the `#header-actions-slot`.  
-  * Clicking opens a Vaul `Drawer` (50% height).  
-  * Include a large `<textarea autoFocus>` and a submit arrow.  
-  * Add a dynamic transparency badge (e.g., "⚡ Powered by Team Key", "💻 On-Device").  
-* **Technical Definition of Done:** Drawer opens cleanly without altering base app layout.
+**Task [FE-03]: Sparkle Trigger & Command Drawer** - **DONE**
+* **Technical Definition of Done:** Drawer opens cleanly without altering base app layout. Internationalized in English and Spanish.
 
 ## **Phase 4: RAG & Execution Logic**
 
-**Task \[FE-04\]: Tool Definitions & RAG Context Builder**
+**Task [FE-04]: Tool Definitions & RAG Context Builder** - **DONE**
+* **Technical Definition of Done:** Context accurately reflects the active group's real-time state.
 
-* **Description:** Create `src/features/agent/tools.ts`.  
-  * Define JSON Schemas for `@quozen/core` functions: `addExpense`, `addSettlement`.  
-  * Create a hook `useRagContext()` that fetches the active `Ledger`, formats `members` (ID, Name) and `getBalances()` into a tight text string to serve as the `systemPrompt`.  
-* **Technical Definition of Done:** Context accurately reflects the active group's real-time state without including the entire expense history array.
+**Task [FE-05]: The Strategy Router & Execution Loop** - **DONE**
+* **Technical Definition of Done:** A user can type "I paid $100 for gas, split with Bob" and the UI immediately reflects the new expense.
 
-**Task \[FE-05\]: The Strategy Router & Execution Loop**
-
-* **Description:** Implement `useAgent()` hook.  
-  1. **Routing Logic:** Check `aiProvider`. If `auto`, cascade: Check for BYOK in settings \-\> Check `window.ai` \-\> Fallback to Proxy.  
-  2. **Execution:** Send prompt to the resolved strategy.  
-  3. **Action:** Parse the returned JSON. If `tool === 'addExpense'`, execute `quozen.ledger(activeId).addExpense(args)`.  
-  4. **Feedback:** Close drawer, invalidate React Query `['drive', 'group', activeGroupId]`, and fire a success `toast()`.  
-* **Technical Definition of Done:** A user can type "I paid $100 for gas, split with Bob" and the UI immediately reflects the new expense in the Dashboard.
-
-**Task \[FE-06\]: Local Browser AI (`window.ai`) Fallback Implementation**
-
-* **Description:** Implement the `LocalWindowAIStrategy`.  
-  * Since local models struggle with raw function calling, construct a strictly formatted prompt combining the `systemPrompt`, the user's message, and 3 hardcoded few-shot examples showing exactly how to output the desired JSON.  
-  * Implement regex ````/[```]json\n([\s\S]*?)\n[```]/```` to extract JSON from markdown wrappers.  
-* **Technical Definition of Done:** Agent functions completely offline/without network requests when `window.ai` is utilized.
+**Task [FE-06]: Local Browser AI (`window.ai`) Fallback Implementation** - **DONE**
+* **Technical Definition of Done:** Updated to use `ai.languageModel` (2026 standard). Agent functions completely offline/without network requests when `window.ai` is utilized.

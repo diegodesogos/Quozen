@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/auth-provider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { User as UserIcon, Settings, HelpCircle, LogOut, Mail, RefreshCw, AlertCircle, Coins, Globe } from "lucide-react";
+import { User as UserIcon, Settings, HelpCircle, LogOut, Mail, RefreshCw, AlertCircle, Coins, Globe, Sparkles, Cpu, Key, Bot } from "lucide-react";
 import { quozen } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/use-settings";
@@ -10,7 +10,10 @@ import { useGroups } from "@/hooks/use-groups";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { useTranslation } from "react-i18next";
+import React from "react";
+import { agentClient } from "@/lib/agent";
 
 const POPULAR_CURRENCIES = [
   "USD", "EUR", "GBP", "JPY", "CAD", "AUD", "INR", "CNY", "BRL", "MXN", "ARS", "CHF"
@@ -56,6 +59,7 @@ export default function Profile() {
   const { settings, updateSettings } = useSettings();
   const { groups } = useGroups();
   const { t } = useTranslation();
+  const [apiKey, setApiKey] = React.useState("");
 
   const reconcileMutation = useMutation({
     mutationFn: async () => {
@@ -109,6 +113,50 @@ export default function Profile() {
 
   const handleLogout = () => {
     logout();
+  };
+
+  const handleAiProviderChange = (provider: string) => {
+    if (settings) {
+      updateSettings({
+        ...settings,
+        preferences: {
+          ...settings.preferences,
+          aiProvider: provider as any
+        }
+      });
+      toast({ title: t("common.save") });
+    }
+  };
+
+  const [isEncrypting, setIsEncrypting] = React.useState(false);
+
+  const handleSaveApiKey = async () => {
+    if (!apiKey.trim() || !settings) return;
+
+    setIsEncrypting(true);
+    try {
+      const ciphertext = await agentClient.encryptApiKey(apiKey);
+
+      updateSettings({
+        ...settings,
+        encryptedApiKey: ciphertext
+      });
+
+      setApiKey("");
+      toast({
+        title: t("common.success"),
+        description: "API Key encrypted and saved securely.",
+      });
+    } catch (error: any) {
+      console.error(error);
+      toast({
+        title: t("common.error"),
+        description: error.message || "Could not encrypt API Key. Check your connection.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsEncrypting(false);
+    }
   };
 
   if (!user) {
@@ -266,6 +314,66 @@ export default function Profile() {
             </Button>
           </div>
 
+        </CardContent>
+      </Card>
+
+      {/* AI Assistant */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center">
+            <Sparkles className="w-5 h-5 mr-2 text-primary" />
+            {t("profile.aiAssistant")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Bot className="w-4 h-4 text-muted-foreground" />
+              {t("profile.aiProvider")}
+            </Label>
+            <Select
+              value={settings?.preferences?.aiProvider || "auto"}
+              onValueChange={handleAiProviderChange}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select provider" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">{t("profile.aiAuto")}</SelectItem>
+                <SelectItem value="byok">{t("profile.aiByok")}</SelectItem>
+                <SelectItem value="local">{t("profile.aiLocal")}</SelectItem>
+                <SelectItem value="disabled">{t("profile.aiDisabled")}</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {t("profile.aiProviderDesc")}
+            </p>
+          </div>
+
+          {settings?.preferences?.aiProvider === 'byok' && (
+            <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
+              <Label className="flex items-center gap-2">
+                <Key className="w-4 h-4 text-muted-foreground" />
+                {t("profile.apiKey")}
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  type="password"
+                  placeholder="sk-..."
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  className="flex-1"
+                />
+                <Button
+                  size="sm"
+                  onClick={handleSaveApiKey}
+                  disabled={isEncrypting || !apiKey.trim()}
+                >
+                  {isEncrypting ? <RefreshCw className="w-4 h-4 animate-spin" /> : t("profile.saveKey")}
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

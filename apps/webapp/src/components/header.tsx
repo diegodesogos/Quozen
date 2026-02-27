@@ -102,6 +102,7 @@ export default function Header() {
           </div>
 
           <div className="flex items-center space-x-2">
+            <div id="header-actions-slot" className="flex items-center space-x-2" />
             {!isSubPage && !isEnabled && (
               <button
                 className="w-8 h-8 rounded-full bg-muted flex items-center justify-center hover:bg-accent transition-colors disabled:opacity-50"
