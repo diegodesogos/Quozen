@@ -7,7 +7,8 @@ vite.config.ts.*
 .env
 .env.test
 .wrangler
-
+.dev.vars
+/apps/ai-proxy/.dev.vars
 # Playwright
 /apps/webapp/test-results/
 /apps/webapp/playwright-report/

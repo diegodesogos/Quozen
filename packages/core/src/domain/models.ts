@@ -72,25 +72,8 @@ export interface UserSettings {
         defaultCurrency: string;
         theme?: "light" | "dark" | "system";
         locale?: "en" | "es" | "system";
+        aiProvider?: "auto" | "byok" | "local" | "cloud" | "disabled";
     };
-    lastUpdated: string;
-}
-
-export interface CachedGroup {
-    id: string;
-    name: string;
-    role: "owner" | "member";
-    lastAccessed?: string;
-}
-
-export interface UserSettings {
-    version: number;
-    activeGroupId: string | null;
-    groupCache: CachedGroup[];
-    preferences: {
-        defaultCurrency: string;
-        theme?: "light" | "dark" | "system";
-        locale?: "en" | "es" | "system";
-    };
+    encryptedApiKey?: string;
     lastUpdated: string;
 }

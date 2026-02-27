@@ -1,16 +1,20 @@
 import { Context, Next } from 'hono';
-import { QuozenClient, GoogleDriveStorageLayer, InMemoryAdapter, validateGoogleToken, User } from '@quozen/core';
+import { validateGoogleToken, User } from '@quozen/core';
 
-// Strongly type our Hono Context so handlers know about injected variables
 export type AppEnv = {
     Variables: {
         user: User;
-        quozen: QuozenClient;
+    };
+    Bindings: {
+        KMS_SECRET: string;
+        GOOGLE_GENERATIVE_AI_API_KEY: string;
+        GOOGLE_GENERATIVE_AI_MODEL: string;
+        KV_REST_API_URL: string;
+        KV_REST_API_TOKEN: string;
+        AI_RATE_LIMIT_REQUESTS: string;
+        AI_RATE_LIMIT_WINDOW: string;
     };
 };
-
-// Persist memory adapter across test requests
-const testStorage = new InMemoryAdapter();
 
 export const authMiddleware = async (c: Context<AppEnv>, next: Next) => {
     const authHeader = c.req.header('Authorization');
@@ -21,22 +25,16 @@ export const authMiddleware = async (c: Context<AppEnv>, next: Next) => {
 
     const token = authHeader.replace('Bearer ', '');
 
-    // Phase 6 Readiness: Support for Vitest isolated testing
+    // Support for testing
     if (token === 'mock-test-token') {
         const user: User = { id: 'u1', email: 'test@quozen.com', name: 'Test User', username: 'testuser' };
         c.set('user', user);
-        c.set('quozen', new QuozenClient({ storage: testStorage, user }));
         return next();
     }
 
     try {
         const user = await validateGoogleToken(token);
-        const storage = new GoogleDriveStorageLayer(() => token);
-        const client = new QuozenClient({ storage, user });
-
         c.set('user', user);
-        c.set('quozen', client);
-
         await next();
     } catch (error: any) {
         if (error.message === 'Invalid Google token') {
