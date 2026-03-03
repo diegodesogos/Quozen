@@ -21,7 +21,7 @@ export class OllamaProvider implements AiProvider {
     getTeamConfig(bindings: any): ProviderConfig {
         return {
             baseUrl: bindings.OLLAMA_BASE_URL || 'http://localhost:11434/api',
-            model: bindings.GOOGLE_GENERATIVE_AI_MODEL || 'llama3.2'
+            model: bindings.OLLAMA_AI_MODEL || 'llama3.2'
         };
     }
 }

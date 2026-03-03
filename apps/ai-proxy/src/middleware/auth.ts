@@ -9,12 +9,13 @@ export type AppEnv = {
         KMS_SECRET: string;
         GOOGLE_GENERATIVE_AI_API_KEY: string;
         GOOGLE_GENERATIVE_AI_MODEL: string;
+        OLLAMA_AI_MODEL: string;
+        OLLAMA_BASE_URL: string;
         KV_REST_API_URL: string;
         KV_REST_API_TOKEN: string;
         AI_RATE_LIMIT_REQUESTS: string;
         AI_RATE_LIMIT_WINDOW: string;
         AI_PROVIDER: string;
-        OLLAMA_BASE_URL: string;
     };
 };
 

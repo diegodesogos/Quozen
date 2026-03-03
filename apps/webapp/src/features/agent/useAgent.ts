@@ -1,6 +1,6 @@
 import { useSettings } from "@/hooks/use-settings";
 import { useRagContext } from "./useRagContext";
-import { tools } from "./tools";
+import { agentTools as tools, AgentOrchestrator } from "@quozen/core";
 import { quozen } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -58,9 +58,13 @@ export const useAgent = () => {
         });
 
         if (result.type === 'tool_call' && result.tool) {
+            const validation = AgentOrchestrator.validateResponse(result);
+            if (!validation.isValid) {
+                return { success: false, message: validation.error };
+            }
             return await handleToolCall(result.tool, result.arguments);
         } else {
-            return { success: false, message: result.content || result.message || t('agent.aiCantPerform') };
+            return { success: false, message: result.content || result.message || AgentOrchestrator.getErrorMessage() };
         }
     };
 

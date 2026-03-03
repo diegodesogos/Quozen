@@ -40,7 +40,7 @@ Download and run Ollama on your machine from [ollama.com](https://ollama.com).
 ### 2. Pull a tool-capable model
 Run:
 ```bash
-ollama run llama3.2
+ollama run qwen3:0.6b
 ```
 
 ### 3. Update Configuration
@@ -48,7 +48,7 @@ Update your `.dev.vars`:
 ```bash
 AI_PROVIDER=ollama
 OLLAMA_BASE_URL=http://localhost:11434/api
-GOOGLE_GENERATIVE_AI_MODEL=llama3.2
+OLLAMA_AI_MODEL=qwen3:0.6b
 ```
 
 ### 4. Run the interactive test

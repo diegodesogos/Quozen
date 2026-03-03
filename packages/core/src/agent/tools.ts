@@ -1,4 +1,4 @@
-export const tools = [
+export const agentTools = [
     {
         name: "addExpense",
         description: "Add a new expense to the group ledger. Use this when someone pays for something that should be shared.",

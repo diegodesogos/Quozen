@@ -109,8 +109,8 @@ app.post('/api/v1/agent/chat', async (c) => {
     }
 
     try {
-        console.log(`Using ${provider.id} Provider (${providerConfig.model})`);
         const modelInstance = provider.getLanguageModel(providerConfig);
+        console.log(`🚀 LLM Request: Provider=${provider.id}, Model=${providerConfig.model}`);
 
         const result = await generateText({
             model: modelInstance,
