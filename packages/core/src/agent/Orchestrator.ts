@@ -12,9 +12,10 @@ export class AgentOrchestrator {
     static buildSystemPrompt(ctx: OrchestratorContext): string {
         const { ledger, me, activeGroupId, today = new Date().toDateString() } = ctx;
 
-        const membersList = ledger.members.map((m: Member) =>
-            `- ${m.name} (id: ${m.userId}${m.userId === me.id ? ', this is YOU' : ''})`
-        ).join('\n');
+        const membersList = ledger.members.map((m: Member) => {
+            const sanitizedName = m.name.replace(/[\n\r]/g, ' ');
+            return `- ${sanitizedName} (id: ${m.userId}${m.userId === me.id ? ', this is YOU' : ''})`;
+        }).join('\n');
 
         const balances = ledger.getBalances();
         const balancesList = Object.entries(balances).map(([userId, amount]) => {
