@@ -77,7 +77,7 @@ app.post('/api/v1/agent/chat', async (c) => {
             });
             const ratelimit = new Ratelimit({
                 redis,
-                limiter: Ratelimit.slidingWindow(parseInt(AI_RATE_LIMIT_REQUESTS), AI_RATE_LIMIT_WINDOW as any),
+                limiter: Ratelimit.slidingWindow(parseInt(AI_RATE_LIMIT_REQUESTS), AI_RATE_LIMIT_WINDOW as Ratelimit.Duration),
             });
             const { success } = await ratelimit.limit(`ai-limit:${user.id}`);
             if (!success) {
