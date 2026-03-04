@@ -308,3 +308,124 @@ export interface AiProvider {
 ### **Note for developers:**
 
 We highly recommend having the engineer tackle **\[CONFIG-01\]** concurrently with **Phase 1**, as having the environment variables straight from day one prevents painful debugging later. The **\[DOC-01\]** and **\[DOC-02\]** tasks should be the final gate checks before the Pull Request is merged.
+
+## 5\. Technical Debt Fixes and Testing Tasks (for software engineers to implement)
+
+### **1\. Architectural Decision: Remove `interactive.ts`**
+
+**Decision:** Delete `apps/ai-proxy/scripts/interactive.ts`. **Rationale:** 1\. **DRY Principle:** We do not want to maintain two separate CLI REPLs. 2\. **Fidelity:** The new `@quozen/cli` "Ask AI" feature provides a much higher fidelity test. It exercises the actual `@quozen/core` data fetching, the real RAG builder, the Polymorphic Provider routing, *and* the proxy all at once. The old script bypassed the core SDK entirely.
+
+---
+
+### **2\. Unit Testing Strategy**
+
+With the logic moving out of the React components and into the Core, our testing focus shifts heavily to `@quozen/core`.
+
+* **`@quozen/core` (High Priority):** Needs rigorous testing of the `AiProviderFactory` (the "Auto" fallback waterfall is critical to get right), the parsing logic of `WindowAiProvider` (stripping Markdown from local LLM JSON outputs), and the end-to-end orchestration inside the `QuozenAI` facade.  
+* **`@quozen/webapp` (Medium Priority):** The React tests will shrink. We just need to verify that `useAgent.ts` properly wires the UI toasts and React Query invalidations to the Facade's output, and that `AiFeatureProvider` correctly reads from `provider.checkAvailability()`.  
+* **`@quozen/ai-proxy` (Low/Maintenance Priority):** The existing `proxy.test.ts` handles the Hono routing and KMS well. We just need to ensure the new `ProviderFactory` (Google vs. Ollama) is covered.  
+* **Unit Tests (CI-Safe):** All core logic, routing, and factory resolution tests must use **Mocks** (e.g., mocking `fetch`, `window.ai`, or `AiProvider.chat()`). These must run instantly and unconditionally in all environments.  
+* **Live Integration Tests (Local Only):** Any test that requires generating real tokens or evaluating actual LLM outputs must be strictly gated.  
+  * **Engine:** They must *only* target the local Ollama provider to guarantee zero cost and high privacy.  
+  * **Execution Gate:** They must be conditionally skipped if running in a CI/CD environment (e.g., `process.env.CI === 'true'`) or if a specific opt-in flag is missing. We will use Vitest's `describe.runIf()` or `describe.skipIf()` feature to enforce this.
+
+---
+
+### **3\. ENGINEER TASK BREAKDOWN: Testing & Cleanup Phase**
+
+I have formalized these into tasks so the engineering team can execute them alongside the refactoring.
+
+**Task \[CLEANUP-01\]: Remove Legacy Proxy Interactive Script**
+
+* **Description:** Delete the redundant REPL script and its associated NPM commands now that the CLI handles this.  
+* **Technical Definition of Done:**  
+  * Delete `apps/ai-proxy/scripts/interactive.ts`.  
+  * Remove `"test:interactive"` from `apps/ai-proxy/package.json` and `"test:ai:interactive"` from the root `package.json`.  
+  * Update `apps/ai-proxy/README.md` to point developers to `npm run cli` for interactive testing, removing the old script documentation.
+
+**Task \[TEST-01\]: Core Unit Tests \- `AiProviderFactory` & Providers**
+
+* **Description:** Write isolated tests for the new polymorphic providers in `packages/core/tests/agent/`.  
+* **Technical Definition of Done:**  
+  * **Factory:** Mock `window.ai` and API keys. Verify `createProvider({ providerPreference: 'auto' })` correctly waterfalls (Returns Proxy if BYOK exists \-\> Returns Window if `readily` available \-\> Returns Proxy Team Key as fallback).  
+  * **WindowAiProvider:** Mock `window.ai.languageModel.create`. Verify `chat()` correctly strips `json ...` markdown wrappers from the response string before parsing.  
+  * **LocalOllamaProvider:** Mock global `fetch`. Verify `checkAvailability()` gracefully catches `Failed to fetch` (CORS/Offline) and returns `false` rather than throwing an unhandled exception.
+
+**Task \[TEST-02\]: Core Unit Tests \- `QuozenAI` Facade**
+
+* **Description:** Test the main orchestrator to ensure it correctly bridges the `QuozenClient` (Storage) and the `AiProvider` (Intelligence).  
+* **Technical Definition of Done:**  
+  * Create `packages/core/tests/agent/QuozenAI.test.ts`.  
+  * Mock `QuozenClient` to return a dummy Ledger.  
+  * Mock `AiProvider.chat()` to return a synthetic `tool_call` for `addExpense`.  
+  * **Assertion:** Verify that calling `executeCommand("test")` successfully invokes `QuozenClient.ledger().addExpense()` with the exact arguments provided by the mock AI, and returns `{ success: true }`.
+
+**Task \[TEST-03\]: Webapp Unit Tests \- Refactored Hooks**
+
+* **Description:** Update the frontend tests to reflect the stripped-down logic.  
+* **Technical Definition of Done:**  
+  * **`useAgent.test.tsx`:** Update the mock to spy on `QuozenAI.prototype.executeCommand`. Verify that when it returns `{ success: true }`, the `useToast` hook is fired and `queryClient.invalidateQueries` is called for the active group.  
+  * **`AiFeatureProvider.test.tsx` (New/Update):** Mock `AiProviderFactory.createProvider`. Ensure that if `checkAvailability()` returns `false`, the Context status is set to `'unavailable'`, preventing the JS chunk from loading.
+
+**Task \[TEST-04\]: AI Proxy Unit Tests \- Provider Factory**
+
+* **Description:** Ensure the backend proxy correctly toggles between Google and Ollama SDK adapters based on environment variables.  
+* **Technical Definition of Done:**  
+  * In `apps/ai-proxy/tests/proxy.test.ts`, add test cases that override the `AI_PROVIDER` env variable.  
+  * Verify that setting `AI_PROVIDER='ollama'` successfully utilizes the Ollama configuration and bypasses the Google API Key validation check.
+
+**Task \[TEST-05\]: Live Ollama Integration Tests (Local Only)**
+
+* **Description:** Create an end-to-end integration test that instantiates `QuozenAI` with the `LocalOllamaProvider` and sends a real prompt to a local Ollama instance to verify the tool-calling output schema is strictly adhered to.  
+* **Technical Definition of Done:**  
+  * Create `packages/core/tests/agent/live-integration.test.ts`.  
+  * Wrap the test suite in a conditional block: `describe.skipIf(process.env.CI || !process.env.RUN_LOCAL_LLM_TESTS)('Live AI Integration', () => { ... })`.  
+  * **Assertion:** Send a prompt like *"I paid $20 for coffee for me and Alice"* to the local Ollama model. Parse the response and assert that the output successfully maps to a valid `addExpense` tool call with the correct split math.  
+  * Ensure this test is safely skipped during GitHub Actions deployments.
+
+**Task \[CONFIG-02\]: Configure NPM Scripts for Live Testing**
+
+* **Description:** Add safe npm scripts for developers to explicitly trigger these live tests without breaking standard CI commands.  
+* **Technical Definition of Done:**  
+  * In the root `package.json`, add `"test:ai:live": "cross-env RUN_LOCAL_LLM_TESTS=true vitest run packages/core/tests/agent/live-integration.test.ts"`.  
+  * Ensure the standard `npm run test` command safely skips the live files if the environment variable is not present.  
+  * Add a short note in the `README.md` under a "Testing AI Features" section explaining how to run `test:ai:live` and reminding developers to start their Ollama server first.
+
+---
+
+### **4\. Implementation Example (For the Engineer)**
+
+To ensure the engineer implements the skip logic correctly, they should use this Vitest pattern in `live-integration.test.ts`:
+
+import { describe, it, expect } from 'vitest';
+
+import { QuozenAI, LocalOllamaProvider } from '../../src';
+
+// This completely skips the suite in CI environments (GitHub Actions, Vercel) 
+
+// or if the developer hasn't explicitly opted in.
+
+const shouldRun \= \!process.env.CI && process.env.RUN\_LOCAL\_LLM\_TESTS \=== 'true';
+
+describe.runIf(shouldRun)('Live Ollama Integration Tests', () \=\> {
+
+    it('should correctly extract an addExpense tool call from a real local model', async () \=\> {
+
+        // Setup local provider and facade
+
+        const provider \= new LocalOllamaProvider({ baseUrl: 'http://localhost:11434/api' });
+
+        
+
+        // Ensure Ollama is actually running before proceeding
+
+        const isAvailable \= await provider.checkAvailability();
+
+        expect(isAvailable).toBe(true);
+
+        // ... execute real test ...
+
+    });
+
+});
+
