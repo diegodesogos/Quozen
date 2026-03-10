@@ -3,16 +3,23 @@ import { QuozenAI } from '../../src/agent/QuozenAI';
 import { LocalOllamaProvider } from '../../src/agent/providers/LocalOllamaProvider';
 import { QuozenClient } from '../../src/QuozenClient';
 import { InMemoryAdapter } from '../../src/storage/memory-adapter';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
 
 // This completely skips the suite in CI environments (GitHub Actions, Vercel) 
 // or if the developer hasn't explicitly opted in.
 const shouldRun = !process.env.CI && process.env.RUN_LOCAL_LLM_TESTS === 'true';
 
-describe.runIf(shouldRun)('Live Ollama Integration Tests', () => {
-    it('should correctly extract an addExpense tool call from a real local model', async () => {
+describe.runIf(shouldRun)('AI Goal: Intelligence Validation (Ollama + InMemory)', () => {
+    it('should correctly instruct the LLM to extract intent without hallucinating math', async () => {
+        // Load the AI proxy dev vars to get the actual model you downloaded
+        const envPath = process.cwd().endsWith('core') ? path.resolve(process.cwd(), '../../apps/ai-proxy/.dev.vars') : path.resolve(process.cwd(), 'apps/ai-proxy/.dev.vars');
+        dotenv.config({ path: envPath });
+
         // Setup local provider and facade
-        const baseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434/api';
-        const provider = new LocalOllamaProvider(baseUrl);
+        const baseUrl = (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434/api').replace('localhost', '127.0.0.1');
+        const model = process.env.OLLAMA_AI_MODEL || 'qwen3:0.6b';
+        const provider = new LocalOllamaProvider(baseUrl, model);
 
         // Ensure Ollama is actually running before proceeding
         const isAvailable = await provider.checkAvailability();
@@ -29,20 +36,13 @@ describe.runIf(shouldRun)('Live Ollama Integration Tests', () => {
         // Initialize group
         const group = await client.groups.create('Test Group');
         const groupId = group.id;
-        // InMemoryAdapter doesn't support complex group/ledger logic easily without real setup, 
-        // but for QuozenAI we just need a working ledger service mock if needed.
-        // Actually QuozenClient with InMemoryAdapter should work.
 
         const ai = new QuozenAI(client, provider);
-
         const prompt = "I paid $25.50 for Pizza, split with Bob (id: u2)";
-        // Note: Bob needs to exist in the ledger for RAG to work perfectly, 
-        // but we're testing the AI's ability to return a tool call.
 
-        const result = await ai.executeCommand(prompt, groupId);
+        const result = await ai.executeCommand(prompt, groupId, 'en');
 
-        console.log('AI Live Result:', result);
-        // We don't assert success because models might fail, but we assert it tried something
-        expect(result).toBeDefined();
-    });
+        console.log('AI Logic Validation Result:', result);
+        expect(result.success, `Local LLM Execution Failed: ${result.message}`).toBe(true);
+    }, 240000);
 });

@@ -1,12 +1,9 @@
-import fs from 'fs/promises';
-import path from 'path';
-import os from 'os';
-import { QuozenClient, GoogleDriveStorageLayer } from '@quozen/core';
-
-const CREDENTIALS_PATH = path.join(os.homedir(), '.quozen', 'credentials.json');
-
-export async function getCredentials() {
+export async function getLocalCredentials() {
     try {
+        const fs = await import('fs/promises');
+        const path = await import('path');
+        const os = await import('os');
+        const CREDENTIALS_PATH = path.join(os.homedir(), '.quozen', 'credentials.json');
         const data = await fs.readFile(CREDENTIALS_PATH, 'utf-8');
         return JSON.parse(data);
     } catch {
@@ -14,7 +11,12 @@ export async function getCredentials() {
     }
 }
 
-export async function refreshAccessToken(credentials: any) {
+export async function refreshLocalAccessToken(credentials: any) {
+    const fs = await import('fs/promises');
+    const path = await import('path');
+    const os = await import('os');
+    const CREDENTIALS_PATH = path.join(os.homedir(), '.quozen', 'credentials.json');
+
     const clientId = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
@@ -46,30 +48,4 @@ export async function refreshAccessToken(credentials: any) {
 
     await fs.writeFile(CREDENTIALS_PATH, JSON.stringify(credentials, null, 2), { mode: 0o600 });
     return credentials;
-}
-
-export async function getQuozenCliClient() {
-    let credentials = await getCredentials();
-    if (!credentials) {
-        throw new Error("Not logged in. Run 'npm run cli -- login' first.");
-    }
-
-    if (Date.now() >= credentials.expiry_date - 60000) {
-        credentials = await refreshAccessToken(credentials);
-    }
-
-    const storage = new GoogleDriveStorageLayer(() => credentials.access_token);
-
-    return new QuozenClient({
-        storage,
-        user: credentials.user,
-        enableCache: true,
-        cacheTtlMs: 60000
-    });
-}
-
-export async function getAuthToken(): Promise<string | null> {
-    const credentials = await getCredentials();
-    if (!credentials) return null;
-    return credentials.access_token;
 }

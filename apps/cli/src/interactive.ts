@@ -81,7 +81,8 @@ export async function startInteractive() {
 
                     const ai = new QuozenAI(quozen, provider);
 
-                    const result = await ai.executeCommand(aiPrompt, activeGroupId);
+                    const locale = settings?.preferences?.locale === 'system' ? Intl.DateTimeFormat().resolvedOptions().locale : (settings?.preferences?.locale || 'en');
+                    const result = await ai.executeCommand(aiPrompt, activeGroupId, locale);
 
                     if (result.success) {
                         console.log(chalk.green(`✨ ${result.message}`));

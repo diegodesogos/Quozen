@@ -11,7 +11,7 @@ export const useAgent = () => {
     const { settings } = useSettings();
     const { activeGroupId } = useRagContext();
     const { toast } = useToast();
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const queryClient = useQueryClient();
 
     const executeCommand = async (prompt: string) => {
@@ -25,6 +25,7 @@ export const useAgent = () => {
         }
 
         try {
+            const locale = settings?.preferences?.locale === 'system' ? i18n.language : (settings?.preferences?.locale || 'en');
             const config = {
                 providerPreference: (settings?.preferences?.aiProvider || 'auto') as any,
                 encryptedApiKey: settings?.encryptedApiKey,
@@ -35,7 +36,7 @@ export const useAgent = () => {
             const provider = await AiProviderFactory.createProvider(config, getAuthToken);
 
             const ai = new QuozenAI(quozen, provider);
-            const result = await ai.executeCommand(prompt, activeGroupId);
+            const result = await ai.executeCommand(prompt, activeGroupId, locale);
 
             if (result.success) {
                 toast({
