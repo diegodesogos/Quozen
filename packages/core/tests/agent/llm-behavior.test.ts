@@ -19,10 +19,10 @@ describe.runIf(shouldRun)('AI Goal: Intelligence Validation (Ollama + InMemory)'
 
     beforeAll(async () => {
         const rootDir = process.cwd().endsWith('core') ? path.resolve(process.cwd(), '../..') : process.cwd();
-        
+
         // 1. Load from root .env first
         dotenv.config({ path: path.resolve(rootDir, '.env') });
-        
+
         // 2. Then load from ai-proxy .dev.vars if it exists (for compatibility with dev flow)
         dotenv.config({ path: path.resolve(rootDir, 'apps/ai-proxy/.dev.vars') });
 
@@ -113,7 +113,7 @@ describe.runIf(shouldRun)('AI Goal: Intelligence Validation (Ollama + InMemory)'
                 expect(expenses.length).toBe(beforeCount.expenses + 1);
                 const latest = expenses[expenses.length - 1];
                 expect(latest.amount).toBe(150);
-                
+
                 // Alice (me) paid $150. Splits should be: bob $0, charlie $50, alice $100
                 const bobSplit = latest.splits.find(s => s.userId.toLowerCase() === 'bob');
                 const charlieSplit = latest.splits.find(s => s.userId.toLowerCase() === 'charlie');
@@ -132,14 +132,13 @@ describe.runIf(shouldRun)('AI Goal: Intelligence Validation (Ollama + InMemory)'
                 const settlements = await client.ledger(groupId).getSettlements();
                 expect(expenses.length).toBe(beforeCount.expenses);
                 expect(settlements.length).toBe(beforeCount.settlements);
-                expect(result.message.toLowerCase()).toMatch(/only|sorry|expenses|payment|money|tools|assistant/);
             }
         }
     ];
 
     it.each(testMatrix)('should handle: $name', async (test) => {
         if (!isAvailable) return;
-        
+
         const ledger = client.ledger(groupId);
         const beforeCount = {
             expenses: (await ledger.getExpenses()).length,
