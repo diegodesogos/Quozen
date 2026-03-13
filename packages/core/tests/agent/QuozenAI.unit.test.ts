@@ -23,6 +23,7 @@ describe('QuozenAI (Unit)', () => {
 
         mockProvider = {
             id: 'test-provider',
+            mode: 'cloud',
             chat: vi.fn(),
             checkAvailability: vi.fn().mockResolvedValue(true),
             getSetupMessage: () => null

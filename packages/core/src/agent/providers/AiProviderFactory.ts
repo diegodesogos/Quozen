@@ -19,7 +19,7 @@ export class AiProviderFactory {
 
         // 2. Explicit Selection: Local Ollama
         if (providerPreference === 'local') {
-            return new LocalOllamaProvider(baseUrl || 'http://localhost:11434/api');
+            return new LocalOllamaProvider(baseUrl, config.ollamaModel);
         }
 
         // 3. Explicit Selection: Cloud (Team Key / BYOK based on config)
@@ -41,7 +41,7 @@ export class AiProviderFactory {
             }
 
             // c) If Local Ollama is available
-            const localProvider = new LocalOllamaProvider();
+            const localProvider = new LocalOllamaProvider(baseUrl, config.ollamaModel);
             if (await localProvider.checkAvailability()) {
                 return localProvider;
             }
@@ -75,6 +75,7 @@ export class AiProviderFactory {
 
 class DisabledAiProvider implements AiProvider {
     readonly id = 'disabled';
+    readonly mode = 'disabled';
     async chat() { return { type: 'text' as const, error: 'AI is disabled' }; }
     async checkAvailability() { return false; }
     getSetupMessage() { return null; }

@@ -1,11 +1,11 @@
 import { useSettings } from "@/hooks/use-settings";
 import { useRagContext } from "./useRagContext";
-import { QuozenAI, AiProviderFactory } from "@quozen/core";
+import { QuozenAI } from "@quozen/core";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { getAuthToken } from "@/lib/tokenStore";
 import { useTranslation } from "react-i18next";
 import { quozen } from "@/lib/storage";
+import { useAiFeature } from "./AiFeatureContext";
 
 export const useAgent = () => {
     const { settings } = useSettings();
@@ -13,6 +13,7 @@ export const useAgent = () => {
     const { toast } = useToast();
     const { t, i18n } = useTranslation();
     const queryClient = useQueryClient();
+    const { provider } = useAiFeature();
 
     const executeCommand = async (prompt: string) => {
         if (!activeGroupId) {
@@ -24,16 +25,17 @@ export const useAgent = () => {
             return { success: false };
         }
 
+        if (!provider) {
+            toast({
+                title: t('agent.errorTitle'),
+                description: t('agent.errorGeneric'),
+                variant: "destructive"
+            });
+            return { success: false, message: 'Provider not initialized' };
+        }
+
         try {
             const locale = settings?.preferences?.locale === 'system' ? i18n.language : (settings?.preferences?.locale || 'en');
-            const config = {
-                providerPreference: (settings?.preferences?.aiProvider || 'auto') as any,
-                encryptedApiKey: settings?.encryptedApiKey,
-                baseUrl: (import.meta as any).env?.VITE_OLLAMA_URL || 'http://localhost:11434/api',
-                proxyUrl: (import.meta as any).env?.VITE_AI_PROXY_URL
-            };
-
-            const provider = await AiProviderFactory.createProvider(config, getAuthToken);
 
             const ai = new QuozenAI(quozen, provider);
             const result = await ai.executeCommand(prompt, activeGroupId, locale);

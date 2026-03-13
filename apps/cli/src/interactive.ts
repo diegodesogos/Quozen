@@ -74,7 +74,9 @@ export async function startInteractive() {
                     const config = {
                         providerPreference: (settings?.preferences?.aiProvider || 'auto') as any,
                         encryptedApiKey: settings?.encryptedApiKey,
-                        proxyUrl: process.env.VITE_AI_PROXY_URL || 'http://localhost:8788'
+                        proxyUrl: process.env.VITE_AI_PROXY_URL || 'http://localhost:8788',
+                        baseUrl: process.env.VITE_OLLAMA_URL || 'http://localhost:11434/api',
+                        ollamaModel: process.env.VITE_OLLAMA_MODEL || 'qwen2.5:0.5b'
                     };
 
                     const provider = await AiProviderFactory.createProvider(config, getAuthToken);

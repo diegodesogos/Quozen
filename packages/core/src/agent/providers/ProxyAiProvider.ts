@@ -3,6 +3,10 @@ import { AiProvider, AgentChatRequest, AgentChatResponse, AuthTokenGetter } from
 export class ProxyAiProvider implements AiProvider {
     readonly id = 'cloud-proxy';
 
+    get mode(): 'byok' | 'cloud' {
+        return this.encryptedApiKey ? 'byok' : 'cloud';
+    }
+
     constructor(
         private proxyUrl: string,
         private getAuthToken: AuthTokenGetter,

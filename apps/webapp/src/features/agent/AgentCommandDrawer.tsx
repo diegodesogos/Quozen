@@ -4,24 +4,24 @@ import { Sparkles, Send, Zap, Bot, Cpu } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { useSettings } from '@/hooks/use-settings';
 import { useTranslation } from 'react-i18next';
 import { useAgent } from './useAgent';
+import { useAiFeature } from './AiFeatureContext';
 import { RefreshCw } from 'lucide-react';
 
 export const AgentCommandDrawer: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [prompt, setPrompt] = useState('');
     const [isThinking, setIsThinking] = useState(false);
-    const { settings } = useSettings();
     const { t } = useTranslation();
     const { executeCommand } = useAgent();
-
-    const provider = settings?.preferences?.aiProvider || 'auto';
+    const { provider } = useAiFeature();
 
     const getBadgeInfo = () => {
-        if (provider === 'local') return { icon: <Cpu className="w-3 h-3" />, label: t('agent.onDevice') };
-        if (provider === 'byok') return { icon: <Zap className="w-3 h-3" />, label: t('agent.poweredByYourKey') };
+        const mode = provider?.mode || 'cloud';
+        if (mode === 'local-browser') return { icon: <Cpu className="w-3 h-3" />, label: t('agent.onDevice') };
+        if (mode === 'local-ollama') return { icon: <Cpu className="w-3 h-3" />, label: 'Local Ollama' };
+        if (mode === 'byok') return { icon: <Zap className="w-3 h-3" />, label: t('agent.poweredByYourKey') };
         return { icon: <Bot className="w-3 h-3" />, label: t('agent.poweredByTeamKey') };
     };
 

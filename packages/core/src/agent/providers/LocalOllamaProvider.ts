@@ -2,12 +2,15 @@ import { AiProvider, AgentChatRequest, AgentChatResponse } from './types';
 
 export class LocalOllamaProvider implements AiProvider {
     readonly id = 'local-ollama';
+    readonly mode = 'local-ollama';
     private model: string;
+    private base: string;
 
     constructor(
-        private baseUrl: string = 'http://localhost:11434/api',
+        baseUrl: string = 'http://localhost:11434/api',
         model: string = 'qwen2.5:0.5b'
     ) {
+        this.base = baseUrl.replace(/\/$/, '');
         this.model = model;
     }
 
@@ -35,7 +38,9 @@ export class LocalOllamaProvider implements AiProvider {
                 bodyPayload.format = 'json';
             }
 
-            const response = await fetch(`${this.baseUrl}/chat`, {
+            const chatUrl = this.base.endsWith('/api') ? `${this.base}/chat` : `${this.base}/api/chat`;
+
+            const response = await fetch(chatUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -44,7 +49,14 @@ export class LocalOllamaProvider implements AiProvider {
             });
 
             if (!response.ok) {
-                return { type: 'text', error: `Ollama failed (${response.status})` };
+                let errorMsg = `Ollama failed (${response.status})`;
+                try {
+                    const errBody = await response.json() as any;
+                    if (errBody.error) errorMsg += `: ${errBody.error}`;
+                } catch {
+                    // Ignore JSON parse errors for fallback
+                }
+                return { type: 'text', error: errorMsg };
             }
 
             const data = await response.json() as any;
@@ -107,7 +119,7 @@ export class LocalOllamaProvider implements AiProvider {
         try {
             const controller = new AbortController();
             const id = setTimeout(() => controller.abort(), 2000);
-            const tagsUrl = this.baseUrl.endsWith('/api') ? `${this.baseUrl}/tags` : `${this.baseUrl}/api/tags`;
+            const tagsUrl = this.base.endsWith('/api') ? `${this.base}/tags` : `${this.base}/api/tags`;
             const response = await fetch(tagsUrl, { signal: controller.signal });
             clearTimeout(id);
             return response.ok;
@@ -117,6 +129,6 @@ export class LocalOllamaProvider implements AiProvider {
     }
 
     getSetupMessage(): string | null {
-        return "Note: Start Ollama with OLLAMA_ORIGINS=\"*\" ollama serve to allow browser connections.";
+        return `Note: Start Ollama with OLLAMA_ORIGINS="*" ollama serve to allow browser connections. Make sure you have pulled the model '${this.model}'.`;
     }
 }

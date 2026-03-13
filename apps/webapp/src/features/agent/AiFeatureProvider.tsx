@@ -60,14 +60,15 @@ export const AiFeatureProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                     providerPreference: providerPreference as any,
                     encryptedApiKey: settings?.encryptedApiKey,
                     baseUrl: (import.meta as any).env.VITE_OLLAMA_URL || 'http://localhost:11434/api',
-                    proxyUrl: (import.meta as any).env.VITE_AI_PROXY_URL
+                    proxyUrl: (import.meta as any).env.VITE_AI_PROXY_URL,
+                    ollamaModel: (import.meta as any).env.VITE_OLLAMA_MODEL || 'qwen2.5:0.5b'
                 };
 
                 const provider = await AiProviderFactory.createProvider(config, getAuthToken);
                 const isAvailable = await provider.checkAvailability();
 
                 if (isAvailable) {
-                    setState({ status: 'available' });
+                    setState({ status: 'available', provider });
                 } else {
                     const reason = `Provider ${provider.id} unreachable`;
                     setState({ status: 'unavailable', reason });

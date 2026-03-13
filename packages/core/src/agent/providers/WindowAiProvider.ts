@@ -2,6 +2,7 @@ import { AiProvider, AgentChatRequest, AgentChatResponse } from './types';
 
 export class WindowAiProvider implements AiProvider {
     readonly id = 'window-ai';
+    readonly mode = 'local-browser';
 
     async chat(request: AgentChatRequest): Promise<AgentChatResponse> {
         try {

@@ -12,10 +12,6 @@ vi.mock("@quozen/core", () => {
             this.executeCommand = mockExecuteCommand;
             return this;
         }),
-        AiProviderFactory: {
-            createProvider: vi.fn().mockResolvedValue({ id: 'test' }),
-            getSetupMessage: vi.fn().mockReturnValue(null)
-        }
     };
 });
 
@@ -25,6 +21,12 @@ vi.mock("@/hooks/use-settings", () => ({
             preferences: { aiProvider: 'cloud' },
             encryptedApiKey: 'test-key'
         }
+    })),
+}));
+
+vi.mock("../AiFeatureContext", () => ({
+    useAiFeature: vi.fn(() => ({
+        provider: { id: 'test-provider', mode: 'cloud' }
     })),
 }));
 
@@ -84,6 +86,19 @@ describe("useAgent Hook", () => {
     it("should show error toast if no active group", async () => {
         const { useRagContext } = await import("../useRagContext");
         (useRagContext as any).mockReturnValue({ activeGroupId: null });
+
+        const { result } = renderHook(() => useAgent(), { wrapper });
+        await result.current.executeCommand("hello");
+
+        const { toast } = await import("@/hooks/use-toast");
+        expect(toast).toHaveBeenCalledWith(expect.objectContaining({
+            variant: "destructive"
+        }));
+    });
+
+    it("should show error toast if provider is not available in context", async () => {
+        const { useAiFeature } = await import("../AiFeatureContext");
+        (useAiFeature as any).mockReturnValue({ provider: undefined });
 
         const { result } = renderHook(() => useAgent(), { wrapper });
         await result.current.executeCommand("hello");

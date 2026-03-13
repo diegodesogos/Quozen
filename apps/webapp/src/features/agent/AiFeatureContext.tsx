@@ -1,10 +1,12 @@
 import { createContext, useContext } from 'react';
+import { AiProvider } from '@quozen/core';
 
 export type AiAvailabilityStatus = 'checking' | 'available' | 'unavailable';
 
 export interface AiFeatureState {
     status: AiAvailabilityStatus;
     reason?: string;
+    provider?: AiProvider;
 }
 
 export const AiFeatureContext = createContext<AiFeatureState | undefined>(undefined);
