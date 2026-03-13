@@ -3,6 +3,7 @@ import { User, Expense, Settlement } from "../domain/models";
 import { CreateExpenseDTO, UpdateExpenseDTO, CreateSettlementDTO, UpdateSettlementDTO } from "../domain/dtos";
 import { Ledger } from "../domain/Ledger";
 import { ConflictError } from "../errors";
+import { distributeAmount } from "./index";
 
 export class LedgerService {
     constructor(private repo: LedgerRepository, private user: User) { }
@@ -16,6 +17,18 @@ export class LedgerService {
         const isMember = members.some(m => m.userId === this.user.id || m.email === this.user.email);
         if (!isMember) throw new Error("Forbidden: User is not a member of this group");
 
+        let splits = payload.splits || [];
+        if (splits.length === 0 && members.length > 0) {
+            const amounts = distributeAmount(payload.amount, members.length);
+            splits = members.map((m, i) => ({ userId: m.userId, amount: amounts[i] }));
+        }
+
+        // Validate splits mismatch
+        const splitSum = splits.reduce((sum, s) => sum + s.amount, 0);
+        if (Math.abs(splitSum - payload.amount) > 0.01) {
+            throw new Error("Splits mismatch");
+        }
+
         const expense: Expense = {
             id: (typeof crypto !== 'undefined' ? crypto.randomUUID() : Math.random().toString()),
             description: payload.description,
@@ -23,7 +36,7 @@ export class LedgerService {
             category: payload.category,
             date: new Date(payload.date),
             paidByUserId: payload.paidByUserId,
-            splits: payload.splits,
+            splits: splits,
             createdAt: new Date(),
             updatedAt: new Date()
         };
@@ -38,6 +51,14 @@ export class LedgerService {
 
         if (expectedLastModified && current.updatedAt.getTime() > expectedLastModified.getTime()) {
             throw new ConflictError("Data has been modified by another user.");
+        }
+
+        // Validate splits mismatch if amount or splits are updated
+        const newAmount = payload.amount ?? current.amount;
+        const newSplits = payload.splits ?? current.splits;
+        const splitSum = newSplits.reduce((sum, s) => sum + s.amount, 0);
+        if (Math.abs(splitSum - newAmount) > 0.01) {
+            throw new Error("Splits mismatch");
         }
 
         const updated: Expense = {

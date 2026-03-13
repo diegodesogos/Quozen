@@ -15,7 +15,7 @@ export async function getCredentials() {
 }
 
 export async function refreshAccessToken(credentials: any) {
-    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientId = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
@@ -66,4 +66,10 @@ export async function getQuozenCliClient() {
         enableCache: true,
         cacheTtlMs: 60000
     });
+}
+
+export async function getAuthToken(): Promise<string | null> {
+    const credentials = await getCredentials();
+    if (!credentials) return null;
+    return credentials.access_token;
 }
