@@ -2,16 +2,19 @@ import { AiProvider, AgentChatRequest, AgentChatResponse, AuthTokenGetter } from
 
 export class ProxyAiProvider implements AiProvider {
     readonly id = 'cloud-proxy';
+    private base: string;
 
     get mode(): 'byok' | 'cloud' {
         return this.encryptedApiKey ? 'byok' : 'cloud';
     }
 
     constructor(
-        private proxyUrl: string,
+        proxyUrl: string,
         private getAuthToken: AuthTokenGetter,
         private encryptedApiKey?: string
-    ) { }
+    ) {
+        this.base = proxyUrl.replace(/\/$/, '');
+    }
 
     async chat(request: AgentChatRequest): Promise<AgentChatResponse> {
         try {
@@ -20,7 +23,7 @@ export class ProxyAiProvider implements AiProvider {
                 return { type: 'text', error: 'Authorization required' };
             }
 
-            const response = await fetch(`${this.proxyUrl}/api/v1/agent/chat`, {
+            const response = await fetch(`${this.base}/api/v1/agent/chat`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -49,12 +52,12 @@ export class ProxyAiProvider implements AiProvider {
     }
 
     async checkAvailability(): Promise<boolean> {
-        if (!this.proxyUrl) return false;
+        if (!this.base) return false;
         try {
             const controller = new AbortController();
             const id = setTimeout(() => controller.abort(), 3000);
             // Health check is unauthenticated
-            const response = await fetch(this.proxyUrl, { signal: controller.signal });
+            const response = await fetch(this.base, { signal: controller.signal });
             clearTimeout(id);
             return response.ok;
         } catch {
