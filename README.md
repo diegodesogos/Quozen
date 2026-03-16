@@ -120,6 +120,19 @@ These tests verify the actual integration with the real Google Drive API and the
   npm run test:all
   ```
 
+### 3. Debugging Tests
+By default, mock server requests and browser console logs during E2E tests are suppressed to keep the output clean. If you need to trace HTTP calls or browser errors during a failing test, run the suite with the DEBUG_MOCK flag:
+
+```bash
+# Mac/Linux
+DEBUG_MOCK=true npm run test:all:non-interactive
+```
+
+```powershell
+# Windows
+$env:DEBUG_MOCK="true"; npm run test:all:non-interactive
+```
+
 ---
 
 ## ⌨️ Command Line Interface (CLI)
