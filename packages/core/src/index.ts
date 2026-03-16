@@ -19,4 +19,9 @@ export { RemoteMockAdapter } from "./storage/remote-adapter"; // Legacy/Test
 
 // 4. Shared Utilities & Errors
 export { formatCurrency } from "./finance/format-currency";
+export * from "./auth/google";
 export * from "./errors";
+
+// 5. Agent
+export * from "./agent";
+

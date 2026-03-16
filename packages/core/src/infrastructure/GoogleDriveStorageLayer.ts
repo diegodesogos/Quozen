@@ -78,7 +78,15 @@ export class GoogleDriveStorageLayer implements IStorageLayer {
     }
 
     async deleteFile(fileId: string): Promise<void> {
-        await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}`, { method: "DELETE" });
+        try {
+            await this.fetchWithAuth(`${DRIVE_API_URL}/files/${fileId}`, { method: "DELETE" });
+        } catch (e: any) {
+            // Idempotent delete: if the file is already gone, consider it a success.
+            if (e.message && e.message.includes('404')) {
+                return;
+            }
+            throw e;
+        }
     }
 
     async createPermission(fileId: string, role: string, type: string, emailAddress?: string): Promise<any> {
