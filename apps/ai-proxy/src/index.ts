@@ -4,9 +4,9 @@ import { env } from 'hono/adapter';
 import { generateText, jsonSchema } from 'ai';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
-import { authMiddleware, AppEnv } from './middleware/auth';
-import { encrypt, decrypt } from './lib/kms';
-import { ProviderFactory } from './providers/factory';
+import { authMiddleware, AppEnv } from './middleware/auth.js';
+import { encrypt, decrypt } from './lib/kms.js';
+import { ProviderFactory } from './providers/factory.js';
 import { z } from 'zod';
 
 const ChatRequestSchema = z.object({
