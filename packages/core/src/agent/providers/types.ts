@@ -21,7 +21,7 @@ export interface AiProvider {
 }
 
 export interface AiFactoryConfig {
-    providerPreference: 'auto' | 'byok' | 'local' | 'cloud' | 'disabled';
+    providerPreference: 'auto' | 'byok' | 'local' | 'local-browser' | 'cloud' | 'disabled';
     encryptedApiKey?: string;
     baseUrl?: string; // e.g., Proxy URL or Ollama URL
     proxyUrl?: string;

@@ -22,19 +22,21 @@ export class AiProviderFactory {
             return new LocalOllamaProvider(baseUrl, config.ollamaModel);
         }
 
+        // 2.5 Explicit Selection: Local Browser AI
+        if (providerPreference === 'local-browser') {
+            return new WindowAiProvider();
+        }
+
         // 3. Explicit Selection: Cloud (Team Key / BYOK based on config)
         if (providerPreference === 'cloud' && proxyUrl) {
-            return new ProxyAiProvider(proxyUrl, getAuthToken, encryptedApiKey);
+            return new ProxyAiProvider(proxyUrl, getAuthToken, encryptedApiKey, byokProvider);
         }
 
         // 4. "Auto" Mode Fallback Logic
         if (providerPreference === 'auto') {
             // a) If BYOK exists, use it first
             if (encryptedApiKey && proxyUrl) {
-                const provider = new ProxyAiProvider(proxyUrl, getAuthToken, encryptedApiKey, byokProvider);
-                if (await provider.checkAvailability()) {
-                    return provider;
-                }
+                return new ProxyAiProvider(proxyUrl, getAuthToken, encryptedApiKey, byokProvider);
             }
 
             // b) If Window AI is ready
@@ -51,10 +53,7 @@ export class AiProviderFactory {
 
             // d) Last resort: Team Key Cloud Proxy
             if (proxyUrl) {
-                const provider = new ProxyAiProvider(proxyUrl, getAuthToken);
-                if (await provider.checkAvailability()) {
-                    return provider;
-                }
+                return new ProxyAiProvider(proxyUrl, getAuthToken, undefined, byokProvider);
             }
         }
 
@@ -67,6 +66,7 @@ export class AiProviderFactory {
             case 'local':
             case 'local-ollama':
                 return new LocalOllamaProvider().getSetupMessage();
+            case 'local-browser':
             case 'window-ai':
                 return new WindowAiProvider().getSetupMessage();
             case 'byok':

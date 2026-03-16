@@ -374,7 +374,7 @@ export default function Profile() {
               </Label>
               <Select
                 value={draftProvider}
-                onValueChange={setDraftProvider}
+                onValueChange={(value) => setDraftProvider(value as any)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select provider" />
@@ -382,7 +382,8 @@ export default function Profile() {
                 <SelectContent>
                   <SelectItem value="auto">{t("profile.aiAuto")}</SelectItem>
                   <SelectItem value="byok">{t("profile.aiByok")}</SelectItem>
-                  <SelectItem value="local">{t("profile.aiLocal")}</SelectItem>
+                  <SelectItem value="local-browser">{t("profile.aiLocal")}</SelectItem>
+                  <SelectItem value="local">Local Ollama</SelectItem>
                   <SelectItem value="disabled">{t("profile.aiDisabled")}</SelectItem>
                 </SelectContent>
               </Select>
