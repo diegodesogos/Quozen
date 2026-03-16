@@ -18,6 +18,7 @@ const ChatRequestSchema = z.object({
         parameters: z.any(),
     })).optional(),
     ciphertext: z.string().optional(),
+    byokProvider: z.string().optional(),
 });
 
 const EncryptRequestSchema = z.object({
@@ -79,12 +80,12 @@ app.post('/api/v1/agent/chat', async (c) => {
         }, 400);
     }
 
-    const { messages, systemPrompt, tools, ciphertext } = requestValidation.data;
+    const { messages, systemPrompt, tools, ciphertext, byokProvider } = requestValidation.data;
 
     const user = c.get('user');
     // Use c.env if available (common in tests/Cloudflare), otherwise fall back to adapter env
     const bindings = (c.env || env(c)) as AppEnv['Bindings'];
-    const providerId = bindings.AI_PROVIDER || 'google';
+    const providerId = (ciphertext && byokProvider) ? byokProvider : (bindings.AI_PROVIDER || 'google');
 
     const provider = ProviderFactory.getProvider(providerId);
 

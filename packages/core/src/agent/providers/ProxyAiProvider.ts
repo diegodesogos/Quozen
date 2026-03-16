@@ -11,7 +11,8 @@ export class ProxyAiProvider implements AiProvider {
     constructor(
         proxyUrl: string,
         private getAuthToken: AuthTokenGetter,
-        private encryptedApiKey?: string
+        private encryptedApiKey?: string,
+        private byokProvider?: string
     ) {
         this.base = proxyUrl.replace(/\/$/, '');
     }
@@ -33,7 +34,8 @@ export class ProxyAiProvider implements AiProvider {
                     messages: request.messages,
                     systemPrompt: request.systemPrompt,
                     tools: request.tools,
-                    ciphertext: this.encryptedApiKey
+                    ciphertext: this.encryptedApiKey,
+                    byokProvider: this.byokProvider
                 })
             });
 

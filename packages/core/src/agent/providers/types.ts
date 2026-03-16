@@ -26,6 +26,7 @@ export interface AiFactoryConfig {
     baseUrl?: string; // e.g., Proxy URL or Ollama URL
     proxyUrl?: string;
     ollamaModel?: string;
+    byokProvider?: string;
 }
 
 export type AuthTokenGetter = () => string | null | Promise<string | null>;

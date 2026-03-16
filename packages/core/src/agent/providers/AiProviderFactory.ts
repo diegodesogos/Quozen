@@ -5,7 +5,7 @@ import { LocalOllamaProvider } from './LocalOllamaProvider';
 
 export class AiProviderFactory {
     static async createProvider(config: AiFactoryConfig, getAuthToken: AuthTokenGetter): Promise<AiProvider> {
-        const { providerPreference, encryptedApiKey, baseUrl, proxyUrl } = config;
+        const { providerPreference, encryptedApiKey, baseUrl, proxyUrl, byokProvider } = config;
 
         // Forced Disable
         if (providerPreference === 'disabled') {
@@ -14,7 +14,7 @@ export class AiProviderFactory {
 
         // 1. Explicit Selection: BYOK Cloud
         if (providerPreference === 'byok' && encryptedApiKey && proxyUrl) {
-            return new ProxyAiProvider(proxyUrl, getAuthToken, encryptedApiKey);
+            return new ProxyAiProvider(proxyUrl, getAuthToken, encryptedApiKey, byokProvider);
         }
 
         // 2. Explicit Selection: Local Ollama
@@ -31,7 +31,10 @@ export class AiProviderFactory {
         if (providerPreference === 'auto') {
             // a) If BYOK exists, use it first
             if (encryptedApiKey && proxyUrl) {
-                return new ProxyAiProvider(proxyUrl, getAuthToken, encryptedApiKey);
+                const provider = new ProxyAiProvider(proxyUrl, getAuthToken, encryptedApiKey, byokProvider);
+                if (await provider.checkAvailability()) {
+                    return provider;
+                }
             }
 
             // b) If Window AI is ready
@@ -48,7 +51,10 @@ export class AiProviderFactory {
 
             // d) Last resort: Team Key Cloud Proxy
             if (proxyUrl) {
-                return new ProxyAiProvider(proxyUrl, getAuthToken);
+                const provider = new ProxyAiProvider(proxyUrl, getAuthToken);
+                if (await provider.checkAvailability()) {
+                    return provider;
+                }
             }
         }
 

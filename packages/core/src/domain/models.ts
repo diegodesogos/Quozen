@@ -73,6 +73,9 @@ export interface UserSettings {
         theme?: "light" | "dark" | "system";
         locale?: "en" | "es" | "system";
         aiProvider?: "auto" | "byok" | "local" | "cloud" | "disabled";
+        byokProvider?: string;
+        ollamaBaseUrl?: string;
+        ollamaModel?: string;
     };
     encryptedApiKey?: string;
     lastUpdated: string;
