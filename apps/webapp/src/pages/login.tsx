@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/auth-provider";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import SiteFooter from "@/components/site-footer";
 import { useTranslation } from "react-i18next";
 
 export default function Login() {
@@ -81,6 +82,9 @@ export default function Login() {
             </p>
           </div>
         </div>
+      </div>
+      <div className="bg-background pb-8">
+        <SiteFooter />
       </div>
     </div>
   );
