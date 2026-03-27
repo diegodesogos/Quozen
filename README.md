@@ -197,3 +197,6 @@ To use On-Device AI:
 2.  Start with external origins allowed: `OLLAMA_ORIGINS="*" ollama serve`.
 3.  Pull a model: `ollama pull qwen2.5:0.5b`.
 4.  Update your `.env` with `VITE_OLLAMA_URL=http://localhost:11434/api` and `VITE_OLLAMA_MODEL=qwen2.5:0.5b`.
+
+
+Quozen is a research project by the Qozara Lab.
