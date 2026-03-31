@@ -32,7 +32,6 @@ const listGroupsRoute = createRoute({
 
 groupsRouter.openapi(listGroupsRoute, async (c) => {
     const quozen = c.get('quozen');
-    const user = c.get('user');
     const settings = await quozen.groups.getSettings();
     // Convert cached groups to matching Group format if necessary, or fetch explicitly.
     // To adhere perfectly to the schema, we can map the cached groups.

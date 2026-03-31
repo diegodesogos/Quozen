@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { AutoSyncProvider } from "@/context/auto-sync-context";
 import { useAutoSync } from "@/hooks/use-auto-sync";
 import { useAppContext } from "@/context/app-context";
 import { useQueryClient } from "@tanstack/react-query";
 import { quozen } from "@/lib/storage";
-import { MemoryRouter, useLocation } from "react-router-dom";
+import { MemoryRouter } from "react-router-dom";
 import React from "react";
 // Mock dependencies using aliases
 vi.mock("@/context/app-context", () => ({

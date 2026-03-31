@@ -138,7 +138,7 @@ export default function SettlementModal({
       setShowDeleteConfirm(false);
       onClose();
     },
-    onError: (error) => {
+    onError: () => {
       toast({ title: t("common.error"), description: t("settlement.deleteError"), variant: "destructive" });
     }
   });

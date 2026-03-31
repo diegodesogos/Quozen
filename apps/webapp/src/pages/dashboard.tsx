@@ -5,14 +5,13 @@ import SettlementModal from "@/components/settlement-modal";
 import { useState, useMemo } from "react";
 import {
   Utensils, Car, Bed, ShoppingBag, Gamepad2, MoreHorizontal,
-  Wallet, Handshake, ChevronDown, ChevronRight, ArrowRight, Banknote
+  Wallet, Handshake, ChevronDown, ArrowRight, Banknote
 } from "lucide-react";
 import { quozen } from "@/lib/storage";
 import { useNavigate } from "react-router-dom";
 import {
   Expense,
   Settlement,
-  Member,
   formatCurrency
 } from "@quozen/core";
 

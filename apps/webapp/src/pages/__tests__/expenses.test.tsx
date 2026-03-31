@@ -3,7 +3,6 @@ import { render, screen, fireEvent, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import ExpensesList from "../expenses";
 import { useAppContext } from "@/context/app-context";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSettings } from "@/hooks/use-settings";
 import en from "@/locales/en/translation.json";
 import { formatCurrency } from "@quozen/core";

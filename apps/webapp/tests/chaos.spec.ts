@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupAuth, ensureLoggedIn, resetTestState, setupTestEnvironment } from './utils';
+import { setupAuth, resetTestState, setupTestEnvironment } from './utils';
 import { mockServer } from './mock-server';
 
 test.describe('Feature: E2E Chaos & Latency', () => {

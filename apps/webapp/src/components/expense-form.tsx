@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Expense, Member } from "@quozen/core";
 import { useTranslation } from "react-i18next";
@@ -43,8 +42,7 @@ interface ExpenseFormProps {
   isDrawer?: boolean; // New prop
 }
 
-export default function ExpenseForm({ initialData, users, currentUserId, onSubmit, isPending, onCancel, isDrawer }: ExpenseFormProps) {
-  const navigate = useNavigate();
+export default function ExpenseForm({ initialData, users, currentUserId, onSubmit, isPending, isDrawer }: ExpenseFormProps) {
   const { toast } = useToast();
   const { t } = useTranslation();
 

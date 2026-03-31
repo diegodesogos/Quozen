@@ -2,11 +2,11 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-context";
 import { quozen } from "@/lib/storage";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Handshake, ArrowUpDown, MoreVertical, Edit, Trash2 } from "lucide-react";
+import { Handshake, ArrowUpDown, MoreVertical, Edit, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import SettlementModal from "@/components/settlement-modal";
 import ExpensesList from "./expenses";
-import { Member, Settlement, Expense, formatCurrency } from "@quozen/core";
+import { Member, Settlement, formatCurrency } from "@quozen/core";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "react-i18next";
 import { useDateFormatter } from "@/hooks/use-date-formatter";

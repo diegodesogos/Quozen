@@ -81,7 +81,6 @@ app.post('/api/v1/agent/chat', async (c) => {
     }
 
     const { messages, systemPrompt, tools, ciphertext, byokProvider } = requestValidation.data;
-
     const user = c.get('user');
     // Use c.env if available (common in tests/Cloudflare), otherwise fall back to adapter env
     const bindings = (c.env || env(c)) as AppEnv['Bindings'];

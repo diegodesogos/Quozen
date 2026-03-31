@@ -49,7 +49,7 @@ export class LedgerRepository {
         await this.touchGroup();
     }
 
-    async updateExpense(expense: Expense, expectedLastModified?: Date): Promise<void> {
+    async updateExpense(expense: Expense, _expectedLastModified?: Date): Promise<void> {
         if (!this.expenseRowMap.has(expense.id)) {
             await this.getExpenses();
         }

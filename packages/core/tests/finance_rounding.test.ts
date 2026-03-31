@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { Member, Expense } from "../src/domain/models";
-import { calculateBalances, calculateTotalSpent, roundCurrency } from "../src/finance";
+import { calculateBalances, calculateTotalSpent } from "../src/finance";
 
 describe("Finance Rounding Consistency", () => {
   const users: Member[] = [

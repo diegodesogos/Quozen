@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { QuozenClient, InMemoryAdapter, Member, Expense } from '../src';
+import { QuozenClient, InMemoryAdapter } from '../src';
 
 describe('Core Integration Flow', () => {
     let client: QuozenClient;

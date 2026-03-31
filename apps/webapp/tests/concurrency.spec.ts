@@ -103,7 +103,7 @@ test.describe('Feature: E2E Concurrency & Auto-Sync', () => {
         await page.getByTestId('button-submit-expense').click();
         await expect(page.getByRole('heading', { name: /Add Expense/i })).not.toBeVisible();
 
-        const expenseId = await page.evaluate(() => {
+        await page.evaluate(() => {
             // Hard to find expenseId from here, let's just find the last expense
             return null;
         });

@@ -77,7 +77,7 @@ export class InMemoryAdapter implements IStorageLayer {
         }
     }
 
-    async listFiles(queryOrOptions: string | { nameContains?: string; properties?: Record<string, string> } = {}, fields?: string): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any, properties?: Record<string, string> }>> {
+    async listFiles(queryOrOptions: string | { nameContains?: string; properties?: Record<string, string> } = {}, _fields?: string): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any, properties?: Record<string, string> }>> {
         const files: any[] = [];
 
         for (const [id, sheet] of this.sheets.entries()) {
@@ -146,15 +146,15 @@ export class InMemoryAdapter implements IStorageLayer {
         return { id: fileId, name: sheet.name };
     }
 
-    async createPermission(fileId: string, role: string, type: string, emailAddress?: string): Promise<any> {
+    async createPermission(_fileId: string, role: string, type: string, emailAddress?: string): Promise<any> {
         return { id: "perm-" + Math.random(), role, type, emailAddress, displayName: emailAddress ? emailAddress.split('@')[0] : "User" };
     }
 
-    async listPermissions(fileId: string): Promise<any[]> {
+    async listPermissions(_fileId: string): Promise<any[]> {
         return [];
     }
 
-    async deletePermission(fileId: string, permissionId: string): Promise<void> { }
+    async deletePermission(_fileId: string, _permissionId: string): Promise<void> { }
 
     async createSpreadsheet(title: string, sheetTitles: string[], properties?: Record<string, string>): Promise<string> {
         const id = await this.createFile(title, sheetTitles, properties);
@@ -171,7 +171,7 @@ export class InMemoryAdapter implements IStorageLayer {
         return id;
     }
 
-    async getSpreadsheet(spreadsheetId: string, fields?: string): Promise<any> {
+    async getSpreadsheet(spreadsheetId: string, _fields?: string): Promise<any> {
         const sheet = this.sheets.get(spreadsheetId);
         if (!sheet) throw new Error("File not found");
 
