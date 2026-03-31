@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import SettlementModal from "../settlement-modal";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { quozen } from "@/lib/storage";
+import { useMutation } from "@tanstack/react-query";
 import en from "@/locales/en/translation.json";
 import { Member } from "@quozen/core";
 

@@ -1,4 +1,4 @@
-import { Route, Request } from '@playwright/test';
+import { Route } from '@playwright/test';
 import { InMemoryAdapter } from '@quozen/core';
 
 // Polyfill self.crypto for Node environment if needed

@@ -42,7 +42,7 @@ export function useSettings() {
     mutationFn: (newSettings: UserSettings) => {
       return quozen.groups.saveSettings(newSettings);
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_, variables) => {
       queryClient.setQueryData(queryKey, variables);
       queryClient.invalidateQueries({ queryKey: ["drive", "groups", user?.email] });
     },

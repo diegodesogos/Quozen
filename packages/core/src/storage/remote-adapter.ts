@@ -53,7 +53,7 @@ export class RemoteMockAdapter implements IStorageLayer {
         return data.access;
     }
 
-    async listFiles(query: string, fields?: string): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any, properties?: Record<string, string> }>> {
+    async listFiles(query: string, _fields?: string): Promise<Array<{ id: string, name: string, createdTime: string, owners: any[], capabilities: any, properties?: Record<string, string> }>> {
         const res = await this.fetch(`/files?q=${encodeURIComponent(query)}`);
         const data = await res.json() as any;
         return data.files || [];

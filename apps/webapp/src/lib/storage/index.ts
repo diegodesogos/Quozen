@@ -26,7 +26,7 @@ export const getQuozen = (): QuozenClient => {
 };
 
 export const quozen = new Proxy({} as QuozenClient, { 
-    get(target, prop) { 
+    get(_, prop) { 
         return (getQuozen() as any)[prop]; 
     } 
 });

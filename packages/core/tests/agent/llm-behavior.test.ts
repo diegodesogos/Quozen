@@ -127,7 +127,7 @@ describe.runIf(shouldRun)('AI Goal: Intelligence Validation (Ollama + InMemory)'
         {
             name: "Vague Request Rejection",
             prompt: "What is the weather like today?",
-            verify: async (beforeCount: { expenses: number, settlements: number }, result: any) => {
+            verify: async (beforeCount: { expenses: number, settlements: number }, _result: any) => {
                 const expenses = await client.ledger(groupId).getExpenses();
                 const settlements = await client.ledger(groupId).getSettlements();
                 expect(expenses.length).toBe(beforeCount.expenses);

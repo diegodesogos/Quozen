@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/auth-provider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { User as UserIcon, Settings, HelpCircle, LogOut, Mail, RefreshCw, AlertCircle, Coins, Globe, Sparkles, Cpu, Key, Bot } from "lucide-react";
+import { User as UserIcon, Settings, HelpCircle, LogOut, Mail, RefreshCw, AlertCircle, Coins, Globe, Sparkles, Key, Bot } from "lucide-react";
 import { quozen } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/use-settings";
@@ -13,7 +13,6 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useTranslation } from "react-i18next";
 import React from "react";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useAiFeature } from "@/features/agent/AiFeatureContext";
 import { agentClient } from "@/lib/agent";
 import { AiProviderFactory } from "@quozen/core";
@@ -63,7 +62,7 @@ export default function Profile() {
   const { settings, updateSettings, updateSettingsAsync } = useSettings();
   const { groups } = useGroups();
   const { t } = useTranslation();
-  const { status: aiStatus } = useAiFeature();
+  const { } = useAiFeature();
   const [apiKey, setApiKey] = React.useState("");
   const [draftProvider, setDraftProvider] = React.useState(settings?.preferences?.aiProvider || "auto");
   const [draftOllamaUrl, setDraftOllamaUrl] = React.useState(settings?.preferences?.ollamaBaseUrl || "");
@@ -91,7 +90,7 @@ export default function Profile() {
         description: t("profile.reconcileDesc"),
       });
     },
-    onError: (error) => {
+    onError: (_error) => {
       toast({
         title: t("profile.scanFailed"),
         description: t("profile.scanFailedDesc"),

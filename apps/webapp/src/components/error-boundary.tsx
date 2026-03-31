@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from "react";
+import { Component, ErrorInfo, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { withTranslation, WithTranslation } from "react-i18next";
@@ -25,10 +25,6 @@ class ErrorBoundary extends Component<Props, State> {
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Uncaught error:", error, errorInfo);
   }
-
-  private handleReload = () => {
-    window.location.reload();
-  };
 
   private handleReset = () => {
     // Clear storage if it's likely a auth/token issue

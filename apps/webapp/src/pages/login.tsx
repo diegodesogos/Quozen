@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/auth-provider";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import SiteFooter from "@/components/site-footer";
 import { useTranslation, Trans } from "react-i18next";

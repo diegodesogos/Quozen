@@ -177,8 +177,8 @@ export function getDirectSettlementDetails(
     otherBalance: number
 ): { amount: number; fromUserId: string; toUserId: string } {
     let amount = 0;
-    let fromUserId = currentUserId;
-    let toUserId = otherUserId;
+    let fromUserId: string;
+    let toUserId: string;
 
     // Calculate logical settlement: Intersection of absolute balances if signs are opposite
     if ((currentBalance < 0 && otherBalance > 0) || (currentBalance > 0 && otherBalance < 0)) {

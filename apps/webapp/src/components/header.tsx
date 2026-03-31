@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Bell, ChevronDown, Users, RefreshCw, ChevronLeft } from "lucide-react";
+import { ChevronDown, Users, RefreshCw, ChevronLeft } from "lucide-react";
 import GroupSwitcherModal from "./group-switcher-modal";
 import { useState } from "react";
 import { quozen } from "@/lib/storage";

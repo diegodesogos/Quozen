@@ -1,14 +1,24 @@
 import { vi } from 'vitest';
-import { InMemoryAdapter, StorageService } from '../src';
+import { InMemoryAdapter, QuozenClient } from '../src';
 
 // Mock global fetch if needed (for google drive adapter tests in isolation later)
 global.fetch = vi.fn();
 
 /**
- * Helper to create a storage service with an in-memory adapter for testing.
+ * Helper to create a QuozenClient with an in-memory adapter for testing.
  */
-export const createTestStorageService = () => {
-    return new StorageService(new InMemoryAdapter());
+export const createTestClient = () => {
+    const mockUser = {
+        id: 'test-u1',
+        username: 'testuser',
+        email: 'test@example.com',
+        name: 'Test User'
+    };
+
+    return new QuozenClient({
+        storage: new InMemoryAdapter(),
+        user: mockUser
+    });
 };
 
 /**
