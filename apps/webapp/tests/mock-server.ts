@@ -9,7 +9,7 @@ if (!global.crypto) {
     (global as any).crypto = require('crypto');
 }
 
-class MockServer {
+export class MockServer {
     public adapter: InMemoryAdapter;
     private _latencyMs: number = 0;
     private _nextErrorStatus: number | null = null;
@@ -285,5 +285,3 @@ class MockServer {
         }
     }
 }
-
-export const mockServer = new MockServer();

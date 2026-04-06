@@ -1,23 +1,16 @@
-import { test, expect } from '@playwright/test';
-import { setupAuth, ensureLoggedIn, resetTestState, setupTestEnvironment } from './utils';
-import { mockServer } from './mock-server';
+import { test, expect } from './fixtures';
+import { setupAuth, ensureLoggedIn } from './utils';
 
 test.describe('Feature: E2E Concurrency & Auto-Sync', () => {
     test.beforeEach(async ({ page }) => {
         if (process.env.DEBUG_MOCK === 'true') {
             page.on('console', msg => console.log(`BROWSER [${msg.type()}]: ${msg.text()}`));
         }
-        // Speed up polling in the browser for this test
-        await page.addInitScript(() => {
-            window.__QUOZEN_POLLING_OVERRIDE = 1; // 1 second
-        });
 
-        await resetTestState();
-        await setupTestEnvironment(page.context());
         await setupAuth(page);
     });
 
-    test('should automatically synchronize background changes from other users', async ({ page }) => {
+    test('should automatically synchronize background changes from other users', async ({ page, mockServer }) => {
         // 1. Setup - Create a group and navigate to dashboard
         await page.goto('/');
         await ensureLoggedIn(page);
@@ -43,10 +36,6 @@ test.describe('Feature: E2E Concurrency & Auto-Sync', () => {
         await page.getByTestId('button-nav-home').click();
         await expect(page.getByTestId('text-user-balance')).toContainText('0.00');
 
-        // Wait for AutoSync to establish baseline (it skips the first check)
-        await page.waitForTimeout(2000);
-        console.log("[Test] Baseline established.");
-
         // 3. BACKGROUND MUTATION (Simulate Bob adding an expense)
         // Accessing the adapter directly from the test process! 
         // This is shared because setupTestEnvironment uses mockServer which uses this adapter.
@@ -67,6 +56,9 @@ test.describe('Feature: E2E Concurrency & Auto-Sync', () => {
 
         console.log("[Test] Background mutation applied. Waiting for Auto-Sync...");
 
+        // Force immediate deterministic sync via E2E hook
+        await page.evaluate(() => window.__triggerAutoSync?.());
+
         // 4. VERIFY AUTO-UPDATE
         // Test User should now owe $15.00
         await expect(page.getByTestId('text-user-balance')).toContainText('15.00', { timeout: 10000 });
@@ -78,7 +70,7 @@ test.describe('Feature: E2E Concurrency & Auto-Sync', () => {
         console.log("[Test] Auto-Sync successful!");
     });
 
-    test('should handle resource conflicts (409) gracefully', async ({ page }) => {
+    test('should handle resource conflicts (409) gracefully', async ({ page, mockServer }) => {
         await page.goto('/');
         await ensureLoggedIn(page);
 

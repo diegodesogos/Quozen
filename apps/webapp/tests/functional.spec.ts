@@ -1,11 +1,9 @@
-import { test, expect } from '@playwright/test';
-import { setupAuth, ensureLoggedIn, isMockMode, resetTestState, setupTestEnvironment } from './utils';
+import { test, expect } from './fixtures';
+import { setupAuth, ensureLoggedIn, isMockMode } from './utils';
 
 test.describe('Functional Flow', () => {
     // Inject auth token if in Mock mode and setup request interception
     test.beforeEach(async ({ page }) => {
-        await resetTestState(); // Ensure clean state for every test
-        await setupTestEnvironment(page.context()); // <--- CRITICAL: Intercept /_test/storage requests
         await setupAuth(page);
     });
 

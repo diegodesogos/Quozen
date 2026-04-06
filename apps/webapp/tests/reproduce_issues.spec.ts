@@ -1,5 +1,5 @@
-
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
+import { MockServer } from './mock-server';
 import {
     isMockMode,
     setupAuth,
@@ -9,8 +9,7 @@ import {
     deleteFile,
     createEmptySettingsFile,
     createDummyGroup,
-    fetchFileContent,
-    resetTestState
+    fetchFileContent
 } from './utils';
 
 const SETTINGS_FILE_NAME = "quozen-settings.json";
@@ -22,8 +21,9 @@ test.describe.serial('Google Drive Persistence Reproduction', () => {
 
     test.beforeAll(async ({ browser }) => {
         // Prepare a page to get token
+        const tempServer = new MockServer();
         const context = await browser.newContext();
-        await setupTestEnvironment(context);
+        await setupTestEnvironment(context, tempServer);
         const page = await context.newPage();
 
         await setupAuth(page); // Injects mock token if mock mode
@@ -47,36 +47,28 @@ test.describe.serial('Google Drive Persistence Reproduction', () => {
         await context.close();
     });
 
-    test.beforeEach(async ({ context }) => {
-        await setupTestEnvironment(context); // Setup routes for default context (if used)
-
-        if (isMockMode) {
-            await resetTestState();
-        } else {
-            // Clean up settings file using a temporary context/request
-            // We can use the test context request if setupTestEnvironment passes routes.
-            // But helpers take valid request.
-
+    test.beforeEach(async ({ context, mockServer }) => {
+        if (!isMockMode) {
             const request = context.request;
 
-            const files = await findFiles(request, accessToken, `name = '${SETTINGS_FILE_NAME}'`);
+            const files = await findFiles(request, accessToken, `name = '${SETTINGS_FILE_NAME}'`, mockServer);
             for (const file of files) {
                 console.log(`Deleting existing settings file: ${file.id}`);
-                await deleteFile(request, accessToken, file.id);
+                await deleteFile(request, accessToken, file.id, mockServer);
             }
         }
     });
 
-    test('Reproduction: App cleans up duplicate settings files on load (Self-Healing)', async ({ browser }) => {
+    test('Reproduction: App cleans up duplicate settings files on load (Self-Healing)', async ({ browser, mockServer }) => {
         const context = await browser.newContext();
-        await setupTestEnvironment(context);
+        await setupTestEnvironment(context, mockServer);
 
         // 1. Manually create TWO settings files to simulate a race condition anomaly
-        await createEmptySettingsFile(context.request, accessToken);
-        await createEmptySettingsFile(context.request, accessToken);
+        await createEmptySettingsFile(context.request, accessToken, mockServer);
+        await createEmptySettingsFile(context.request, accessToken, mockServer);
 
         // Verify there are at least 2
-        let files = await findFiles(context.request, accessToken, `name = '${SETTINGS_FILE_NAME}'`);
+        let files = await findFiles(context.request, accessToken, `name = '${SETTINGS_FILE_NAME}'`, mockServer);
         expect(files.length).toBeGreaterThanOrEqual(2);
 
         // 2. Open app and let it load (this triggers getSettings -> deduplication cleanup)
@@ -92,18 +84,18 @@ test.describe.serial('Google Drive Persistence Reproduction', () => {
         await page.waitForTimeout(5000);
 
         // Check Drive for duplicates
-        files = await findFiles(context.request, accessToken, `name = '${SETTINGS_FILE_NAME}'`);
+        files = await findFiles(context.request, accessToken, `name = '${SETTINGS_FILE_NAME}'`, mockServer);
         expect(files.length, 'App should have cleaned up duplicates leaving exactly one settings file').toBe(1);
 
         await context.close();
     });
 
-    test('Reproduction: App should handle empty settings file gracefully', async ({ browser }) => {
+    test('Reproduction: App should handle empty settings file gracefully', async ({ browser, mockServer }) => {
         const context = await browser.newContext();
-        await setupTestEnvironment(context); // Hook routes
+        await setupTestEnvironment(context, mockServer); // Hook routes
 
         // Ensure empty settings file exists
-        await createEmptySettingsFile(context.request, accessToken);
+        await createEmptySettingsFile(context.request, accessToken, mockServer);
 
         await context.addInitScript(({ token, profile }) => {
             localStorage.setItem("quozen_access_token", token);
@@ -115,10 +107,10 @@ test.describe.serial('Google Drive Persistence Reproduction', () => {
 
         await page.waitForTimeout(5000);
 
-        const files = await findFiles(context.request, accessToken, `name = '${SETTINGS_FILE_NAME}'`);
+        const files = await findFiles(context.request, accessToken, `name = '${SETTINGS_FILE_NAME}'`, mockServer);
         expect(files.length).toBeGreaterThan(0);
 
-        const text = await fetchFileContent(context.request, accessToken, files[0].id);
+        const text = await fetchFileContent(context.request, accessToken, files[0].id, mockServer);
 
         // The expectation for a working app: it should have repaired the file.
         // If this test fails, it mimics the user report (file creates empty/stays empty).
@@ -128,13 +120,13 @@ test.describe.serial('Google Drive Persistence Reproduction', () => {
         await context.close();
     });
 
-    test('Reproduction: Reconciliation should find existing groups', async ({ browser }) => {
+    test('Reproduction: Reconciliation should find existing groups', async ({ browser, mockServer }) => {
         const context = await browser.newContext();
-        await setupTestEnvironment(context);
+        await setupTestEnvironment(context, mockServer);
 
         // Setup: No settings file (handled by beforeEach), but some group files exist.
         const groupName = `ReproGroup_${Date.now()}`;
-        const groupFile = await createDummyGroup(context.request, accessToken, groupName);
+        const groupFile = await createDummyGroup(context.request, accessToken, groupName, mockServer);
         console.log(`Created dummy group: ${groupFile.name} (${groupFile.id})`);
 
         try {
@@ -153,7 +145,7 @@ test.describe.serial('Google Drive Persistence Reproduction', () => {
 
         } finally {
             // Cleanup group
-            await deleteFile(context.request, accessToken, groupFile.id);
+            await deleteFile(context.request, accessToken, groupFile.id, mockServer);
             await context.close();
         }
     });

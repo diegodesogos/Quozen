@@ -1,5 +1,5 @@
 import { Page, BrowserContext, APIRequestContext, expect } from '@playwright/test';
-import { mockServer } from './mock-server';
+import { MockServer } from './mock-server';
 
 const mockValue = process.env.VITE_USE_MOCK_STORAGE;
 export const isMockMode = mockValue === 'true' || mockValue === 'remote';
@@ -33,20 +33,11 @@ export async function setupAuth(page: Page) {
  * Initializes the test environment.
  * In Mock Mode: Intercepts network requests to the mock storage API.
  */
-export async function setupTestEnvironment(context: BrowserContext) {
-    if (isMockMode) {
+export async function setupTestEnvironment(context: BrowserContext, mockServerInstance: MockServer) {
+    if (isMockMode && mockServerInstance) {
         await context.route(`${MOCK_API_BASE}/**`, async (route) => {
-            await mockServer.handle(route);
+            await mockServerInstance.handle(route);
         });
-    }
-}
-
-/**
- * Resets the mock server state.
- */
-export async function resetTestState() {
-    if (isMockMode) {
-        mockServer.reset();
     }
 }
 
@@ -85,10 +76,10 @@ export async function getAccessToken(page: Page): Promise<string> {
 /**
  * Helper to make requests to either Google Drive or Mock API.
  */
-async function apiRequest(request: APIRequestContext, method: string, url: string, token: string, body?: any) {
-    if (isMockMode) {
+async function apiRequest(request: APIRequestContext, method: string, url: string, token: string, body?: any, mockServerInstance?: MockServer) {
+    if (isMockMode && mockServerInstance) {
         // Direct dispatch to mock server in the same process
-        const res = await mockServer.dispatch(method, url, body);
+        const res = await mockServerInstance.dispatch(method, url, body);
 
         return {
             ok: () => res.status >= 200 && res.status < 300,
@@ -119,7 +110,7 @@ async function apiRequest(request: APIRequestContext, method: string, url: strin
     return response;
 }
 
-export async function findFiles(request: APIRequestContext, token: string, search: string) {
+export async function findFiles(request: APIRequestContext, token: string, search: string, mockServerInstance?: MockServer) {
     let url: string;
     if (isMockMode) {
         // Mock API uses q param
@@ -129,27 +120,27 @@ export async function findFiles(request: APIRequestContext, token: string, searc
         url = `${DRIVE_API_URL}/files?q=${encodeURIComponent(q)}&fields=files(id, name)`;
     }
 
-    const res = await apiRequest(request, 'GET', url, token);
+    const res = await apiRequest(request, 'GET', url, token, undefined, mockServerInstance);
     const data = await res.json() as any;
     return data.files || [];
 }
 
-export async function deleteFile(request: APIRequestContext, token: string, fileId: string) {
+export async function deleteFile(request: APIRequestContext, token: string, fileId: string, mockServerInstance?: MockServer) {
     const url = isMockMode
         ? `${MOCK_API_BASE}/files/${fileId}`
         : `${DRIVE_API_URL}/files/${fileId}`;
 
-    await apiRequest(request, 'DELETE', url, token);
+    await apiRequest(request, 'DELETE', url, token, undefined, mockServerInstance);
 }
 
-export async function createEmptySettingsFile(request: APIRequestContext, token: string) {
+export async function createEmptySettingsFile(request: APIRequestContext, token: string, mockServerInstance?: MockServer) {
     if (isMockMode) {
         // In Mock mode, create a FILE that matches the settings name.
         // The App's reconciliation logic will find this file via listFiles.
         const res = await apiRequest(request, 'POST', `${MOCK_API_BASE}/files`, token, {
             name: SETTINGS_FILE_NAME,
             sheetNames: []
-        });
+        }, mockServerInstance);
         const data = await res.json() as any;
         return data.id;
     } else {
@@ -157,13 +148,13 @@ export async function createEmptySettingsFile(request: APIRequestContext, token:
             name: SETTINGS_FILE_NAME,
             mimeType: "application/json"
         };
-        const res = await apiRequest(request, 'POST', `${DRIVE_API_URL}/files`, token, metadata);
+        const res = await apiRequest(request, 'POST', `${DRIVE_API_URL}/files`, token, metadata, mockServerInstance);
         const data = await res.json() as any;
         return data.id;
     }
 }
 
-export async function createDummyGroup(request: APIRequestContext, token: string, name: string) {
+export async function createDummyGroup(request: APIRequestContext, token: string, name: string, mockServerInstance?: MockServer) {
     // Ensure consistency: Real mode prepends "Quozen - ", Mock mode should too.
     const fullName = name.startsWith("Quozen - ") ? name : `Quozen - ${name}`;
     const properties = { quozen_type: 'group', version: '1.0' };
@@ -173,7 +164,7 @@ export async function createDummyGroup(request: APIRequestContext, token: string
             name: fullName,
             sheetNames: ["Expenses", "Settlements", "Members"],
             properties: properties // Add properties for strict reconciliation
-        });
+        }, mockServerInstance);
         const data = await res.json() as any;
         const id = data.id;
         return { id, name: fullName };
@@ -184,27 +175,27 @@ export async function createDummyGroup(request: APIRequestContext, token: string
             name: fullName,
             mimeType: "application/vnd.google-apps.spreadsheet"
         };
-        const res = await apiRequest(request, 'POST', `${DRIVE_API_URL}/files`, token, metadata);
+        const res = await apiRequest(request, 'POST', `${DRIVE_API_URL}/files`, token, metadata, mockServerInstance);
         const data = await res.json() as any;
         const fileId = data.id;
 
         // 2. Add Properties (Drive API doesn't allow setting properties on CREATE for some file types, safe to do patch)
         await apiRequest(request, 'PATCH', `${DRIVE_API_URL}/files/${fileId}`, token, {
             properties: properties
-        });
+        }, mockServerInstance);
 
         return data;
     }
 }
 
-export async function fetchFileContent(request: APIRequestContext, token: string, fileId: string) {
+export async function fetchFileContent(request: APIRequestContext, token: string, fileId: string, mockServerInstance?: MockServer) {
     if (isMockMode) {
         const opts = encodeURIComponent(JSON.stringify({ alt: 'media' }));
-        const res = await apiRequest(request, 'GET', `${MOCK_API_BASE}/files/${fileId}?options=${opts}`, token);
+        const res = await apiRequest(request, 'GET', `${MOCK_API_BASE}/files/${fileId}?options=${opts}`, token, undefined, mockServerInstance);
         const json = await res.json();
         return JSON.stringify(json);
     } else {
-        const res = await apiRequest(request, 'GET', `${DRIVE_API_URL}/files/${fileId}?alt=media`, token);
+        const res = await apiRequest(request, 'GET', `${DRIVE_API_URL}/files/${fileId}?alt=media`, token, undefined, mockServerInstance);
         return await res.text();
     }
 }

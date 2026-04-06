@@ -1,13 +1,11 @@
-import { test, expect } from '@playwright/test';
-import { setupAuth, ensureLoggedIn, resetTestState, setupTestEnvironment } from './utils';
+import { test, expect } from './fixtures';
+import { setupAuth, ensureLoggedIn } from './utils';
 
 test.describe('Feature: Ledger Math & Complete CRUD Lifecycle', () => {
     test.beforeEach(async ({ page }) => {
         if (process.env.DEBUG_MOCK === 'true') {
             page.on('console', msg => console.log(`BROWSER [${msg.type()}]: ${msg.text()}`));
         }
-        await resetTestState();
-        await setupTestEnvironment(page.context());
         await setupAuth(page); // Bypasses auth, sets mock-token-123
     });
 

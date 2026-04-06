@@ -1,21 +1,66 @@
-import { test, expect } from '@playwright/test';
-import { setupAuth, ensureLoggedIn, resetTestState, setupTestEnvironment } from './utils';
+import { test, expect } from './fixtures';
+import { setupAuth, ensureLoggedIn } from './utils';
 
 test.describe('V3: AI Agent Integration', () => {
     test.beforeEach(async ({ page }) => {
-        await resetTestState();
-        await setupTestEnvironment(page.context());
+        // 1. Force Ollama Health Check to pass (Guarantees AI activates regardless of env vars)
+        await page.route('**/api/tags', async route => {
+            await route.fulfill({
+                status: 200,
+                headers: { 'Access-Control-Allow-Origin': '*' },
+                contentType: 'application/json',
+                body: JSON.stringify({ models: [{ name: 'mock-model' }] })
+            });
+        });
 
-        // Intercept proxy availability check
-        await page.route('http://localhost:8788/', async route => {
+        // 2. Force Ollama Chat Response
+        await page.route('**/api/chat', async route => {
+            if (route.request().method() === 'OPTIONS') {
+                await route.fulfill({
+                    status: 200,
+                    headers: {
+                        'Access-Control-Allow-Origin': '*',
+                        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+                        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+                    }
+                });
+                return;
+            }
+            await route.fulfill({
+                status: 200,
+                headers: { 'Access-Control-Allow-Origin': '*' },
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    message: {
+                        tool_calls: [{
+                            function: {
+                                name: 'addExpense',
+                                arguments: {
+                                    description: 'AI Generated Dinner',
+                                    amount: 45,
+                                    category: 'Food & Dining',
+                                    paidByUserId: 'test-user-id',
+                                    splits: [{ userId: 'test-user-id', amount: 45 }]
+                                }
+                            }
+                        }]
+                    }
+                })
+            });
+        });
+
+        // 3. Fallback: Intercept Proxy Health Check
+        const proxyHealthMock = async (route: any) => {
             await route.fulfill({
                 status: 200,
                 headers: { 'Access-Control-Allow-Origin': '*' },
                 body: 'Quozen AI Proxy is Running'
             });
-        });
+        };
+        await page.route('http://localhost:8788', proxyHealthMock);
+        await page.route('http://localhost:8788/', proxyHealthMock);
 
-        // Intercept chat request
+        // 4. Fallback: Intercept Proxy Chat
         await page.route('**/api/v1/agent/chat', async route => {
             if (route.request().method() === 'OPTIONS') {
                 await route.fulfill({
