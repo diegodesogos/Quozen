@@ -70,7 +70,7 @@ We must document the explicit NPM script contracts so that AI agents know exactl
 
 The following tasks will consolidate the testing architecture into centralized, agent-readable documentation.
 
-**Task \[DOC-01\]: Create `docs/testing-architecture.md`**
+**Task \[DOC-01\]: Create `docs/testing-architecture.md`** [DONE]
 
 * **Description:** Create the definitive guide for testing in the repository. It must include:  
   1. The Decision Flow tree (which tier to use).  
@@ -79,18 +79,18 @@ The following tasks will consolidate the testing architecture into centralized, 
   4. A strict warning to agents/humans: "Do NOT write E2E tests against the real Google Drive API unless reproducing a specific file-system anomaly."  
 * **Technical Definition of Done:** Markdown file exists in `/docs`, containing clear code examples of how to inject dependencies for unit tests vs E2E tests.
 
-**Task \[DOC-02\]: Update Root `README.md`**
+**Task \[DOC-02\]: Update Root `README.md`** [DONE] 
 
 * **Description:** Refactor the existing "Testing" section in the root `README.md`. Replace the verbose explanations with a high-level summary of the 3 Tiers, and add a prominent link pointing to `docs/testing-architecture.md` for developers and AI agents planning new features.  
 * **Technical Definition of Done:** `README.md` is updated and clearly directs readers to the comprehensive guide.  
 * **Dependencies:** Blocked by \[DOC-01\].
 
-**Task \[DOC-03\]: Centralize AI Test Documentation**
+**Task \[DOC-03\]: Centralize AI Test Documentation** [DONE]  
 
 * **Description:** The file `packages/core/tests/agent/README.md` currently holds valuable tier information. Move this content into the new `docs/testing-architecture.md` under a specific "AI & Agent Testing" section, and replace the contents of `packages/core/tests/agent/README.md` with a link to the central doc.  
 * **Technical Definition of Done:** Information is deduplicated. AI agents indexing the repository only have one source of truth for testing infrastructure.
 
-**Task \[CODE-01\]: Add TDD/Agent JSDoc Annotations to Mock Infrastructure**
+**Task \[CODE-01\]: Add TDD/Agent JSDoc Annotations to Mock Infrastructure** [DONE]
 
 * **Description:** Add verbose JSDoc comments to `apps/webapp/tests/mock-server.ts` and `packages/core/src/storage/memory-adapter.ts`. AI coding assistants (like Copilot/Cursor) heavily weight JSDoc comments when generating autocomplete suggestions.  
   * Annotate `forceNextError` explaining *when* an agent should use it (e.g., "Use this to test UI error boundaries without complex network mocking").  
