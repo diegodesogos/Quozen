@@ -15,10 +15,10 @@ test.describe('Feature: E2E Concurrency & Auto-Sync', () => {
         await page.goto('/');
         await ensureLoggedIn(page);
 
-        await page.getByRole('button', { name: 'New Group' }).click();
-        await page.getByLabel(/Group Name/i).fill('Sync Validation Trip');
-        await page.getByRole('button', { name: /Create Group|Create/i }).click();
-        await expect(page.getByText(/Success/i).first()).toBeVisible();
+        await page.getByTestId('button-empty-create-group').or(page.getByTestId('button-new-group')).first().click();
+        await page.getByTestId('input-group-name').fill('Sync Validation Trip');
+        await page.getByTestId('button-submit-group').click();
+        await expect(page.getByTestId('toast-default').first()).toBeVisible();
         await page.keyboard.press('Escape');
 
         // Wait for group to settle
@@ -75,25 +75,25 @@ test.describe('Feature: E2E Concurrency & Auto-Sync', () => {
         await ensureLoggedIn(page);
 
         // Create group
-        await page.getByRole('button', { name: 'New Group' }).click();
-        await page.getByLabel(/Group Name/i).fill('Conflict Trip');
-        await page.getByRole('button', { name: /Create Group|Create/i }).click();
-        await expect(page.getByText(/Success/i).first()).toBeVisible();
+        await page.getByTestId('button-empty-create-group').or(page.getByTestId('button-new-group')).first().click();
+        await page.getByTestId('input-group-name').fill('Conflict Trip');
+        await page.getByTestId('button-submit-group').click();
+        await expect(page.getByTestId('toast-default').first()).toBeVisible();
         await page.keyboard.press('Escape');
         await expect(page.getByTestId('header')).not.toContainText(/Select Group/i, { timeout: 15000 });
         await expect(page.getByTestId('header')).toContainText('Conflict Trip');
 
         // Add an initial expense
         await page.getByTestId('button-nav-add').click();
-        await expect(page.getByRole('heading', { name: /Add Expense/i })).toBeVisible();
+        await expect(page.getByTestId('drawer-title-add-expense')).toBeVisible();
 
         await page.getByTestId('input-expense-description').fill('Conflict Item');
         await page.getByTestId('input-expense-amount').fill('10');
         await page.getByTestId('select-category').click();
-        await page.getByRole('option', { name: 'Food & Dining' }).click();
+        await page.getByRole('option').nth(0).click();
 
         await page.getByTestId('button-submit-expense').click();
-        await expect(page.getByRole('heading', { name: /Add Expense/i })).not.toBeVisible();
+        await expect(page.getByTestId('drawer-title-add-expense')).not.toBeVisible();
 
         await page.evaluate(() => {
             // Hard to find expenseId from here, let's just find the last expense
@@ -108,7 +108,7 @@ test.describe('Feature: E2E Concurrency & Auto-Sync', () => {
         await expect(item).toBeVisible();
         await item.click();
 
-        await expect(page.getByRole('heading', { name: /Edit Expense/i })).toBeVisible();
+        await expect(page.getByTestId('drawer-title-edit-expense')).toBeVisible();
 
         // 3. SIMULATE ANOTHER USER CHANGING IT (Modify in background)
         // Just force next error
@@ -119,8 +119,7 @@ test.describe('Feature: E2E Concurrency & Auto-Sync', () => {
         await page.getByTestId('button-submit-expense').click();
 
         // Verify Conflict Modal
-        await expect(page.getByText(/modified/i)).toBeVisible();
-        await expect(page.getByText(/Conflict/i)).toBeVisible();
+        await expect(page.getByTestId('alert-conflict-title')).toBeVisible();
         console.log("[Test] Conflict handled!");
     });
 });

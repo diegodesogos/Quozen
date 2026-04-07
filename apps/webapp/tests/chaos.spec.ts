@@ -12,8 +12,8 @@ test.describe('Feature: E2E Chaos & Latency', () => {
         console.log("[Test] Latency injected (1.5s)");
 
         await page.goto('/', { waitUntil: 'domcontentloaded' });
-        // Should show "Loading..." from App.tsx
-        const appLoading = page.getByText(/Loading/i).first();
+        // Should show app-loading from App.tsx
+        const appLoading = page.getByTestId('app-loading');
         await expect(appLoading).toBeVisible({ timeout: 5000 });
         console.log("[Test] App loading visible.");
 

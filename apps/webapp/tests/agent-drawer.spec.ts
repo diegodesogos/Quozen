@@ -99,22 +99,22 @@ test.describe('V3: AI Agent Integration', () => {
         await page.goto('/');
         await ensureLoggedIn(page);
 
-        await page.getByRole('button', { name: /new group/i }).click();
-        await page.getByLabel('Group Name').fill('AI Group');
-        await page.getByRole('button', { name: /create group/i }).click();
+        await page.getByTestId('button-empty-create-group').or(page.getByTestId('button-new-group')).first().click();
+        await page.getByTestId('input-group-name').fill('AI Group');
+        await page.getByTestId('button-submit-group').click();
 
-        const shareTitle = page.getByRole('heading', { name: /Share "AI Group"/i });
+        const shareTitle = page.getByTestId('drawer-title-share');
         await expect(shareTitle).toBeVisible({ timeout: 10_000 });
         await page.keyboard.press('Escape'); // Close share dialog
         await expect(shareTitle).not.toBeVisible({ timeout: 5_000 });
 
         await page.getByTestId('button-ai-assistant').click();
-        await expect(page.getByRole('heading', { name: /AI Assistant/i })).toBeVisible();
+        await expect(page.getByTestId('drawer-title-ai')).toBeVisible();
 
         await page.getByPlaceholder(/Type or dictate/i).fill('Add 45 for dinner');
         await page.getByTestId('button-ai-submit').click();
 
-        await expect(page.getByRole('heading', { name: /AI Assistant/i })).not.toBeVisible({ timeout: 5000 });
+        await expect(page.getByTestId('drawer-title-ai')).not.toBeVisible({ timeout: 5000 });
         await expect(page.getByText('AI Generated Dinner').first()).toBeVisible({ timeout: 5000 });
     });
 });

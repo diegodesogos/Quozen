@@ -3,17 +3,17 @@ import { setupAuth, ensureLoggedIn } from './utils';
 import { MockServer } from './mock-server';
 
 async function createGroup(page: any, mockServer: MockServer, name: string, members: string[] = []): Promise<string> {
-    await page.getByRole('button', { name: /new group/i }).click();
-    await page.getByLabel('Group Name').fill(name);
+    await page.getByTestId('button-empty-create-group').or(page.getByTestId('button-new-group')).first().click();
+    await page.getByTestId('input-group-name').fill(name);
 
     for (const member of members) {
-        await page.getByLabel('Members (Optional)').fill(member);
+        await page.getByTestId('input-group-members').fill(member);
         await page.keyboard.press('Enter');
     }
 
-    await page.getByRole('button', { name: /create group/i }).click();
+    await page.getByTestId('button-submit-group').click();
 
-    const shareTitle = page.getByRole('heading', { name: new RegExp(`Share "${name}"`, 'i') });
+    const shareTitle = page.getByTestId('drawer-title-share');
     await expect(shareTitle).toBeVisible({ timeout: 10_000 });
     await page.keyboard.press('Escape');
     await expect(shareTitle).not.toBeVisible({ timeout: 5_000 });
@@ -71,20 +71,20 @@ test.describe('T4: Concurrency & Auto-Sync', () => {
         await expect(page.getByTestId('header').getByText('Conflict Group')).toBeVisible();
 
         await page.getByTestId('button-nav-add').click();
-        await expect(page.getByRole('heading', { name: /add expense/i })).toBeVisible();
+        await expect(page.getByTestId('drawer-title-add-expense')).toBeVisible();
 
         await page.getByTestId('input-expense-description').fill('Initial Dinner');
         await page.getByTestId('input-expense-amount').fill('30');
         await page.getByTestId('select-category').click();
-        await page.getByRole('option', { name: 'Other' }).click();
+        await page.getByRole('option').nth(0).click();
         await page.getByTestId('button-submit-expense').click();
-        await expect(page.getByRole('heading', { name: /add expense/i })).not.toBeVisible({ timeout: 5_000 });
+        await expect(page.getByTestId('drawer-title-add-expense')).not.toBeVisible({ timeout: 5_000 });
 
         // Navigate to the expense and open edit form — this loads expense.updatedAt into the form
         await page.getByTestId('button-nav-expenses').click();
         await page.getByText('Initial Dinner').click();
         await expect(page).toHaveURL(/edit-expense/);
-        await expect(page.getByRole('heading', { name: /edit expense/i })).toBeVisible();
+        await expect(page.getByTestId('drawer-title-edit-expense')).toBeVisible();
 
         // Get the expense ID from the URL
         const expenseId = page.url().split('/edit-expense/')[1];
@@ -98,6 +98,6 @@ test.describe('T4: Concurrency & Auto-Sync', () => {
 
         await page.getByTestId('button-submit-expense').click();
 
-        await expect(page.getByText('Data Conflict')).toBeVisible({ timeout: 5_000 });
+        await expect(page.getByTestId('alert-conflict-title')).toBeVisible({ timeout: 5_000 });
     });
 });
