@@ -93,9 +93,15 @@ export function AuthenticatedApp() {
         console.warn("Session expired detected in App. Logging out.");
         logout();
         navigate("/login");
+      } else if (errMsg.includes("403") || errMsg.includes("Forbidden")) {
+        console.error("403 Forbidden detected. The user likely didn't grant Google Drive permissions.");
+        logout();
+        navigate("/login", { 
+          state: { message: t("join.accessDenied") || "Google Drive access denied. Please grant permissions when signing in." } 
+        });
       }
     }
-  }, [settingsError, logout, navigate]);
+  }, [settingsError, logout, navigate, t]);
 
   const handleSetActiveGroupId = (groupId: string) => {
     setActiveGroupIdState(groupId);

@@ -15,7 +15,11 @@ export default function Login() {
   // Clear message on component mount
   useEffect(() => {
     if (location.state?.message) {
-      navigate(location.pathname, { replace: true, state: {} });
+      // Preserve the 'from' location so we don't lose the redirect target
+      navigate(location.pathname, { 
+        replace: true, 
+        state: { from: location.state.from } 
+      });
     }
   }, [location, navigate]);
 
