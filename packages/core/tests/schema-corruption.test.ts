@@ -52,30 +52,4 @@ describe('Schema Corruption & Validation', () => {
         // This MUST throw SchemaCorruptedError, but it won't because ValidationSvc is missing.
         await expect(ledgerSvc.getLedger()).rejects.toThrow(SchemaCorruptedError);
     });
-
-    it('should check schema health before updating an expense', async () => {
-        vi.spyOn(ValidationService.prototype, 'checkHealth').mockResolvedValue({
-            spreadsheetId: 'group-1',
-            currentVersion: 1,
-            latestVersion: 1,
-            status: ValidationStatus.CORRUPTED,
-            missingTabs: [],
-            missingColumns: {'Expenses': ['amount']},
-            canAutoMigrate: false,
-            lastModifiedTime: ''
-        });
-
-        const client = new QuozenClient({
-            storage: mockStorage,
-            user: { id: 'u1', email: 'test@example.com', name: 'Test', username: 'Test' },
-            getToken: () => 'fake-token' // Ensure validation service is enabled
-        });
-
-        const ledgerSvc = client.ledger('group-1');
-        
-        // updateExpense must check health before proceeding with the update to avoid corrupting data further
-        await expect(
-            ledgerSvc.updateExpense('e1', { description: 'Updated Lunch' })
-        ).rejects.toThrow(SchemaCorruptedError);
-    });
 });

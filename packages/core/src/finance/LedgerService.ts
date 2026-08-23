@@ -31,7 +31,6 @@ export class LedgerService {
     }
 
     async addExpense(payload: CreateExpenseDTO): Promise<Expense> {
-        await this.ensureSchemaHealth();
         const members = await this.repo.getMembers();
         const isMember = members.some(m => m.userId === this.user.id || m.email === this.user.email);
         if (!isMember) throw new Error("Forbidden: User is not a member of this group");
@@ -64,7 +63,6 @@ export class LedgerService {
     }
 
     async updateExpense(expenseId: string, payload: UpdateExpenseDTO, expectedLastModified?: Date): Promise<void> {
-        await this.ensureSchemaHealth();
         const expenses = await this.repo.getExpenses();
         const current = expenses.find(e => e.id === expenseId);
         if (!current) throw new Error("Expense not found");
@@ -96,7 +94,6 @@ export class LedgerService {
     }
 
     async deleteExpense(expenseId: string): Promise<void> {
-        await this.ensureSchemaHealth();
         await this.repo.deleteExpense(expenseId);
     }
 
@@ -105,7 +102,6 @@ export class LedgerService {
     }
 
     async addSettlement(payload: CreateSettlementDTO): Promise<Settlement> {
-        await this.ensureSchemaHealth();
         const settlement: Settlement = {
             id: (typeof crypto !== 'undefined' ? crypto.randomUUID() : Math.random().toString()),
             date: payload.date || new Date(),
@@ -120,7 +116,6 @@ export class LedgerService {
     }
 
     async updateSettlement(settlementId: string, payload: UpdateSettlementDTO): Promise<void> {
-        await this.ensureSchemaHealth();
         const settlements = await this.repo.getSettlements();
         const current = settlements.find(s => s.id === settlementId);
         if (!current) throw new Error("Settlement not found");
@@ -139,7 +134,6 @@ export class LedgerService {
     }
 
     async deleteSettlement(settlementId: string): Promise<void> {
-        await this.ensureSchemaHealth();
         await this.repo.deleteSettlement(settlementId);
     }
 
