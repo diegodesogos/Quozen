@@ -10,19 +10,21 @@ export class LedgerService {
     constructor(private repo: LedgerRepository, private user: User, private validationSvc?: ValidationService, private groupId?: string) { }
 
     private async ensureSchemaHealth(): Promise<void> {
-        if (this.validationSvc && this.groupId) {
-            try {
-                const health = await this.validationSvc.checkHealth(this.groupId);
-                if (health.status === ValidationStatus.CORRUPTED || health.status === ValidationStatus.INCOMPATIBLE) {
-                    throw new SchemaCorruptedError();
-                }
-                if (health.status === ValidationStatus.UPGRADE_REQUIRED) {
-                    throw new SchemaUpgradeRequiredError();
-                }
-            } catch (e: any) {
-                if (e instanceof SchemaCorruptedError || e instanceof SchemaUpgradeRequiredError) throw e;
-                // Otherwise ignore, might be offline or no token
-            }
+        if (!this.validationSvc || !this.groupId) return;
+
+        let health;
+        try {
+            health = await this.validationSvc.checkHealth(this.groupId);
+        } catch (e: any) {
+            // Ignore network or fetch errors during health check
+            return;
+        }
+
+        if (health.status === ValidationStatus.CORRUPTED || health.status === ValidationStatus.INCOMPATIBLE) {
+            throw new SchemaCorruptedError();
+        }
+        if (health.status === ValidationStatus.UPGRADE_REQUIRED) {
+            throw new SchemaUpgradeRequiredError();
         }
     }
 
