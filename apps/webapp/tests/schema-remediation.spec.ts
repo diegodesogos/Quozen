@@ -42,6 +42,6 @@ test.describe('Schema Remediation', () => {
 
         // Should disappear
         await expect(page.getByText('Group File Corrupted')).not.toBeVisible({ timeout: 10000 });
-        await expect(page.getByText('Group schema updated successfully')).toBeVisible();
+        await expect(page.getByText('Group schema updated successfully').first()).toBeVisible();
     });
 });
