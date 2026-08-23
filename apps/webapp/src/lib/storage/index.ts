@@ -22,7 +22,13 @@ export const getQuozen = (): QuozenClient => {
             : new GoogleDriveStorageLayer(getAuthToken);
     }
 
-    return new QuozenClient({ storage: cachedAdapter, user, enableCache: true, cacheTtlMs: 30000 });
+    return new QuozenClient({ 
+        storage: cachedAdapter, 
+        user, 
+        enableCache: true, 
+        cacheTtlMs: 30000,
+        getToken: getAuthToken 
+    });
 };
 
 export const quozen = new Proxy({} as QuozenClient, { 
