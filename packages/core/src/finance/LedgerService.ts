@@ -16,8 +16,12 @@ export class LedgerService {
         try {
             health = await this.validationSvc.checkHealth(this.groupId);
         } catch (e: any) {
-            // Ignore network or fetch errors during health check
-            return;
+            // Ignore network or fetch errors during health check (for offline cache support)
+            // But if it's a parsing error or unexpected crash, treat it as corruption rather than silently bypassing validation.
+            if (e.message && (e.message.toLowerCase().includes('fetch') || e.message.toLowerCase().includes('network'))) {
+                return;
+            }
+            throw new SchemaCorruptedError();
         }
 
         if (health.status === ValidationStatus.CORRUPTED || health.status === ValidationStatus.INCOMPATIBLE) {

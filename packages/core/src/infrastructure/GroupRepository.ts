@@ -170,8 +170,11 @@ export class GroupRepository {
                     const validationSvc = new ValidationService(this.getToken);
                     const health = await validationSvc.checkHealth(spreadsheetId);
                     status = health.status;
-                } catch (e) {
+                } catch (e: any) {
                     console.warn("ValidationService check failed", e);
+                    if (!e.message || (!e.message.toLowerCase().includes('fetch') && !e.message.toLowerCase().includes('network'))) {
+                        status = ValidationStatus.CORRUPTED;
+                    }
                 }
             }
 
