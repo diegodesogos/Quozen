@@ -32,6 +32,16 @@ export class LedgerService {
         }
     }
 
+    public async repairSchema(): Promise<void> {
+        if (!this.validationSvc || !this.groupId) throw new Error("Validation service not available");
+        await this.validationSvc.repairFile(this.groupId);
+    }
+
+    public async migrateSchema(): Promise<void> {
+        if (!this.validationSvc || !this.groupId) throw new Error("Validation service not available");
+        await this.validationSvc.migrateFile(this.groupId);
+    }
+
     async getExpenses(): Promise<Expense[]> {
         return this.repo.getExpenses();
     }

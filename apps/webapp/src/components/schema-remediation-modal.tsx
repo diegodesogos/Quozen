@@ -3,7 +3,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, Dr
 import { Button } from "@/components/ui/button";
 import { useAppContext } from "@/context/app-context";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { quozen } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 
@@ -23,10 +23,11 @@ export default function SchemaRemediationModal() {
 
   const { mutate: repair, isPending: isRepairing } = useMutation({
     mutationFn: async () => {
+      if (!activeGroupId) throw new Error("No active group");
       if (schemaErrorStatus === 'UPGRADE_REQUIRED') {
-        return apiRequest('POST', `/api/v1/groups/${activeGroupId}/migrate`);
+        return quozen.ledger(activeGroupId).migrateSchema();
       } else {
-        return apiRequest('POST', `/api/v1/groups/${activeGroupId}/repair`);
+        return quozen.ledger(activeGroupId).repairSchema();
       }
     },
     onSuccess: () => {
