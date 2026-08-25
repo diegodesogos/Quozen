@@ -34,7 +34,18 @@ export class ValidationService {
         const token = getToken();
         if (!token) throw new Error("ValidationService requires a valid Google access token.");
         
-        this.client = new GoogleSheetsFetchClient({ accessToken: token });
+        this.client = new GoogleSheetsFetchClient({
+            accessToken: token,
+            fetchImpl: async (url: string | Request | URL, init?: RequestInit) => {
+                const finalInit = init ? { ...init } : {};
+                if (finalInit.method === 'GET' && finalInit.headers) {
+                    const headers = new Headers(finalInit.headers as any);
+                    headers.delete('Content-Type');
+                    finalInit.headers = headers;
+                }
+                return globalThis.fetch(url, finalInit);
+            }
+        });
         this.validator = new SchemaValidator(this.client);
         this.migrationManager = new MigrationManager(this.client);
     }
