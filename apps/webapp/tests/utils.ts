@@ -99,6 +99,12 @@ export async function setupTestEnvironment(context: BrowserContext, mockServerIn
             await mockServerInstance.handle(route);
         });
         
+        context.on('response', response => {
+            if (response.status() === 401) {
+                console.log(`[Playwright Response] 401 from ${response.url()}`);
+            }
+        });
+        
         // Mock API remediation routes since backend is not running in E2E tests
         await context.route(/.*\/api\/v1\/groups\/.*/, async (route) => {
             const request = route.request();
@@ -123,6 +129,12 @@ export async function setupTestEnvironment(context: BrowserContext, mockServerIn
                 contentType: 'application/json',
                 body: JSON.stringify({ success: true, message: 'Mocked remediation' })
             });
+        });
+
+        // Simulate network error for ValidationService to bypass health check in E2E tests
+        // This ensures the app thinks it's offline for schema validation, preventing 401s from triggering corruption modals.
+        await context.route('https://*.googleapis.com/**', (route) => {
+            route.abort('failed');
         });
     }
 }

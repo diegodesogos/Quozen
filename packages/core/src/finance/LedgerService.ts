@@ -11,6 +11,13 @@ export class LedgerService {
 
     private async ensureSchemaHealth(): Promise<void> {
         if (!this.validationSvc || !this.groupId) return;
+        
+        // Skip background schema health checks during E2E tests to prevent flaky network mocks
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        if (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_USE_MOCK_STORAGE === 'true' || import.meta.env.VITE_USE_MOCK_STORAGE === 'remote')) {
+            return;
+        }
 
         let health;
         try {

@@ -8,6 +8,8 @@ test.describe('Schema Remediation', () => {
     });
 
     test('should show schema corruption modal and repair it', async ({ page }) => {
+        page.on('console', msg => console.log(`[Browser Console] ${msg.type()}: ${msg.text()}`));
+        page.on('pageerror', err => console.log(`[Browser PageError] ${err.message}`));
         await page.goto('/groups');
         await ensureLoggedIn(page);
 
@@ -37,8 +39,27 @@ test.describe('Schema Remediation', () => {
         // The modal should appear
         await expect(page.getByText('Group File Corrupted')).toBeVisible({ timeout: 10000 });
 
+        // Mock Google APIs to simulate successful repair instead of the offline abort defined globally
+        await page.route('https://*.googleapis.com/**', async (route) => {
+            console.log(`[Playwright] Intercepted Google API: ${route.request().method()} ${route.request().url()}`);
+            if (route.request().method() === 'OPTIONS') {
+                await route.fulfill({ status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': '*', 'Access-Control-Allow-Headers': '*' } });
+                return;
+            }
+            await route.fulfill({
+                status: 200,
+                headers: { 'Access-Control-Allow-Origin': '*' },
+                contentType: 'application/json',
+                body: JSON.stringify({})
+            });
+        });
+
         // Click repair
         await page.getByRole('button', { name: 'Attempt Repair' }).click();
+
+        // Wait a short moment to let the mutation begin, then unroute so that invalidateQueries() uses the global abort
+        await page.waitForTimeout(500);
+        await page.unroute('https://*.googleapis.com/**');
 
         // Should disappear
         await expect(page.getByText('Group File Corrupted')).not.toBeVisible({ timeout: 10000 });
