@@ -1,11 +1,15 @@
 import { IStorageLayer } from "./IStorageLayer";
 import { Expense, Settlement, Member } from "../domain/models";
-import { SheetDataMapper } from "./SheetDataMapper";
+import { SheetDataMapper, HeaderMap, DEFAULT_EXPENSE_MAP, DEFAULT_SETTLEMENT_MAP, DEFAULT_MEMBER_MAP } from "./SheetDataMapper";
 
 export class LedgerRepository {
     private expenseRowMap = new Map<string, number>();
     private settlementRowMap = new Map<string, number>();
     private memberRowMap = new Map<string, number>();
+
+    private expenseHeaderMap: HeaderMap = DEFAULT_EXPENSE_MAP;
+    private settlementHeaderMap: HeaderMap = DEFAULT_SETTLEMENT_MAP;
+    private memberHeaderMap: HeaderMap = DEFAULT_MEMBER_MAP;
 
     constructor(private storage: IStorageLayer, private groupId: string) { }
 
@@ -14,37 +18,54 @@ export class LedgerRepository {
     }
 
     async getMembers(): Promise<Member[]> {
-        const res = await this.storage.batchGetValues(this.groupId, ["Members!A2:Z"]);
+        const res = await this.storage.batchGetValues(this.groupId, ["Members!A1:Z"]);
         const rows = res[0]?.values || [];
-        return rows.map((r: any[], i: number) => {
-            const mapped = SheetDataMapper.mapToMember(r, i + 2);
+        if (rows.length === 0) return [];
+
+        const headers = rows[0].map((h: any) => String(h).trim());
+        this.memberHeaderMap = headers.reduce((acc: HeaderMap, h: string, i: number) => { acc[h] = i; return acc; }, {} as HeaderMap);
+
+        return rows.slice(1).map((r: any[], i: number) => {
+            const mapped = SheetDataMapper.mapToMember(r, i + 2, this.memberHeaderMap);
             this.memberRowMap.set(mapped.entity.userId, mapped.rowIndex);
             return mapped.entity;
         });
     }
 
     async getExpenses(): Promise<Expense[]> {
-        const res = await this.storage.batchGetValues(this.groupId, ["Expenses!A2:Z"]);
+        const res = await this.storage.batchGetValues(this.groupId, ["Expenses!A1:Z"]);
         const rows = res[0]?.values || [];
-        return rows.map((r: any[], i: number) => {
-            const mapped = SheetDataMapper.mapToExpense(r, i + 2);
+        if (rows.length === 0) return [];
+
+        const headers = rows[0].map((h: any) => String(h).trim());
+        this.expenseHeaderMap = headers.reduce((acc: HeaderMap, h: string, i: number) => { acc[h] = i; return acc; }, {} as HeaderMap);
+
+        return rows.slice(1).map((r: any[], i: number) => {
+            const mapped = SheetDataMapper.mapToExpense(r, i + 2, this.expenseHeaderMap);
             this.expenseRowMap.set(mapped.entity.id, mapped.rowIndex);
             return mapped.entity;
         });
     }
 
     async getSettlements(): Promise<Settlement[]> {
-        const res = await this.storage.batchGetValues(this.groupId, ["Settlements!A2:Z"]);
+        const res = await this.storage.batchGetValues(this.groupId, ["Settlements!A1:Z"]);
         const rows = res[0]?.values || [];
-        return rows.map((r: any[], i: number) => {
-            const mapped = SheetDataMapper.mapToSettlement(r, i + 2);
+        if (rows.length === 0) return [];
+
+        const headers = rows[0].map((h: any) => String(h).trim());
+        this.settlementHeaderMap = headers.reduce((acc: HeaderMap, h: string, i: number) => { acc[h] = i; return acc; }, {} as HeaderMap);
+
+        return rows.slice(1).map((r: any[], i: number) => {
+            const mapped = SheetDataMapper.mapToSettlement(r, i + 2, this.settlementHeaderMap);
             this.settlementRowMap.set(mapped.entity.id, mapped.rowIndex);
             return mapped.entity;
         });
     }
 
     async addExpense(expense: Expense): Promise<void> {
-        const row = SheetDataMapper.mapFromExpense(expense);
+        // Ensure header map is populated
+        if (Object.keys(this.expenseHeaderMap).length === 0 || this.expenseHeaderMap === DEFAULT_EXPENSE_MAP) await this.getExpenses();
+        const row = SheetDataMapper.mapFromExpense(expense, this.expenseHeaderMap);
         await this.storage.appendValues(this.groupId, "Expenses!A1", [row]);
         await this.touchGroup();
     }
@@ -56,7 +77,7 @@ export class LedgerRepository {
         const rowIndex = this.expenseRowMap.get(expense.id);
         if (!rowIndex) throw new Error("Expense not found");
 
-        const row = SheetDataMapper.mapFromExpense(expense);
+        const row = SheetDataMapper.mapFromExpense(expense, this.expenseHeaderMap);
         await this.storage.updateValues(this.groupId, `Expenses!A${rowIndex}:Z${rowIndex}`, [row]);
         await this.touchGroup();
     }
@@ -79,7 +100,9 @@ export class LedgerRepository {
     }
 
     async addSettlement(settlement: Settlement): Promise<void> {
-        const row = SheetDataMapper.mapFromSettlement(settlement);
+        // Ensure header map is populated
+        if (Object.keys(this.settlementHeaderMap).length === 0 || this.settlementHeaderMap === DEFAULT_SETTLEMENT_MAP) await this.getSettlements();
+        const row = SheetDataMapper.mapFromSettlement(settlement, this.settlementHeaderMap);
         await this.storage.appendValues(this.groupId, "Settlements!A1", [row]);
         await this.touchGroup();
     }
@@ -91,7 +114,7 @@ export class LedgerRepository {
         const rowIndex = this.settlementRowMap.get(settlement.id);
         if (!rowIndex) throw new Error("Settlement not found");
 
-        const row = SheetDataMapper.mapFromSettlement(settlement);
+        const row = SheetDataMapper.mapFromSettlement(settlement, this.settlementHeaderMap);
         await this.storage.updateValues(this.groupId, `Settlements!A${rowIndex}:Z${rowIndex}`, [row]);
         await this.touchGroup();
     }
@@ -114,7 +137,9 @@ export class LedgerRepository {
     }
 
     async addMember(member: Member): Promise<void> {
-        const row = SheetDataMapper.mapFromMember(member);
+        // Ensure header map is populated
+        if (Object.keys(this.memberHeaderMap).length === 0 || this.memberHeaderMap === DEFAULT_MEMBER_MAP) await this.getMembers();
+        const row = SheetDataMapper.mapFromMember(member, this.memberHeaderMap);
         await this.storage.appendValues(this.groupId, "Members!A1", [row]);
         await this.touchGroup();
     }
@@ -126,7 +151,7 @@ export class LedgerRepository {
         const rowIndex = this.memberRowMap.get(member.userId);
         if (!rowIndex) throw new Error("Member not found");
 
-        const row = SheetDataMapper.mapFromMember(member);
+        const row = SheetDataMapper.mapFromMember(member, this.memberHeaderMap);
         await this.storage.updateValues(this.groupId, `Members!A${rowIndex}:Z${rowIndex}`, [row]);
         await this.touchGroup();
     }
@@ -158,7 +183,7 @@ export class LedgerRepository {
             
             const rowIndex = this.memberRowMap.get(oldUserId);
             if (rowIndex) {
-                const row = SheetDataMapper.mapFromMember(member);
+                const row = SheetDataMapper.mapFromMember(member, this.memberHeaderMap);
                 await this.storage.updateValues(this.groupId, `Members!A${rowIndex}:Z${rowIndex}`, [row]);
                 this.memberRowMap.delete(oldUserId);
                 this.memberRowMap.set(newUserId, rowIndex);

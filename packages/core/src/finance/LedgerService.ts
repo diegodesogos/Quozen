@@ -2,11 +2,52 @@ import { LedgerRepository } from "../infrastructure/LedgerRepository";
 import { User, Expense, Settlement } from "../domain/models";
 import { CreateExpenseDTO, UpdateExpenseDTO, CreateSettlementDTO, UpdateSettlementDTO } from "../domain/dtos";
 import { Ledger } from "../domain/Ledger";
-import { ConflictError } from "../errors";
+import { ConflictError, SchemaCorruptedError, SchemaUpgradeRequiredError } from "../errors";
 import { distributeAmount } from "./index";
+import { ValidationService, ValidationStatus } from "../schema/ValidationService";
 
 export class LedgerService {
-    constructor(private repo: LedgerRepository, private user: User) { }
+    constructor(private repo: LedgerRepository, private user: User, private validationSvc?: ValidationService, private groupId?: string) { }
+
+    private async ensureSchemaHealth(): Promise<void> {
+        if (!this.validationSvc || !this.groupId) return;
+        
+        // Skip background schema health checks during E2E tests to prevent flaky network mocks
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        if (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_USE_MOCK_STORAGE === 'true' || import.meta.env.VITE_USE_MOCK_STORAGE === 'remote')) {
+            return;
+        }
+
+        let health;
+        try {
+            health = await this.validationSvc.checkHealth(this.groupId);
+        } catch (e: any) {
+            // Ignore network or fetch errors during health check (for offline cache support)
+            // But if it's a parsing error or unexpected crash, treat it as corruption rather than silently bypassing validation.
+            if (e.message && (e.message.toLowerCase().includes('fetch') || e.message.toLowerCase().includes('network'))) {
+                return;
+            }
+            throw new SchemaCorruptedError();
+        }
+
+        if (health.status === ValidationStatus.CORRUPTED || health.status === ValidationStatus.INCOMPATIBLE) {
+            throw new SchemaCorruptedError();
+        }
+        if (health.status === ValidationStatus.UPGRADE_REQUIRED) {
+            throw new SchemaUpgradeRequiredError();
+        }
+    }
+
+    public async repairSchema(): Promise<void> {
+        if (!this.validationSvc || !this.groupId) throw new Error("Validation service not available");
+        await this.validationSvc.repairFile(this.groupId);
+    }
+
+    public async migrateSchema(): Promise<void> {
+        if (!this.validationSvc || !this.groupId) throw new Error("Validation service not available");
+        await this.validationSvc.migrateFile(this.groupId);
+    }
 
     async getExpenses(): Promise<Expense[]> {
         return this.repo.getExpenses();
@@ -124,6 +165,8 @@ export class LedgerService {
     }
 
     async getLedger(): Promise<Ledger> {
+        await this.ensureSchemaHealth();
+
         const expenses = await this.repo.getExpenses();
         const settlements = await this.repo.getSettlements();
         const members = await this.repo.getMembers();

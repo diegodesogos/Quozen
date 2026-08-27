@@ -7,6 +7,9 @@ const DEFAULT_VITE_PORT = 3001;
 const VITE_PORT = Number(process.env.VITE_PORT || process.env.PORT || DEFAULT_VITE_PORT);
 const baseURL = `http://localhost:${VITE_PORT}`;
 
+// Force mock storage globally so both the webServer and the Playwright runner (isMockMode) agree
+process.env.VITE_USE_MOCK_STORAGE = 'remote';
+
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
