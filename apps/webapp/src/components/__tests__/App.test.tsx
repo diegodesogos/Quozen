@@ -32,6 +32,10 @@ vi.mock("@/context/auto-sync-context", () => ({
   AutoSyncProvider: ({ children }: any) => <>{children}</>
 }));
 
+vi.mock("@/features/agent/AiFeatureProvider", () => ({
+  AiFeatureProvider: ({ children }: any) => <>{children}</>
+}));
+
 vi.mock("@tanstack/react-query", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@tanstack/react-query")>();
   return {
