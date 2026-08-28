@@ -115,9 +115,18 @@ export class GroupRepository {
 
         await this.storage.batchUpdateValues(fileId, dataToUpdate);
 
+        if (this.getToken) {
+            try {
+                const validationSvc = new ValidationService(this.getToken);
+                await validationSvc.initializeFile(fileId);
+            } catch (e) {
+                console.warn("Failed to initialize file schema on create", e);
+            }
+        }
+
         const settings = await this.getSettings();
         if (!settings.groupCache.some(g => g.id === fileId)) {
-            settings.groupCache.unshift({ id: fileId, name, role: "owner", lastAccessed: new Date().toISOString() });
+            settings.groupCache.unshift({ id: fileId, name, role: "owner", lastAccessed: new Date().toISOString(), validationStatus: ValidationStatus.READY });
         }
         settings.activeGroupId = fileId;
         await this.saveSettings(settings);
