@@ -23,7 +23,7 @@
         "test:ai:live-smoke-test": "cross-env RUN_LOCAL_LLM_TESTS=true vitest run tests/agent/infrastructure-smoke.test.ts"
     },
     "devDependencies": {
-        "tsup": "^8.0.0",
+        "tsup": "^8.5.1",
         "typescript": "^5.0.0"
     },
     "dependencies": {
