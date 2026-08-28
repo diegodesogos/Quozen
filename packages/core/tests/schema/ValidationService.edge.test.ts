@@ -147,4 +147,20 @@ describe("Migrations & Schema Edge Cases", () => {
 
         await expect(repo.updateActiveGroup("corrupted123")).rejects.toThrow("Cannot activate a corrupted group. Please repair it first.");
     });
+
+    it("should initialize file schema and _migrations when creating a new group", async () => {
+        mockStorage.createSpreadsheet = vi.fn().mockResolvedValue("newgroup123");
+        mockStorage.batchUpdateValues = vi.fn().mockResolvedValue(undefined);
+
+        const repo = new GroupRepository(mockStorage, mockUser, () => "fake-token");
+        const group = await repo.create("My New Group");
+
+        expect(mockStorage.createSpreadsheet).toHaveBeenCalled();
+        expect(ValidationService.prototype.initializeFile).toHaveBeenCalledWith("newgroup123");
+        expect(group.id).toBe("newgroup123");
+
+        const settings = await repo.getSettings();
+        expect(settings.groupCache[0].validationStatus).toBe(ValidationStatus.READY);
+    });
 });
+
